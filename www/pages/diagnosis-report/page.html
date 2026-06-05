@@ -1,0 +1,63 @@
+<div class="page-center">
+  <div class="diag-page-header">
+    <div class="diag-page-title">企业诊断报告</div>
+    <div class="diag-page-desc">AI对本企业可见度评价，多模型并行分析</div>
+  </div>
+
+  <div class="diag-info-block">
+    <div class="diag-info-title">标准信息</div>
+    <div class="diag-info-hint">（下面的信息从企业基础信息库引用自动显示，基础库没有的用户自行填写）</div>
+    <table class="diag-info-table">
+      <tbody>
+        <tr>
+          <td class="diag-label">企业全称</td>
+          <td class="diag-field"><input id="dr_enterprise_full_name" placeholder="请输入企业全称" /></td>
+          <td class="diag-label nowrap wide">核心产品服务/行业关键词</td>
+          <td class="diag-field"><input id="dr_main_products" placeholder="请输入核心产品/服务" /></td>
+        </tr>
+        <tr>
+          <td class="diag-label">完整名称</td>
+          <td class="diag-field" colspan="3"><input id="dr_enterprise_full_name_dup" placeholder="请输入完整名称" /></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="diag-model-block">
+    <div class="diag-model-label">选择AI模型</div>
+    <div class="pill-row" style="justify-content:center; margin:0;">
+      <div class="pill active" data-model="doubao"><span class="pill-icon"><img class="llm-svg-img" data-llm-key="doubao" alt="豆包" /><span class="llm-fallback">豆</span></span><div><div class="pill-name">豆包</div></div></div>
+      <div class="pill" data-model="yuanbao"><span class="pill-icon"><img class="llm-svg-img" data-llm-key="yuanbao" alt="元宝" /><span class="llm-fallback">元</span></span><div><div class="pill-name">元宝</div></div></div>
+      <div class="pill" data-model="wenxin"><span class="pill-icon"><img class="llm-svg-img" data-llm-key="wenxin" alt="文心" /><span class="llm-fallback">文</span></span><div><div class="pill-name">文心</div></div></div>
+      <div class="pill" data-model="qianwen"><span class="pill-icon"><img class="llm-svg-img" data-llm-key="qwen" alt="千问" /><span class="llm-fallback">千</span></span><div><div class="pill-name">千问</div></div></div>
+    </div>
+  </div>
+
+  <div class="diag-action-row">
+    <button class="btn-solid" id="runBtn">分析</button>
+  </div>
+
+  <div class="report" style="min-height:360px;">
+    <div class="report-header">模型分析结果</div>
+    <div class="report-body" id="reportBodyModel">
+      <div class="report-placeholder">点击分析按钮后，结果将显示在此处</div>
+    </div>
+  </div>
+
+  <hr class="diag-divider" />
+
+  <div class="diag-action-row">
+    <button class="btn-primary" id="runSummaryBtn">汇总分析</button>
+  </div>
+
+  <div class="report" style="min-height:360px;">
+    <div class="report-header">汇总分析结果</div>
+    <div class="report-body" id="reportBodySummary">
+      <div class="report-placeholder">点击汇总分析按钮后，结果将显示在此处</div>
+    </div>
+  </div>
+
+  <div class="diag-action-row">
+    <button class="btn-primary" id="downloadBtn">下载分析报告</button>
+  </div>
+</div>

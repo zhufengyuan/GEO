@@ -1,0 +1,73 @@
+<div class="page-center">
+  <div class="diag-page-header">
+    <div class="diag-page-title">竞争对手分析</div>
+    <div class="diag-page-desc">主要分析竞争对手在企业品牌知名度、资质、产能规模、产品特点、口碑评价、技术壁垒（专利）、产品交付实力等维度</div>
+  </div>
+
+  <div class="diag-info-block">
+    <div class="diag-info-title">标准信息</div>
+    <div class="diag-info-hint">（下面的信息从企业基础信息库引用自动显示，基础库没有的用户自行填写）</div>
+    <table class="diag-info-table three-col">
+      <tbody>
+        <tr>
+          <td class="diag-label">企业全称</td>
+          <td class="diag-field"><input id="ca_enterprise_full_name" placeholder="请输入企业全称" /></td>
+          <td class="diag-label">官方网址</td>
+          <td class="diag-field"><input id="ca_enterprise_website" placeholder="请输入官方网址（可选）" /></td>
+          <td class="diag-label">完整工商名称</td>
+          <td class="diag-field"><input id="ca_enterprise_full_name_dup" placeholder="请输入完整工商名称" /></td>
+        </tr>
+        <tr>
+          <td class="diag-label">想要对标范围</td>
+          <td class="diag-field"><input id="ca_benchmark_range" placeholder="例如：全国/本地/同行" /></td>
+          <td class="diag-label">服务区域</td>
+          <td class="diag-field"><input id="ca_sales_region" placeholder="请输入服务区域（可选）" /></td>
+          <td class="diag-label">自身现有优势</td>
+          <td class="diag-field"><input id="ca_enterprise_advantage" placeholder="请输入自身现有优势（可选）" /></td>
+        </tr>
+        <tr>
+          <td class="diag-label">核心产品/服务</td>
+          <td class="diag-field" colspan="5"><input id="ca_main_products" placeholder="请输入核心产品/服务" /></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="diag-model-block">
+    <div class="diag-model-label">可用多个大模型进行一一分析</div>
+    <div class="pill-row" style="justify-content:center; margin:0;">
+      <div class="pill active" data-model="doubao"><span class="pill-icon"><img class="llm-svg-img" data-llm-key="doubao" alt="豆包" /><span class="llm-fallback">豆</span></span><div><div class="pill-name">豆包</div></div></div>
+      <div class="pill" data-model="yuanbao"><span class="pill-icon"><img class="llm-svg-img" data-llm-key="yuanbao" alt="元宝" /><span class="llm-fallback">元</span></span><div><div class="pill-name">元宝</div></div></div>
+      <div class="pill" data-model="qianwen"><span class="pill-icon"><img class="llm-svg-img" data-llm-key="qwen" alt="千问" /><span class="llm-fallback">千</span></span><div><div class="pill-name">千问</div></div></div>
+      <div class="pill" data-model="wenxin"><span class="pill-icon"><img class="llm-svg-img" data-llm-key="wenxin" alt="文心" /><span class="llm-fallback">文</span></span><div><div class="pill-name">文心</div></div></div>
+    </div>
+  </div>
+
+  <div class="diag-action-row">
+    <button class="btn-solid" id="runModelBtn">分析</button>
+  </div>
+
+  <div class="report" style="min-height:280px; margin-top: 14px;">
+    <div class="report-header">模型分析结果</div>
+    <div class="report-body" id="reportBodyModel">
+      <div class="report-placeholder">点击分析按钮后，结果将显示在此处</div>
+    </div>
+  </div>
+
+  <hr class="diag-divider" />
+
+  <div class="diag-action-row" style="justify-content:flex-start;">
+    <button class="btn-primary" id="runSummaryBtn">汇总分析</button>
+  </div>
+
+  <div class="report" style="min-height:280px;">
+    <div class="report-header">汇总分析结果</div>
+    <div class="report-body" id="reportBodySummary">
+      <div class="report-placeholder">点击汇总分析按钮后，结果将显示在此处</div>
+    </div>
+  </div>
+
+  <div class="diag-action-row">
+    <button class="btn-primary" id="downloadBtn">下载分析报告</button>
+  </div>
+</div>

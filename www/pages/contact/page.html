@@ -1,0 +1,43 @@
+<div class="page-center" style="max-width: 980px;">
+  <div class="page-title" id="pageTitle" style="margin:0 0 12px;"></div>
+
+  <div class="card" style="padding: 16px;">
+    <div class="page-muted" style="font-weight: 800; margin-bottom: 10px;">请填写信息，提交后工作人员将与您联系</div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div>
+        <div class="page-muted" style="margin-bottom:6px;">姓名</div>
+        <input class="input" id="contactName" placeholder="请输入姓名" style="width:100%; min-width:0;" />
+      </div>
+      <div>
+        <div class="page-muted" style="margin-bottom:6px;">手机号</div>
+        <input class="input" id="contactPhone" placeholder="请输入手机号" style="width:100%; min-width:0;" />
+      </div>
+      <div>
+        <div class="page-muted" style="margin-bottom:6px;">公司名称</div>
+        <input class="input" id="contactCompany" placeholder="请输入公司名称（可选）" style="width:100%; min-width:0;" />
+      </div>
+      <div>
+        <div class="page-muted" style="margin-bottom:6px;">职位</div>
+        <input class="input" id="contactTitle" placeholder="请输入职位（可选）" style="width:100%; min-width:0;" />
+      </div>
+      <div style="grid-column: 1 / -1;">
+        <div class="page-muted" style="margin-bottom:6px;">邮箱</div>
+        <input class="input" id="contactEmail" placeholder="请输入邮箱（可选）" style="width:100%; min-width:0;" />
+      </div>
+      <div style="grid-column: 1 / -1;">
+        <div class="page-muted" style="margin-bottom:6px;">需求描述</div>
+        <textarea class="textarea" id="contactNeed" placeholder="请简单描述您的需求（可选）" style="width:100%; min-height: 120px;"></textarea>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:center; gap: 12px; margin-top: 14px;">
+      <button class="btn-solid" id="contactSubmit">提交</button>
+      <button class="btn-primary" id="contactReset">清空</button>
+    </div>
+
+    <div class="note-box" id="contactTipBox" style="margin-top: 12px; display:none;">
+      <div class="note-red" id="contactTip">提交成功，工作人员将尽快联系您。</div>
+    </div>
+  </div>
+</div>

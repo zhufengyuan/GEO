@@ -1,0 +1,155 @@
+<div class="page-center" style="max-width: 980px;">
+  <div class="page-title" style="margin:0 0 10px;">自媒体发布</div>
+
+  <div class="card mp-card">
+    <div class="step-title">第一步：选择文章</div>
+    <div class="toolbar" style="margin: 10px 0;">
+      <div class="toolbar-left">
+        <input class="input" placeholder="请输入文章名称" />
+        <span class="page-muted">搜索</span>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn-solid" id="filterByDateBtn">按日期筛选</button>
+      </div>
+    </div>
+
+    <div class="table-wrap square" style="margin-bottom: 12px; max-height: 420px; overflow: auto;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 80px;">序号</th>
+            <th>文章名称</th>
+            <th style="width: 160px;">生成日期</th>
+            <th style="width: 120px;">勾选</th>
+          </tr>
+        </thead>
+        <tbody id="pickArticleTable">
+          <tr><td colspan="4" class="empty">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mp-preview">
+      <div class="mp-preview-title">文章展示区</div>
+      <div class="mp-preview-body" id="articlePreview">请先在上方勾选文章</div>
+    </div>
+  </div>
+
+  <div class="card mp-card" style="margin-top: 16px;">
+    <div class="step-title">第二步：选择要发布的平台</div>
+    <div class="page-muted" style="margin: 6px 0 0; font-weight:700;">选择要投放的主要平台</div>
+    <div class="platform-grid mp-platform" style="margin-top: 16px; margin-bottom: 22px;">
+    <label class="mp-item"><input type="checkbox" value="zhihu" /><span class="mp-icon mp-zhihu">知</span><span>知乎</span></label>
+    <label class="mp-item"><input type="checkbox" value="wechat" /><span class="mp-icon mp-wechat">公</span><span>公众号</span></label>
+    <label class="mp-item"><input type="checkbox" value="douyin" /><span class="mp-icon mp-douyin">抖</span><span>抖音</span></label>
+    <label class="mp-item"><input type="checkbox" value="xiaohongshu" /><span class="mp-icon mp-xhs">红</span><span>小红书</span></label>
+    <label class="mp-item"><input type="checkbox" value="baijiahao" /><span class="mp-icon mp-bjh">百</span><span>百家号</span></label>
+    <label class="mp-item"><input type="checkbox" value="toutiao" /><span class="mp-icon mp-tt">头</span><span>头条号</span></label>
+    <label class="mp-item"><input type="checkbox" value="qyhao" /><span class="mp-icon mp-qy">企</span><span>企业号</span></label>
+    <label class="mp-item"><input type="checkbox" value="bilibili" /><span class="mp-icon mp-bili">B</span><span>哔哩</span></label>
+    <label class="mp-item"><input type="checkbox" value="sogou" /><span class="mp-icon mp-sogou">搜</span><span>搜狗</span></label>
+    <label class="mp-item"><input type="checkbox" value="wangyi" /><span class="mp-icon mp-wy">易</span><span>网易</span></label>
+    <label class="mp-item"><input type="checkbox" value="csdn" /><span class="mp-icon mp-csdn">C</span><span>CSDN</span></label>
+  </div>
+
+    <div class="row" style="display:flex; justify-content:center;">
+      <button class="btn-solid" id="publishBtn" style="min-width: 160px;">黏贴转发</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.mp-platform {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 18px 14px;
+}
+
+.mp-card {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.mp-preview {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 12px 14px;
+}
+
+.mp-preview-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.mp-preview-body {
+  min-height: 120px;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.mp-item {
+  width: 100%;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 16px 24px 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.mp-item span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mp-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.mp-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  color: #fff;
+  font-size: 12px;
+}
+
+.mp-zhihu { background: #3b82f6; }
+.mp-wechat { background: #22c55e; }
+.mp-douyin { background: #111827; }
+.mp-xhs { background: #ef4444; }
+.mp-bjh { background: #f97316; }
+.mp-tt { background: #ef4444; }
+.mp-qy { background: #f59e0b; }
+.mp-bili { background: #ec4899; }
+.mp-sogou { background: #f59e0b; }
+.mp-wy { background: #ef4444; }
+.mp-csdn { background: #ef4444; }
+
+@media (max-width: 980px) {
+  .mp-platform {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .mp-platform {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+</style>

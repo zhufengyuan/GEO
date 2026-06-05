@@ -1,0 +1,122 @@
+<div class="page-center" style="max-width: 1100px;">
+  <div class="page-title" id="pageTitle" style="margin:0 0 12px;"></div>
+
+  <div class="toolbar por-toolbar" style="margin-bottom: 12px;">
+    <div class="toolbar-left">
+      <input class="select" id="from" type="date" />
+      <input class="select" id="to" type="date" />
+      <select class="select" id="kw">
+        <option value="">选择任务/关键词</option>
+        <option value="任务 1">任务 1</option>
+      </select>
+    </div>
+    <div class="toolbar-right">
+      <button class="btn-solid" id="refreshBtn">刷新</button>
+      <button class="btn-primary" id="exportPdfBtn">导出PDF</button>
+      <button class="btn-primary" id="exportExcelBtn">导出Excel</button>
+    </div>
+  </div>
+
+  <div class="dashboard-grid por-cards" style="grid-template-columns: repeat(4, 1fr);">
+    <div class="card" style="padding:14px;">
+      <div class="page-muted">舆情总量</div>
+      <div style="font-size:22px;font-weight:900;margin-top:8px;" id="total">0</div>
+    </div>
+    <div class="card" style="padding:14px;">
+      <div class="page-muted">负面舆情</div>
+      <div style="font-size:22px;font-weight:900;margin-top:8px;" id="neg">0</div>
+    </div>
+    <div class="card" style="padding:14px;">
+      <div class="page-muted">正面舆情</div>
+      <div style="font-size:22px;font-weight:900;margin-top:8px;" id="pos">0</div>
+    </div>
+    <div class="card" style="padding:14px;">
+      <div class="page-muted">中性舆情</div>
+      <div style="font-size:22px;font-weight:900;margin-top:8px;" id="neu">0</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px; padding:16px;">
+    <div class="u-row" style="margin-bottom: 10px;">
+      <div class="u-left"><div style="font-weight:900;">趋势变化</div></div>
+    </div>
+    <div id="trend" style="display:grid; grid-template-columns: repeat(7, 1fr); gap: 10px; align-items:end; height: 140px;"></div>
+    <div class="page-muted" style="margin-top:10px;">柱形高度代表热度变化（Mock）。</div>
+  </div>
+
+  <div class="por-two" style="display:grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-top: 12px; align-items: start;">
+    <div>
+      <div class="card" style="padding:16px;">
+        <div style="font-weight:900; margin-bottom: 10px;">热点话题 TOP</div>
+        <div class="table-wrap square">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 70px;">序号</th>
+                <th>话题</th>
+                <th style="width: 120px;">热度</th>
+              </tr>
+            </thead>
+            <tbody id="topicRows">
+              <tr><td colspan="3" class="empty">暂无数据</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="padding:16px;">
+        <div style="font-weight:900; margin-bottom: 10px;">来源分布</div>
+        <div class="table-wrap square">
+          <table>
+            <thead>
+              <tr>
+                <th>平台</th>
+                <th style="width: 120px;">数量</th>
+              </tr>
+            </thead>
+            <tbody id="sourceRows">
+              <tr><td colspan="2" class="empty">暂无数据</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<style>
+.por-toolbar {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.por-toolbar .toolbar-left,
+.por-toolbar .toolbar-right {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .por-cards {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .por-two {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .por-cards {
+    grid-template-columns: 1fr !important;
+  }
+  #trend {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+</style>
+
+  <div class="card" style="margin-top:12px; padding:16px;">
+    <div style="font-weight:900; margin-bottom: 10px;">竞品对比（可选）</div>
+    <div class="page-muted">占位：后续接入竞品关键词与舆情对比数据。</div>
+  </div>
+</div>

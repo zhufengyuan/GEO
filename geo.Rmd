@@ -1,0 +1,1366 @@
+---
+title: "时代科技 - GEO优化管理"
+output: html_document
+runtime: shiny
+---
+
+```{r, echo=FALSE,warning=FALSE,message=FALSE}
+`%||%` <- function(x, y) if (is.null(x) || identical(x, "")) y else x
+
+geo_config <- NULL
+rmd_file <- tryCatch(knitr::current_input(), error = function(e) "")
+rmd_dir <- ""
+if (nzchar(rmd_file)) {
+  rmd_dir <- dirname(normalizePath(rmd_file, winslash = "/", mustWork = FALSE))
+}
+if (!nzchar(rmd_dir)) {
+  rmd_dir <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+}
+cfg_candidates <- unique(Filter(
+  nzchar,
+  c(
+    file.path(rmd_dir, "config.R"),
+    file.path(getwd(), "config.R"),
+    file.path(rmd_dir, "geo_config.R"),
+    file.path(getwd(), "geo_config.R")
+  )
+))
+
+for (f in cfg_candidates) {
+  if (file.exists(f)) {
+    source(f, local = TRUE)
+    if (exists("geo_config", inherits = FALSE) && is.list(geo_config)) {
+      break
+    }
+  }
+}
+
+if (is.null(geo_config) || !is.list(geo_config)) {
+  stop(
+    "未找到 config.R 或配置不正确。\n",
+    "请在项目目录放置 config.R（或 geo_config.R）。"
+  )
+}
+
+geo_root_cfg <- as.character(geo_config$app_dir %||% "")
+api_base_url <- as.character(geo_config$api_base_url %||% "http://127.0.0.1:8000/api/v1")
+
+candidates <- unique(Filter(
+  nzchar,
+  c(
+    geo_root_cfg,
+    file.path(getwd(), "GEO"),
+    rmd_dir,
+    normalizePath(getwd(), winslash = "/", mustWork = FALSE)
+  )
+))
+
+is_geo_root <- function(p) {
+  dir.exists(p) &&
+    dir.exists(file.path(p, "www")) &&
+    file.exists(file.path(p, "www", "index.html"))
+}
+
+geo_root <- ""
+for (p in candidates) {
+  if (is_geo_root(p)) {
+    geo_root <- p
+    break
+  }
+}
+
+if (!nzchar(geo_root)) {
+  stop(
+    "未找到 GEO 前端目录（需要包含 www/index.html）。\n",
+    "请在 config.R 中设置 geo_config$app_dir，例如：\n",
+    "geo_config$app_dir <- normalizePath(getwd(), winslash = '/', mustWork = TRUE)"
+  )
+}
+
+www_dir <- normalizePath(file.path(geo_root, "www"), winslash = "/", mustWork = TRUE)
+shiny::addResourcePath("geo", www_dir)
+
+llm_svg_dir <- as.character(geo_config$llm_svg_dir %||% file.path(geo_root, "svg"))
+llm_svg_dir <- normalizePath(llm_svg_dir, winslash = "/", mustWork = FALSE)
+llm_svg_files <- character(0)
+if (dir.exists(llm_svg_dir)) {
+  shiny::addResourcePath("llm-svg", llm_svg_dir)
+  llm_svg_files <- list.files(llm_svg_dir, pattern = "\\.svg$", ignore.case = TRUE)
+}
+```
+
+```{r, echo=FALSE}
+session <- shiny::getDefaultReactiveDomain()
+
+`%||%` <- function(x, y) if (is.null(x) || identical(x, "")) y else x
+
+backend_llm <- file.path(geo_root, "backend", "llm.R")
+if (file.exists(backend_llm)) {
+  source(backend_llm, local = TRUE)
+}
+
+get_db_config <- function() {
+  db <- geo_config$db_config
+  if (is.null(db) || !is.list(db)) db <- list()
+  list(
+    host = as.character(db$host %||% ""),
+    user = as.character(db$user %||% ""),
+    password = as.character(db$password %||% ""),
+    dbname = as.character(db$dbname %||% "geo"),
+    charset = as.character(db$charset %||% "utf8mb4"),
+    port = suppressWarnings(as.integer(db$port %||% 3306))
+  )
+}
+
+db_ready <- function(cfg) {
+  nzchar(cfg$host) && nzchar(cfg$user) && nzchar(cfg$password) && nzchar(cfg$dbname)
+}
+
+schema_ready <- FALSE
+
+sql_file_path <- function(name) {
+  file.path(getwd(), "rmd", "sql", name)
+}
+
+exec_sql_file <- function(con, name) {
+  p <- sql_file_path(name)
+  if (!file.exists(p)) return(invisible(FALSE))
+  sql <- paste(readLines(p, warn = FALSE), collapse = "\n")
+  parts <- unlist(strsplit(sql, ";", fixed = TRUE))
+  for (x in parts) {
+    s <- trimws(x)
+    if (nchar(s) < 1) next
+    DBI::dbExecute(con, paste0(s, ";"))
+  }
+  invisible(TRUE)
+}
+
+ensure_schema <- function(con) {
+  if (isTRUE(schema_ready)) return(invisible(TRUE))
+  exec_sql_file(con, "schema.sql")
+  schema_ready <<- TRUE
+  invisible(TRUE)
+}
+
+ensure_table <- function(con) { ensure_schema(con) }
+ensure_enterprise_table <- function(con) { ensure_schema(con) }
+ensure_articles_table <- function(con) { ensure_schema(con) }
+ensure_publish_records_table <- function(con) { ensure_schema(con) }
+ensure_products_table <- function(con) { ensure_schema(con) }
+ensure_product_images_table <- function(con) { ensure_schema(con) }
+ensure_enterprise_images_table <- function(con) { ensure_schema(con) }
+ensure_enterprise_image_categories_table <- function(con) { ensure_schema(con) }
+ensure_enterprise_docs_table <- function(con) { ensure_schema(con) }
+ensure_article_links_table <- function(con) { ensure_schema(con) }
+
+ensure_question_words_table <- function(con) {
+  ensure_schema(con)
+
+  has_col <- FALSE
+  try(
+    has_col <- as.integer(DBI::dbGetQuery(
+      con,
+      paste0(
+        "SELECT COUNT(1) AS n FROM information_schema.COLUMNS ",
+        "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'question_words' AND COLUMN_NAME = 'lexicon_id'"
+      )
+    )$n[[1]]) > 0,
+    silent = TRUE
+  )
+  if (!isTRUE(has_col)) {
+    try(DBI::dbExecute(con, "ALTER TABLE question_words ADD COLUMN lexicon_id BIGINT NOT NULL DEFAULT 0 AFTER id"), silent = TRUE)
+  }
+}
+
+ensure_consumption_table <- function(con) { ensure_schema(con) }
+
+insert_consumption <- function(con, payload) {
+  if (is.null(payload) || !is.list(payload)) return(invisible(FALSE))
+  event_type <- as.character(payload$event_type %||% "ui")
+  page <- as.character(payload$page %||% "")
+  action <- as.character(payload$action %||% "")
+  units <- suppressWarnings(as.integer(payload$units %||% NA))
+  amount <- suppressWarnings(as.numeric(payload$amount %||% 0))
+  currency <- as.character(payload$currency %||% "CNY")
+  meta_json <- NULL
+  if (requireNamespace("jsonlite", quietly = TRUE)) {
+    meta_json <- jsonlite::toJSON(payload, auto_unbox = TRUE, null = "null")
+  }
+  db_exec(
+    con,
+    "INSERT INTO consumption_details (event_type, page, action, units, amount, currency, meta_json) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    params = list(event_type, page, action, units, amount, currency, meta_json)
+  )
+  invisible(TRUE)
+}
+
+query_consumption <- function(con, params) {
+  kw <- trimws(as.character(params$kw %||% ""))
+  type <- trimws(as.character(params$type %||% ""))
+  from <- trimws(as.character(params$from %||% ""))
+  to <- trimws(as.character(params$to %||% ""))
+
+  where <- c("1=1")
+  args <- list()
+
+  if (nzchar(type)) {
+    where <- c(where, "event_type = ?")
+    args <- c(args, list(type))
+  }
+  if (nzchar(kw)) {
+    where <- c(where, "(page LIKE ? OR action LIKE ?)")
+    like <- paste0("%", kw, "%")
+    args <- c(args, list(like, like))
+  }
+  if (nzchar(from)) {
+    where <- c(where, "created_at >= ?")
+    args <- c(args, list(paste0(from, " 00:00:00")))
+  }
+  if (nzchar(to)) {
+    where <- c(where, "created_at <= ?")
+    args <- c(args, list(paste0(to, " 23:59:59")))
+  }
+
+  sql <- paste0(
+    "SELECT id, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS created_at, event_type, page, action, units, amount, currency ",
+    "FROM consumption_details WHERE ", paste(where, collapse = " AND "),
+    " ORDER BY created_at DESC LIMIT 200"
+  )
+
+  list_df <- DBI::dbGetQuery(con, sql, params = args)
+
+  month_sql <- "SELECT COALESCE(SUM(amount),0) AS month_amount, COUNT(1) AS month_count FROM consumption_details WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01 00:00:00')"
+  today_sql <- "SELECT COALESCE(SUM(amount),0) AS today_amount FROM consumption_details WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-%d 00:00:00')"
+
+  month_df <- DBI::dbGetQuery(con, month_sql)
+  today_df <- DBI::dbGetQuery(con, today_sql)
+
+  summary <- list(
+    today_amount = as.numeric(today_df$today_amount[[1]] %||% 0),
+    month_amount = as.numeric(month_df$month_amount[[1]] %||% 0),
+    month_count = as.integer(month_df$month_count[[1]] %||% 0)
+  )
+
+  list_out <- list()
+  if (nrow(list_df) > 0) {
+    for (i in seq_len(nrow(list_df))) {
+      list_out[[i]] <- as.list(list_df[i, , drop = FALSE])
+    }
+  }
+
+  list(summary = summary, list = list_out)
+}
+
+db_quote <- function(con, v) {
+  if (is.null(v) || (length(v) > 0 && is.na(v)[1])) return("NULL")
+  v2 <- v[[1]]
+  if (isTRUE(is.numeric(v2)) && is.finite(v2)) return(as.character(v2))
+  if (isTRUE(is.integer(v2)) && is.finite(v2)) return(as.character(v2))
+  as.character(DBI::dbQuoteString(con, as.character(v2)))
+}
+
+db_interpolate <- function(con, sql, params) {
+  if (is.null(params) || length(params) == 0) return(sql)
+  parts <- strsplit(sql, "\\?", perl = TRUE)[[1]]
+  if (length(parts) == 1) return(sql)
+  if ((length(parts) - 1) != length(params)) stop("params length mismatch")
+  out <- parts[[1]]
+  for (i in seq_along(params)) {
+    out <- paste0(out, db_quote(con, params[[i]]), parts[[i + 1]])
+  }
+  out
+}
+
+db_exec <- function(con, sql, params = NULL) {
+  if (is.null(params)) return(DBI::dbExecute(con, sql))
+  out <- NULL
+  tryCatch(
+    {
+      out <- DBI::dbExecute(con, sql, params = params)
+    },
+    error = function(e) {
+      sql2 <- db_interpolate(con, sql, params)
+      out <<- DBI::dbExecute(con, sql2)
+    }
+  )
+  out
+}
+
+db_query <- function(con, sql, params = NULL) {
+  if (is.null(params)) return(DBI::dbGetQuery(con, sql))
+  out <- NULL
+  tryCatch(
+    {
+      out <- DBI::dbGetQuery(con, sql, params = params)
+    },
+    error = function(e) {
+      sql2 <- db_interpolate(con, sql, params)
+      out <<- DBI::dbGetQuery(con, sql2)
+    }
+  )
+  out
+}
+
+db_connect <- function() {
+  if (!requireNamespace("DBI", quietly = TRUE) ||
+      !requireNamespace("RMySQL", quietly = TRUE) ||
+      !requireNamespace("jsonlite", quietly = TRUE)) {
+    shiny::showNotification("缺少数据库依赖包：请安装 DBI、RMySQL、jsonlite", type = "error")
+    return(NULL)
+  }
+  cfg <- get_db_config()
+  if (!db_ready(cfg)) {
+    shiny::showNotification(
+      "未配置数据库连接：请在 config.R 填写 geo_config$db_config(host/user/password/dbname)",
+      type = "warning"
+    )
+    return(NULL)
+  }
+  con <- DBI::dbConnect(
+    RMySQL::MySQL(),
+    host = cfg$host,
+    user = cfg$user,
+    password = cfg$password,
+    dbname = cfg$dbname,
+    port = cfg$port
+  )
+  ensure_table(con)
+  ensure_enterprise_table(con)
+  ensure_articles_table(con)
+  ensure_question_words_table(con)
+  ensure_consumption_table(con)
+  con
+}
+
+query_latest_enterprise <- function(con) {
+  df <- NULL
+  try(
+    df <- DBI::dbGetQuery(
+      con,
+      paste0(
+        "SELECT enterprise_full_name, enterprise_short_name, enterprise_address, enterprise_contact, main_products, target_customers, enterprise_website, founded_time, sales_region, sales_channel, ",
+        "service_response_time, delivery_time, enterprise_advantage, product_advantage, tech_advantage, management_advantage, employee_count, site_area, total_revenue, industry, industry_position, vision, mission, purpose, repurchase_rate, positive_rate, ",
+        "product_service_advantages, certificates_honors, key_clients ",
+        "FROM enterprise_base_info ORDER BY id DESC LIMIT 1"
+      )
+    ),
+    silent = TRUE
+  )
+  if (is.null(df) || nrow(df) == 0) return(list())
+  as.list(df[1, , drop = FALSE])
+}
+
+query_question_lexicons <- function(con, params) {
+  limit <- suppressWarnings(as.integer(params$limit %||% 200))
+  if (!is.finite(limit) || limit <= 0) limit <- 200
+  if (limit > 500) limit <- 500
+
+  sql <- paste0(
+    "SELECT s.id, s.payload_json, DATE_FORMAT(s.created_at, '%Y-%m-%d %H:%i:%s') AS created_at, ",
+    "q.question_text AS first_question, COALESCE(c.cnt, 0) AS question_count ",
+    "FROM geo_ui_saves s ",
+    "LEFT JOIN (SELECT lexicon_id, MIN(seq_no) AS min_seq FROM question_words GROUP BY lexicon_id) m ON m.lexicon_id = s.id ",
+    "LEFT JOIN question_words q ON q.lexicon_id = s.id AND q.seq_no = m.min_seq ",
+    "LEFT JOIN (SELECT lexicon_id, COUNT(1) AS cnt FROM question_words GROUP BY lexicon_id) c ON c.lexicon_id = s.id ",
+    "WHERE s.page = 'question-bank' ORDER BY s.id DESC LIMIT ", as.integer(limit)
+  )
+  df <- DBI::dbGetQuery(con, sql)
+  out <- list()
+  if (nrow(df) > 0) {
+    for (i in seq_len(nrow(df))) {
+      row <- df[i, , drop = FALSE]
+      payload <- NULL
+      try(payload <- jsonlite::fromJSON(row$payload_json[[1]]), silent = TRUE)
+      data <- payload$data %||% list()
+      out[[length(out) + 1]] <- list(
+        id = as.integer(row$id[[1]]),
+        created_at = as.character(row$created_at[[1]]),
+        name = as.character(data$name %||% ""),
+        company = as.character(data$company %||% ""),
+        industry_keyword = as.character(data$industry_keyword %||% ""),
+        decision_stage = as.character(data$decision_stage %||% ""),
+        words = data$words %||% list(),
+        expand_words = as.character(data$expand_words %||% ""),
+        question_keyword = as.character(data$question_keyword %||% data$main_keyword %||% data$industry_keyword %||% ""),
+        first_question = as.character(row$first_question[[1]] %||% ""),
+        question_count = as.integer(row$question_count[[1]] %||% 0)
+      )
+    }
+  }
+  out
+}
+
+query_question_words <- function(con, params) {
+  lexicon_id <- suppressWarnings(as.integer(params$lexicon_id %||% NA))
+  if (!is.finite(lexicon_id) || lexicon_id <= 0) return(list())
+  sql <- paste0(
+    "SELECT seq_no, question_text FROM question_words ",
+    "WHERE lexicon_id = ? ORDER BY seq_no ASC LIMIT 200"
+  )
+  df <- db_query(con, sql, params = list(lexicon_id))
+  if (nrow(df) == 0) {
+    raw <- NULL
+    try(
+      raw <- db_query(con, "SELECT payload_json FROM geo_ui_saves WHERE id = ? AND page = 'question-bank' LIMIT 1", params = list(lexicon_id)),
+      silent = TRUE
+    )
+    if (!is.null(raw) && nrow(raw) > 0) {
+      payload <- NULL
+      try(payload <- jsonlite::fromJSON(raw$payload_json[[1]]), silent = TRUE)
+      if (is.list(payload) && is.list(payload$data)) {
+        try(insert_question_words(con, lexicon_id, payload$data), silent = TRUE)
+      }
+      df <- db_query(con, sql, params = list(lexicon_id))
+    }
+  }
+  out <- list()
+  if (nrow(df) > 0) {
+    for (i in seq_len(nrow(df))) {
+      out[[i]] <- as.list(df[i, , drop = FALSE])
+    }
+  }
+  out
+}
+
+build_question_words <- function(data) {
+  qk <- trimws(as.character(data$question_keyword %||% data$main_keyword %||% data$industry_keyword %||% ""))
+  if (!nzchar(qk)) return(character(0))
+  unique(qk)
+}
+
+insert_question_words <- function(con, lexicon_id, data) {
+  qs <- build_question_words(data)
+  if (length(qs) == 0) return(invisible(FALSE))
+  db_exec(con, "DELETE FROM question_words WHERE lexicon_id = ?", params = list(lexicon_id))
+  gen_date <- Sys.Date()
+  db_exec(
+    con,
+    "INSERT INTO question_words (lexicon_id, enterprise_id, seq_no, question_text, gen_date) VALUES (?, ?, ?, ?, ?)",
+    params = list(lexicon_id, NA, 1L, as.character(qs[[1]]), as.character(gen_date))
+  )
+  invisible(TRUE)
+}
+
+insert_article <- function(con, row) {
+  db_exec(
+    con,
+    paste0(
+      "INSERT INTO articles (title, content, article_type, creation_type, style, tone, brand_embed, enterprise_id) ",
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    ),
+    params = list(
+      as.character(row$title %||% ""),
+      as.character(row$content %||% ""),
+      as.character(row$article_type %||% ""),
+      as.character(row$creation_type %||% ""),
+      as.character(row$style %||% ""),
+      as.character(row$tone %||% ""),
+      if (isTRUE(row$brand_embed)) 1 else 0,
+      row$enterprise_id %||% NA
+    )
+  )
+  as.integer(db_query(con, "SELECT LAST_INSERT_ID() AS id")$id[[1]])
+}
+
+query_articles_list <- function(con, params) {
+  limit <- suppressWarnings(as.integer(params$limit %||% 200))
+  if (!is.finite(limit) || limit <= 0) limit <- 200
+  if (limit > 500) limit <- 500
+  df <- DBI::dbGetQuery(
+    con,
+    paste0(
+      "SELECT id, title, article_type, creation_type, style, tone, brand_embed, ",
+      "DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS created_at ",
+      "FROM articles ORDER BY id DESC LIMIT ", as.integer(limit)
+    )
+  )
+  out <- list()
+  if (nrow(df) > 0) {
+    for (i in seq_len(nrow(df))) {
+      out[[i]] <- as.list(df[i, , drop = FALSE])
+    }
+  }
+  out
+}
+
+query_article_detail <- function(con, id) {
+  id2 <- suppressWarnings(as.integer(id))
+  if (!is.finite(id2) || id2 <= 0) return(NULL)
+  df <- db_query(
+    con,
+    paste0(
+      "SELECT id, title, content, article_type, creation_type, style, tone, brand_embed, ",
+      "DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS created_at ",
+      "FROM articles WHERE id = ? LIMIT 1"
+    ),
+    params = list(id2)
+  )
+  if (is.null(df) || nrow(df) == 0) return(NULL)
+  as.list(df[1, , drop = FALSE])
+}
+
+norm_key <- function(x) {
+  if (is.null(x)) return("")
+  x <- as.character(x)
+  x <- gsub("\\s+", "", x)
+  x <- gsub("[：:（）()]+", "", x)
+  x
+}
+
+map_enterprise_fields <- function(data) {
+  if (is.null(data) || !is.list(data)) return(list())
+  keys <- names(data)
+  if (is.null(keys)) keys <- character(0)
+  key_norm <- setNames(vapply(keys, norm_key, character(1)), keys)
+
+  get_by <- function(pred) {
+    idx <- which(vapply(key_norm, pred, logical(1)))
+    if (length(idx) == 0) return(NULL)
+    val <- data[[names(idx)[1]]]
+    if (is.null(val)) return(NULL)
+    as.character(val)
+  }
+
+  fields <- list(
+    enterprise_full_name = get_by(function(k) identical(k, "企业全称") || identical(k, "企业名称")),
+    enterprise_short_name = get_by(function(k) identical(k, "企业简称")),
+    enterprise_address = get_by(function(k) startsWith(k, "企业地址")),
+    enterprise_contact = get_by(function(k) startsWith(k, "企业联系方式") || identical(k, "联系方式")),
+    main_products = get_by(function(k) identical(k, "主营产品")),
+    target_customers = get_by(function(k) identical(k, "目标客户")),
+    enterprise_website = get_by(function(k) identical(k, "企业官网") || identical(k, "官网网址")),
+    founded_time = get_by(function(k) identical(k, "成立时间")),
+    sales_region = get_by(function(k) identical(k, "销售区域范围")),
+    sales_channel = get_by(function(k) identical(k, "销售方式或渠道")),
+    service_response_time = get_by(function(k) identical(k, "服务响应时间")),
+    delivery_time = get_by(function(k) identical(k, "产品交付时限") || identical(k, "交付时限")),
+    enterprise_advantage = get_by(function(k) identical(k, "企业优势")),
+    product_advantage = get_by(function(k) identical(k, "产品优势")),
+    tech_advantage = get_by(function(k) identical(k, "技术优势")),
+    management_advantage = get_by(function(k) identical(k, "管理模式优势")),
+    employee_count = get_by(function(k) identical(k, "员工数量")),
+    site_area = get_by(function(k) identical(k, "厂房或店面面积") || identical(k, "厂房面积") || identical(k, "店面面积")),
+    total_revenue = get_by(function(k) identical(k, "历史累计营业额") || identical(k, "累计营业额")),
+    industry = get_by(function(k) identical(k, "所在行业") || identical(k, "行业")),
+    industry_position = get_by(function(k) identical(k, "行业地位")),
+    vision = get_by(function(k) identical(k, "企业愿景")),
+    mission = get_by(function(k) identical(k, "企业使命")),
+    purpose = get_by(function(k) identical(k, "企业宗旨")),
+    repurchase_rate = get_by(function(k) identical(k, "客户复购率")),
+    positive_rate = get_by(function(k) identical(k, "客户好评率"))
+  )
+
+  long_fields <- list(
+    product_service_advantages = data[[names(which(key_norm %in% c("产品/服务特点优势", "产品服务特点优势")))[1]]],
+    certificates_honors = data[[names(which(key_norm %in% c("企业资质证书、荣誉证书", "企业资质证书荣誉证书")))[1]]],
+    key_clients = data[[names(which(startsWith(key_norm, "已合作的重要客户")))[1]]]
+  )
+
+  for (nm in names(long_fields)) {
+    v <- long_fields[[nm]]
+    if (!is.null(v)) fields[[nm]] <- as.character(v)
+  }
+
+  fields
+}
+
+insert_save <- function(payload) {
+  if (!requireNamespace("DBI", quietly = TRUE) ||
+      !requireNamespace("RMySQL", quietly = TRUE) ||
+      !requireNamespace("jsonlite", quietly = TRUE)) {
+    shiny::showNotification("缺少数据库依赖包：请安装 DBI、RMySQL、jsonlite", type = "error")
+    return(invisible(FALSE))
+  }
+
+  cfg <- get_db_config()
+  if (!db_ready(cfg)) {
+    shiny::showNotification(
+      "未配置数据库连接：请在 config.R 填写 geo_config$db_config(host/user/password/dbname)",
+      type = "warning"
+    )
+    return(invisible(FALSE))
+  }
+
+  con <- DBI::dbConnect(
+    RMySQL::MySQL(),
+    host = cfg$host,
+    user = cfg$user,
+    password = cfg$password,
+    dbname = cfg$dbname,
+    port = cfg$port
+  )
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  ensure_table(con)
+  ensure_enterprise_table(con)
+  ensure_articles_table(con)
+  ensure_publish_records_table(con)
+  ensure_products_table(con)
+  ensure_product_images_table(con)
+  ensure_enterprise_images_table(con)
+  ensure_enterprise_image_categories_table(con)
+  ensure_enterprise_docs_table(con)
+  ensure_article_links_table(con)
+  ensure_question_words_table(con)
+  ensure_consumption_table(con)
+
+  page <- (payload$page %||% "unknown")
+  payload_json <- jsonlite::toJSON(payload, auto_unbox = TRUE, null = "null")
+  db_exec(con, "INSERT INTO geo_ui_saves (page, payload_json) VALUES (?, ?)", params = list(page, payload_json))
+  save_id <- as.integer(db_query(con, "SELECT LAST_INSERT_ID() AS id")$id[[1]] %||% NA)
+
+  try(insert_consumption(con, list(event_type = "save", page = page, action = "geo_save", units = 1, amount = 0)), silent = TRUE)
+
+  if (identical(page, "question-bank") && identical(payload$action, "create") && is.list(payload$data)) {
+    if (!nzchar(as.character(payload$data$expand_words %||% ""))) {
+      try(
+        payload$data$expand_words <- gen_expand_words(geo_root, payload$data$industry_keyword %||% ""),
+        silent = TRUE
+      )
+    }
+    if (requireNamespace("jsonlite", quietly = TRUE)) {
+      payload_json2 <- jsonlite::toJSON(payload, auto_unbox = TRUE, null = "null")
+      try(db_exec(con, "UPDATE geo_ui_saves SET payload_json = ? WHERE id = ?", params = list(payload_json2, save_id)), silent = TRUE)
+    }
+    try(insert_question_words(con, save_id, payload$data), silent = TRUE)
+  }
+
+  if (identical(page, "knowledge-base") && is.list(payload$data)) {
+    fields <- map_enterprise_fields(payload$data)
+    fields$payload_json <- payload_json
+
+    cols <- names(fields)
+    vals <- unname(fields)
+    cols_sql <- paste(cols, collapse = ", ")
+    placeholders <- paste(rep("?", length(cols)), collapse = ", ")
+    sql <- paste0("INSERT INTO enterprise_base_info (", cols_sql, ") VALUES (", placeholders, ")")
+    db_exec(con, sql, params = as.list(vals))
+  }
+
+  if (identical(page, "knowledge-base") && identical(payload$section, "website") && is.list(payload$data) && identical(payload$data$action, "save")) {
+    urls <- payload$data$urls
+    if (!is.null(urls) && length(urls) > 0) {
+      for (u in urls) {
+        if (is.null(u)) next
+        u2 <- trimws(as.character(u))
+        if (!nzchar(u2)) next
+        db_exec(con, "INSERT INTO article_links (enterprise_id, url) VALUES (?, ?)", params = list(NA, u2))
+      }
+    }
+  }
+
+  if (identical(page, "knowledge-base") && identical(payload$section, "images") && is.list(payload$data) && identical(payload$data$action, "add_category")) {
+    name <- payload$data$name
+    if (!is.null(name)) {
+      name2 <- trimws(as.character(name))
+      if (nzchar(name2)) {
+        DBI::dbExecute(con, "INSERT INTO enterprise_image_categories (enterprise_id, category) VALUES (?, ?)", params = list(NA, name2))
+      }
+    }
+  }
+
+  if (identical(page, "knowledge-base") && identical(payload$section, "products") && is.list(payload$data) && identical(payload$data$action, "save")) {
+    rows <- payload$data$rows
+    if (!is.null(rows) && length(rows) > 0) {
+      for (r in rows) {
+        if (is.null(r) || !is.list(r)) next
+        pn <- trimws(as.character(r$product_name %||% ""))
+        if (!nzchar(pn)) next
+        DBI::dbExecute(
+          con,
+          paste0(
+            "INSERT INTO products (enterprise_id, product_name, core_function, advantages, specs, material, craft, origin, use_scene, target_group, delivery, others) ",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          ),
+          params = list(
+            NA,
+            pn,
+            as.character(r$core_function %||% ""),
+            as.character(r$advantages %||% ""),
+            as.character(r$specs %||% ""),
+            as.character(r$material %||% ""),
+            as.character(r$craft %||% ""),
+            as.character(r$origin %||% ""),
+            as.character(r$use_scene %||% ""),
+            as.character(r$target_group %||% ""),
+            as.character(r$delivery %||% ""),
+            as.character(r$others %||% "")
+          )
+        )
+      }
+    }
+  }
+
+  shiny::showNotification("保存成功", type = "message")
+  invisible(TRUE)
+}
+```
+
+```{r, echo=FALSE, results='asis'}
+shiny::tags$style(shiny::HTML(
+  "html, body { height: 100%; margin: 0; }\n.main-container { max-width: none !important; padding: 0 !important; }\n.row { margin: 0 !important; }\n.col-sm-12 { padding: 0 !important; }"
+))
+```
+
+```{r, echo=FALSE, results='asis'}
+shiny::tags$div(
+  style = "position:fixed;inset:0;",
+  shiny::tags$iframe(
+    src = "geo/index.html",
+    style = "width:100%;height:100%;border:0;display:block;"
+  )
+)
+```
+
+```{r, echo=FALSE, results='asis'}
+shiny::tags$script(shiny::HTML(paste0(
+  "(function(){\n",
+  "function isObj(x){return x && typeof x==='object';}\n",
+  "var lastOfficial = null;\n",
+  "var lastDataStats = null;\n",
+  "var lastPublicOpinionCfg = null;\n",
+  "var lastApiCfg = ", jsonlite::toJSON(list(baseUrl = api_base_url), auto_unbox = TRUE), ";\n",
+  "function postToIframe(type, payload){\n",
+  "var iframe = document.querySelector('iframe');\n",
+  "if(!iframe || !iframe.contentWindow) return false;\n",
+  "iframe.contentWindow.postMessage({type:type, payload: payload}, '*');\n",
+  "return true;\n",
+  "}\n",
+  "function bindIframeLoad(){\n",
+  "var iframe = document.querySelector('iframe');\n",
+  "if(!iframe) return;\n",
+  "iframe.addEventListener('load', function(){\n",
+  "if(lastOfficial) postToIframe('geo_official_publish_data', lastOfficial);\n",
+  "if(lastDataStats) postToIframe('geo_data_statistics_data', lastDataStats);\n",
+  "if(lastPublicOpinionCfg) postToIframe('geo_public_opinion_config', lastPublicOpinionCfg);\n",
+  "if(lastApiCfg) postToIframe('geo_api_config', lastApiCfg);\n",
+  "});\n",
+  "}\n",
+  "bindIframeLoad();\n",
+  "window.addEventListener('message', function(event){\n",
+  "var d = event.data;\n",
+  "if(!isObj(d)) return;\n",
+  "if(d.type === 'geo_request_api_config'){\n",
+  "if(lastApiCfg) postToIframe('geo_api_config', lastApiCfg);\n",
+  "return;\n",
+  "}\n",
+  "if(d.type === 'geo_request_official_publish_data'){\n",
+  "if(lastOfficial) postToIframe('geo_official_publish_data', lastOfficial);\n",
+  "return;\n",
+  "}\n",
+  "if(d.type === 'geo_request_data_statistics_data'){\n",
+  "if(lastDataStats) postToIframe('geo_data_statistics_data', lastDataStats);\n",
+  "return;\n",
+  "}\n",
+  "if(d.type === 'geo_request_public_opinion_config'){\n",
+  "if(lastPublicOpinionCfg) postToIframe('geo_public_opinion_config', lastPublicOpinionCfg);\n",
+  "return;\n",
+  "}\n",
+  "if(window.Shiny && Shiny.setInputValue){\n",
+  "if(d.type === 'geo_save'){Shiny.setInputValue('geo_save', d.payload, {priority:'event'});}\n",
+  "if(d.type === 'geo_consume'){Shiny.setInputValue('geo_consume', d.payload, {priority:'event'});}\n",
+  "if(d.type === 'geo_query_consumption'){Shiny.setInputValue('geo_query_consumption', d.payload, {priority:'event'});}\n",
+  "if(d.type === 'geo_query_question_lexicons'){Shiny.setInputValue('geo_query_question_lexicons', d.payload, {priority:'event'});}\n",
+  "if(d.type === 'geo_query_question_words'){Shiny.setInputValue('geo_query_question_words', d.payload, {priority:'event'});}\n",
+  "if(d.type === 'geo_delete_question_lexicons'){Shiny.setInputValue('geo_delete_question_lexicons', d.payload, {priority:'event'});}\n",
+  "if(d.type === 'geo_llm_generate'){Shiny.setInputValue('geo_llm_generate', d.payload, {priority:'event'});}\n",
+  "if(d.type === 'geo_article_generate'){Shiny.setInputValue('geo_article_generate', d.payload, {priority:'event'});}\n",
+  "if(d.type === 'geo_query_articles'){Shiny.setInputValue('geo_query_articles', d.payload, {priority:'event'});}\n",
+  "if(d.type === 'geo_query_article_detail'){Shiny.setInputValue('geo_query_article_detail', d.payload, {priority:'event'});}\n",
+  "}\n",
+  "}, false);\n",
+  "if(window.Shiny && Shiny.addCustomMessageHandler){\n",
+  "Shiny.addCustomMessageHandler('geo_consumption_data', function(msg){\n",
+  "postToIframe('geo_consumption_data', msg);\n",
+  "});\n",
+  "Shiny.addCustomMessageHandler('geo_question_lexicons_data', function(msg){\n",
+  "postToIframe('geo_question_lexicons_data', msg);\n",
+  "});\n",
+  "Shiny.addCustomMessageHandler('geo_question_words_data', function(msg){\n",
+  "postToIframe('geo_question_words_data', msg);\n",
+  "});\n",
+  "Shiny.addCustomMessageHandler('geo_delete_question_lexicons_result', function(msg){\n",
+  "postToIframe('geo_delete_question_lexicons_result', msg);\n",
+  "});\n",
+  "Shiny.addCustomMessageHandler('geo_llm_generate_result', function(msg){\n",
+  "postToIframe('geo_llm_generate_result', msg);\n",
+  "});\n",
+  "Shiny.addCustomMessageHandler('geo_article_generate_result', function(msg){\n",
+  "postToIframe('geo_article_generate_result', msg);\n",
+  "});\n",
+  "Shiny.addCustomMessageHandler('geo_articles_data', function(msg){\n",
+  "postToIframe('geo_articles_data', msg);\n",
+  "});\n",
+  "Shiny.addCustomMessageHandler('geo_article_detail', function(msg){\n",
+  "postToIframe('geo_article_detail', msg);\n",
+  "});\n",
+  "Shiny.addCustomMessageHandler('geo_llm_svg_manifest', function(msg){\n",
+  "postToIframe('geo_llm_svg_manifest', msg);\n",
+  "});\n",
+  "Shiny.addCustomMessageHandler('geo_official_publish_data', function(msg){\n",
+  "lastOfficial = msg;\n",
+  "postToIframe('geo_official_publish_data', msg);\n",
+  "});\n",
+  "Shiny.addCustomMessageHandler('geo_data_statistics_data', function(msg){\n",
+  "lastDataStats = msg;\n",
+  "postToIframe('geo_data_statistics_data', msg);\n",
+  "});\n",
+  "Shiny.addCustomMessageHandler('geo_public_opinion_config', function(msg){\n",
+  "lastPublicOpinionCfg = msg;\n",
+  "postToIframe('geo_public_opinion_config', msg);\n",
+  "});\n",
+  "}\n",
+  "})();"
+)))
+```
+
+```{r, echo=FALSE}
+shiny::observeEvent(session$input$geo_save, {
+  payload <- session$input$geo_save
+  err <- NULL
+  ok <- FALSE
+  tryCatch(
+    {
+      ok <- isTRUE(insert_save(payload))
+    },
+    error = function(e) {
+      err <<- conditionMessage(e)
+    }
+  )
+  if (!isTRUE(ok) && nzchar(as.character(err %||% ""))) {
+    shiny::showNotification(paste0("保存失败：", err), type = "error")
+  }
+})
+
+shiny::observeEvent(session$input$geo_consume, {
+  payload <- session$input$geo_consume
+  if (!requireNamespace("DBI", quietly = TRUE) || !requireNamespace("RMySQL", quietly = TRUE) || !requireNamespace("jsonlite", quietly = TRUE)) {
+    shiny::showNotification("缺少数据库依赖包：请安装 DBI、RMySQL、jsonlite", type = "error")
+    return()
+  }
+  cfg <- get_db_config()
+  if (!db_ready(cfg)) {
+    shiny::showNotification(
+      "未配置数据库连接：请在 config.R 填写 geo_config$db_config(host/user/password/dbname)",
+      type = "warning"
+    )
+    return()
+  }
+  con <- DBI::dbConnect(
+    RMySQL::MySQL(),
+    host = cfg$host,
+    user = cfg$user,
+    password = cfg$password,
+    dbname = cfg$dbname,
+    port = cfg$port
+  )
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  ensure_consumption_table(con)
+  try(insert_consumption(con, payload), silent = TRUE)
+})
+
+shiny::observeEvent(session$input$geo_query_consumption, {
+  params <- session$input$geo_query_consumption
+  if (!requireNamespace("DBI", quietly = TRUE) || !requireNamespace("RMySQL", quietly = TRUE) || !requireNamespace("jsonlite", quietly = TRUE)) {
+    shiny::showNotification("缺少数据库依赖包：请安装 DBI、RMySQL、jsonlite", type = "error")
+    return()
+  }
+  cfg <- get_db_config()
+  if (!db_ready(cfg)) {
+    shiny::showNotification(
+      "未配置数据库连接：请在 config.R 填写 geo_config$db_config(host/user/password/dbname)",
+      type = "warning"
+    )
+    return()
+  }
+  con <- DBI::dbConnect(
+    RMySQL::MySQL(),
+    host = cfg$host,
+    user = cfg$user,
+    password = cfg$password,
+    dbname = cfg$dbname,
+    port = cfg$port
+  )
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  ensure_consumption_table(con)
+  out <- NULL
+  try(out <- query_consumption(con, params), silent = TRUE)
+  if (!is.null(out)) {
+    session$sendCustomMessage('geo_consumption_data', out)
+  }
+})
+
+shiny::observeEvent(session$input$geo_query_question_lexicons, {
+  params <- session$input$geo_query_question_lexicons
+  con <- db_connect()
+  if (is.null(con)) return()
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  items <- list()
+  try(items <- query_question_lexicons(con, params %||% list()), silent = TRUE)
+  session$sendCustomMessage('geo_question_lexicons_data', list(items = items))
+})
+
+shiny::observeEvent(session$input$geo_query_question_words, {
+  params <- session$input$geo_query_question_words
+  con <- db_connect()
+  if (is.null(con)) return()
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  items <- list()
+  try(items <- query_question_words(con, params %||% list()), silent = TRUE)
+  session$sendCustomMessage('geo_question_words_data', list(items = items, lexicon_id = params$lexicon_id %||% NA))
+})
+
+shiny::observeEvent(session$input$geo_delete_question_lexicons, {
+  params <- session$input$geo_delete_question_lexicons
+  con <- db_connect()
+  if (is.null(con)) return()
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  ids_raw <- params$ids %||% character(0)
+  ids <- suppressWarnings(as.integer(unlist(ids_raw)))
+  ids <- ids[is.finite(ids) & ids > 0]
+  ids <- unique(ids)
+  if (length(ids) == 0) {
+    session$sendCustomMessage('geo_delete_question_lexicons_result', list(ok = FALSE, ids = list(), deleted = 0, error = "未提供有效 id"))
+    return()
+  }
+  id_list <- paste(ids, collapse = ",")
+  ok <- TRUE
+  err <- NULL
+  deleted <- 0
+  tryCatch(
+    {
+      db_exec(con, paste0("DELETE FROM question_words WHERE lexicon_id IN (", id_list, ")"))
+      deleted <- db_exec(con, paste0("DELETE FROM geo_ui_saves WHERE page='question-bank' AND id IN (", id_list, ")"))
+    },
+    error = function(e) {
+      ok <<- FALSE
+      err <<- conditionMessage(e)
+    }
+  )
+  session$sendCustomMessage(
+    'geo_delete_question_lexicons_result',
+    list(ok = ok, ids = as.list(as.character(ids)), deleted = as.integer(deleted %||% 0), error = as.character(err %||% ""))
+  )
+})
+
+shiny::observeEvent(session$input$geo_llm_generate, {
+  params <- session$input$geo_llm_generate
+  kind <- as.character(params$kind %||% "")
+  req_id <- as.character(params$req_id %||% "")
+  con <- db_connect()
+  if (is.null(con)) return()
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  if (!exists("call_llm", inherits = TRUE)) {
+    session$sendCustomMessage('geo_llm_generate_result', list(ok = FALSE, kind = kind, req_id = req_id, text = "", error = "缺少后端 LLM 逻辑：请确认 backend/llm.R 已加载"))
+    return()
+  }
+
+  enterprise <- list()
+  try(enterprise <- query_latest_enterprise(con), silent = TRUE)
+
+  lexicon <- list()
+  lexicon_id <- params$lexicon_id %||% NA
+  if (!is.null(lexicon_id) && !is.na(lexicon_id) && nzchar(as.character(lexicon_id))) {
+    lexicons <- list()
+    try(lexicons <- query_question_lexicons(con, list(limit = 500)), silent = TRUE)
+    if (length(lexicons) > 0) {
+      for (x in lexicons) {
+        if (is.null(x)) next
+        if (as.character(x$id) == as.character(lexicon_id)) {
+          lexicon <- x
+          break
+        }
+      }
+    }
+  }
+
+  ok <- TRUE
+  err <- NULL
+  text <- ""
+  tryCatch(
+    {
+      if (identical(kind, "title")) {
+        if (!exists("build_title_prompt", inherits = TRUE)) stop("缺少 build_title_prompt")
+        prompt <- build_title_prompt(geo_root, enterprise, lexicon, params$keyword %||% "", params$hint %||% "")
+        text <- call_llm(prompt)
+      } else if (identical(kind, "activity_desc")) {
+        if (!exists("build_activity_desc_prompt", inherits = TRUE)) stop("缺少 build_activity_desc_prompt")
+        prompt <- build_activity_desc_prompt(geo_root, enterprise, lexicon, params$keyword %||% "", params$hint %||% "")
+        text <- call_llm(prompt)
+      } else {
+        stop("不支持的生成类型")
+      }
+    },
+    error = function(e) {
+      ok <<- FALSE
+      err <<- conditionMessage(e)
+    }
+  )
+
+  session$sendCustomMessage(
+    'geo_llm_generate_result',
+    list(ok = ok, kind = kind, req_id = req_id, text = as.character(text %||% ""), error = as.character(err %||% ""))
+  )
+})
+
+shiny::observeEvent(session$input$geo_query_articles, {
+  params <- session$input$geo_query_articles
+  con <- db_connect()
+  if (is.null(con)) return()
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  items <- list()
+  try(items <- query_articles_list(con, params %||% list()), silent = TRUE)
+  session$sendCustomMessage('geo_articles_data', list(items = items))
+})
+
+shiny::observeEvent(session$input$geo_query_article_detail, {
+  params <- session$input$geo_query_article_detail
+  con <- db_connect()
+  if (is.null(con)) return()
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  detail <- NULL
+  try(detail <- query_article_detail(con, params$id %||% NA), silent = TRUE)
+  session$sendCustomMessage('geo_article_detail', list(item = detail, id = params$id %||% NA))
+})
+
+shiny::observeEvent(session$input$geo_article_generate, {
+  params <- session$input$geo_article_generate
+  con <- db_connect()
+  if (is.null(con)) return()
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  enterprise <- list()
+  try(enterprise <- query_latest_enterprise(con), silent = TRUE)
+
+  lexicons <- list()
+  lexicon <- NULL
+  lexicon_id <- params$lexicon_id %||% NA
+  if (!is.null(lexicon_id) && !is.na(lexicon_id) && nzchar(as.character(lexicon_id))) {
+    try(lexicons <- query_question_lexicons(con, list(limit = 500)), silent = TRUE)
+    if (length(lexicons) > 0) {
+      for (x in lexicons) {
+        if (is.null(x)) next
+        if (as.character(x$id) == as.character(lexicon_id)) {
+          lexicon <- x
+          break
+        }
+      }
+    }
+  }
+  if (is.null(lexicon) || !is.list(lexicon)) lexicon <- list()
+
+  task <- list(
+    tab = as.character(params$tab %||% "product"),
+    question_text = as.character(params$question_text %||% ""),
+    user_input = as.character(params$user_input %||% ""),
+    platforms = params$platforms %||% character(0),
+    article_type = as.character(params$article_type %||% ""),
+    style = as.character(params$style %||% ""),
+    tone = as.character(params$tone %||% ""),
+    brand_embed = isTRUE(params$brand_embed)
+  )
+
+  default_type <- ""
+  if (identical(task$tab, "product")) default_type <- "产品宣传"
+  if (identical(task$tab, "brand")) default_type <- "企业品牌"
+  if (identical(task$tab, "activity")) default_type <- "活动关键词"
+  if (!nzchar(trimws(as.character(task$article_type %||% "")))) task$article_type <- default_type
+
+  prompt <- build_article_prompt(geo_root, enterprise, lexicon, task)
+
+  content <- call_llm(prompt)
+  if (!nzchar(trimws(content %||% ""))) {
+    session$sendCustomMessage(
+      'geo_article_generate_result',
+      list(ok = FALSE, article_id = NA, title = "", content = "", error = "大模型服务无返回，请确认 Python 服务已启动且可访问。")
+    )
+    return()
+  }
+  title <- as.character(params$title %||% "")
+  if (!nzchar(title)) {
+    first <- trimws(strsplit(content %||% "", "\n", fixed = TRUE)[[1]][1] %||% "")
+    first2 <- gsub("^标题[:：]\\s*", "", first)
+    title <- if (nzchar(first2)) first2 else paste0(as.character(lexicon$company %||% ""), as.character(lexicon$industry_keyword %||% ""))
+    title <- trimws(title)
+    if (nchar(title) > 120) title <- substr(title, 1, 120)
+  }
+
+  title <- gsub("^(产品宣传|企业品牌|活动关键词)[——\\-：]+\\s*", "", title)
+
+  activity_image <- as.character(params$activity_image %||% "")
+  if (identical(task$tab, "activity") && nzchar(activity_image)) {
+    content <- paste0(content, "\n\n", "![](", activity_image, ")\n")
+  }
+
+  article_id <- NA
+  try(
+    article_id <- insert_article(
+      con,
+      list(
+        title = title,
+        content = content,
+        article_type = task$article_type,
+        creation_type = task$tab,
+        style = task$style,
+        tone = task$tone,
+        brand_embed = task$brand_embed,
+        enterprise_id = NA
+      )
+    ),
+    silent = TRUE
+  )
+
+  session$sendCustomMessage(
+    'geo_article_generate_result',
+    list(ok = !is.na(article_id), article_id = article_id, title = title, content = content)
+  )
+})
+
+shiny::observeEvent(TRUE, {
+  session$sendCustomMessage('geo_llm_svg_manifest', list(files = llm_svg_files, baseUrl = 'llm-svg'))
+}, once = TRUE)
+
+session$onFlushed(function() {
+  if (!requireNamespace("readxl", quietly = TRUE)) {
+    shiny::showNotification("缺少依赖包：请安装 readxl", type = "error")
+    return()
+  }
+  xls_path <- file.path(geo_config$app_dir, "2026年网站媒体及官方自媒体报价-Q2.xls")
+  if (!file.exists(xls_path)) {
+    shiny::showNotification("未找到报价表文件：2026年网站媒体及官方自媒体报价-Q2.xls", type = "warning")
+    return()
+  }
+  xls_name <- basename(xls_path)
+  xls_www <- file.path(www_dir, xls_name)
+  try(file.copy(xls_path, xls_www, overwrite = TRUE), silent = TRUE)
+  session$sendCustomMessage(
+    "geo_public_opinion_config",
+    list(ts = as.numeric(Sys.time()) * 1000, default_excel = xls_name)
+  )
+  sheets <- NULL
+  try(sheets <- readxl::excel_sheets(xls_path), silent = TRUE)
+  if (is.null(sheets) || length(sheets) == 0) {
+    shiny::showNotification("报价表没有可读取的sheet", type = "warning")
+    return()
+  }
+  type_of <- function(name) {
+    s <- tolower(as.character(name %||% ""))
+    if (grepl("自媒体|官媒|官方", s)) return("官方自媒体")
+    if (grepl("全国|网站", s)) return("全国网站媒体")
+    return("未知")
+  }
+  rows <- list()
+  for (sh in sheets) {
+    df <- NULL
+    try(df <- readxl::read_excel(xls_path, sheet = sh, .name_repair = "unique_quiet"), silent = TRUE)
+    if (is.null(df)) next
+    df <- as.data.frame(df, stringsAsFactors = FALSE)
+    if (nrow(df) == 0) next
+    df$`__sheet` <- rep(sh, nrow(df))
+    df$`__type` <- rep(type_of(sh), nrow(df))
+    for (i in seq_len(nrow(df))) {
+      r <- as.list(df[i, , drop = FALSE])
+      r <- lapply(r, function(x) {
+        if (is.null(x) || length(x) == 0) return("")
+        if (is.na(x)[1]) return("")
+        if (inherits(x, "POSIXt") || inherits(x, "Date")) return(as.character(x))
+        as.character(x)
+      })
+      rows[[length(rows) + 1]] <- r
+    }
+  }
+  if (length(rows) == 0) {
+    shiny::showNotification("报价表解析结果为空", type = "warning")
+    return()
+  }
+  shiny::showNotification(
+    paste0("报价表已读取：", length(rows), " 条（", paste(sheets, collapse = "、"), "）"),
+    type = "message"
+  )
+  session$sendCustomMessage(
+    "geo_official_publish_data",
+    list(ts = as.numeric(Sys.time()) * 1000, rows = rows)
+  )
+}, once = TRUE)
+```
+
+```{r, echo=FALSE}
+session$onFlushed(function() {
+  if (!requireNamespace("readxl", quietly = TRUE)) {
+    shiny::showNotification("缺少依赖包：请安装 readxl", type = "error")
+    return()
+  }
+
+  xlsx_path <- file.path(geo_config$app_dir, "数据统计_测试数据.xlsx")
+  if (!file.exists(xlsx_path)) {
+    shiny::showNotification("未找到测试数据：数据统计_测试数据.xlsx", type = "warning")
+    return()
+  }
+
+  sheets <- NULL
+  try(sheets <- readxl::excel_sheets(xlsx_path), silent = TRUE)
+  if (is.null(sheets) || length(sheets) == 0) {
+    shiny::showNotification("测试数据没有可读取的sheet", type = "warning")
+    return()
+  }
+
+  to_scalar <- function(x) {
+    if (is.null(x) || length(x) == 0) return("")
+    x <- x[[1]]
+    if (is.na(x)) return("")
+    if (inherits(x, "POSIXt") || inherits(x, "Date")) return(as.character(x))
+    as.character(x)
+  }
+
+  clean_header <- function(x) {
+    x <- as.character(x)
+    x[is.na(x)] <- ""
+    x <- gsub("[\r\n\t]", " ", x)
+    x <- gsub("\\s+", " ", x)
+    x <- trimws(x)
+    x
+  }
+
+  read_sheet_header2 <- function(path, sheet) {
+    df0 <- NULL
+    try(df0 <- readxl::read_excel(path, sheet = sheet, col_names = FALSE, .name_repair = "minimal"), silent = TRUE)
+    if (is.null(df0)) return(NULL)
+    df0 <- as.data.frame(df0, stringsAsFactors = FALSE)
+    if (nrow(df0) < 2) return(NULL)
+    header <- clean_header(df0[2, , drop = TRUE])
+    keep <- nzchar(header)
+    if (!any(keep)) return(NULL)
+    df <- df0[-c(1, 2), keep, drop = FALSE]
+    colnames(df) <- make.unique(header[keep], sep = "_")
+    df <- df[!apply(df, 1, function(r) all(is.na(r) | trimws(as.character(r)) == "")), , drop = FALSE]
+    df
+  }
+
+  to_row_list <- function(df, n = 200) {
+    if (is.null(df) || nrow(df) == 0) return(list())
+    df2 <- utils::head(df, n)
+    out <- vector("list", nrow(df2))
+    for (i in seq_len(nrow(df2))) {
+      r <- as.list(df2[i, , drop = FALSE])
+      r <- lapply(r, to_scalar)
+      out[[i]] <- r
+    }
+    out
+  }
+
+  sheet_out <- list()
+  summary_rows <- list()
+  colstat_rows <- list()
+  trend_rows <- list()
+  trend_found <- FALSE
+  kpi_articles <- 0
+  kpi_indexed <- 0
+
+  for (sh in sheets) {
+    df <- NULL
+    df <- read_sheet_header2(xlsx_path, sh)
+    if (is.null(df)) next
+    df <- as.data.frame(df, stringsAsFactors = FALSE)
+    rn <- nrow(df)
+    cn <- ncol(df)
+    cols <- names(df)
+
+    summary_rows[[length(summary_rows) + 1]] <- list(
+      sheet = as.character(sh),
+      rows = rn,
+      cols = cn
+    )
+
+    if (cn > 0) {
+      for (col in cols) {
+        v <- df[[col]]
+        vs <- as.character(v)
+        vs[is.na(vs)] <- ""
+        non_empty <- sum(nzchar(trimws(vs)))
+        uniq <- length(unique(vs[nzchar(trimws(vs))]))
+        ex <- ""
+        if (non_empty > 0) {
+          ex <- vs[which(nzchar(trimws(vs)))[1]]
+        }
+        colstat_rows[[length(colstat_rows) + 1]] <- list(
+          sheet = as.character(sh),
+          column = as.character(col),
+          non_empty = non_empty,
+          unique = uniq,
+          example = as.character(ex)
+        )
+      }
+    }
+
+    sheet_out[[length(sheet_out) + 1]] <- list(
+      name = as.character(sh),
+      rows = rn,
+      cols = cols,
+      preview = to_row_list(df, 200)
+    )
+
+    if (!trend_found && cn > 0) {
+      find_col <- function(patterns) {
+        for (p in patterns) {
+          hit <- cols[grepl(p, cols, ignore.case = TRUE)]
+          if (length(hit) > 0) return(hit[[1]])
+        }
+        NULL
+      }
+      date_col <- find_col(c("^日期$", "日期", "时间", "^date$", "date"))
+      art_col <- find_col(c("文章", "发文", "生成"))
+      idx_col <- find_col(c("收录", "索引", "indexed"))
+      if (!is.null(date_col) && !is.null(art_col) && !is.null(idx_col)) {
+        d0 <- df[[date_col]]
+        d <- suppressWarnings(as.Date(d0))
+        if (all(is.na(d))) {
+          d <- suppressWarnings(as.Date(as.character(d0)))
+        }
+        a <- suppressWarnings(as.numeric(df[[art_col]]))
+        i <- suppressWarnings(as.numeric(df[[idx_col]]))
+        ok <- !is.na(d)
+        if (any(ok)) {
+          agg <- aggregate(
+            data.frame(articles = a, indexed = i),
+            by = list(date = d),
+            FUN = function(x) sum(x, na.rm = TRUE)
+          )
+          agg <- agg[order(agg$date), , drop = FALSE]
+          for (j in seq_len(nrow(agg))) {
+            trend_rows[[length(trend_rows) + 1]] <- list(
+              date = as.character(agg$date[[j]]),
+              articles = as.numeric(agg$articles[[j]]),
+              indexed = as.numeric(agg$indexed[[j]])
+            )
+          }
+          kpi_articles <- sum(agg$articles, na.rm = TRUE)
+          kpi_indexed <- sum(agg$indexed, na.rm = TRUE)
+          trend_found <- TRUE
+        }
+      }
+    }
+  }
+
+  payload <- list(
+    ts = as.numeric(Sys.time()) * 1000,
+    file = "数据统计_测试数据.xlsx",
+    sheets = sheet_out,
+    summary = summary_rows,
+    column_stats = colstat_rows,
+    kpi = list(
+      articles = as.numeric(kpi_articles),
+      links = as.numeric(length(sheet_out)),
+      indexed = as.numeric(kpi_indexed),
+      cited = as.numeric(0)
+    ),
+    trend = trend_rows
+  )
+
+  shiny::showNotification(
+    paste0("数据统计测试数据已读取：", length(payload$sheets), " 个sheet"),
+    type = "message"
+  )
+  session$sendCustomMessage("geo_data_statistics_data", payload)
+}, once = TRUE)
+```

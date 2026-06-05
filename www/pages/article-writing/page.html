@@ -1,0 +1,518 @@
+<div class="page-center" style="max-width: 1100px;">
+  <div class="creator-tabs">
+    <button class="tab-btn active" data-tab="product">产品宣传创作</button>
+    <button class="tab-btn" data-tab="brand">企业品牌创作</button>
+    <button class="tab-btn" data-tab="activity">活动关键词创作</button>
+  </div>
+
+  <div class="creator-grid">
+    <div class="left-col">
+      <div class="card" data-panel="product">
+        <div class="step-title">第一步：选择问题词库</div>
+        <div class="aw-search-row">
+          <input class="input" id="awLexiconKeyword" placeholder="输入关键词" />
+          <button class="btn-primary" id="awLexiconSearchBtn">搜索</button>
+          <button class="btn-solid" id="refreshLexiconsBtn">刷新</button>
+        </div>
+        <select class="select" id="lexiconSelect" style="display:none;"></select>
+
+        <div class="aw-lexicon-table">
+          <div class="aw-lexicon-scroll table-scroll">
+            <table class="aw-table">
+              <thead>
+                <tr>
+                  <th style="width: 60px;">选择</th>
+                  <th style="width: 80px;">序号</th>
+                  <th>问题词名称</th>
+                  <th style="width: 220px;">
+                    <div class="aw-date-head">
+                      <span>创建日期</span>
+                      <select class="select aw-date-select" id="awLexiconDateSelect"></select>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="awLexiconTbody">
+                <tr><td colspan="4" class="empty">暂无词库，请先到“创建问题词库”保存</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="step-title" style="margin-top:14px;">问题词列表</div>
+        <div class="list-box" id="questionListBox"></div>
+
+        <div class="step-title" style="margin-top:14px;">第二步：选择产品</div>
+        <div class="aw-action-row">
+          <button class="btn-primary" id="awPickProductBtn">进入产品库选择</button>
+          <div id="awProductPickerBar"></div>
+        </div>
+        <div class="aw-preview" id="awProductPreview">未选择产品</div>
+
+        <div class="step-title" style="margin-top:14px;">第三步：插入图片</div>
+        <div class="aw-action-row">
+          <button class="btn-primary" id="awPickImagesBtn">插入图片</button>
+          <div class="page-muted aw-limit" style="visibility:hidden;">占位</div>
+          <div id="awImagePickerBar"></div>
+        </div>
+        <div class="aw-preview" id="awImagesPreview">未选择图片</div>
+      </div>
+
+      <div class="card hidden" data-panel="brand">
+        <div class="step-title">第一步：确定标题</div>
+        <div class="page-muted" style="margin:8px 0;">标题可下拉选择问题词库关键词，或手动输入</div>
+        <div class="row" style="margin:10px 0; display:flex; gap:10px; align-items:center;">
+          <select class="select" id="brandTitleSelect" style="flex:1; min-width:0;"></select>
+          <button class="btn-primary" id="brandUseSelectedBtn">使用</button>
+        </div>
+        <input class="input" id="brandTitleInput" placeholder="请输入标题（不填则用下方方向提示词生成）" style="width:100%;" />
+        <div class="page-muted" style="margin:12px 0 6px;">方向提示词（不填则用默认占位内容生成）</div>
+        <textarea class="textarea" id="brandTitleHint" placeholder="例如：发展历程、创始人故事、企业荣誉、核心技术、客户案例、社会责任"></textarea>
+        <div class="row" style="display:flex; justify-content:center; margin-top:10px;">
+          <button class="btn-solid" id="genTitleBtn">用系统生成标题</button>
+        </div>
+        <div class="list-box" id="brandTitleSuggest" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="card hidden" data-panel="activity">
+        <div class="step-title">第一步：活动描述</div>
+        <textarea class="textarea" id="activityDesc" placeholder="请简单描述活动的人物、时间、地点、经过、重要知识点、想达到的效果（不填则按此默认方向生成：企业品牌相关活动介绍与传播文案）"></textarea>
+        <div class="row" style="display:flex; justify-content:center; margin-top:10px;">
+          <button class="btn-solid" id="genActivityDescBtn">用 AI 生成活动描述</button>
+        </div>
+        <div class="step-title" style="margin-top:14px;">第二步：插入活动图片</div>
+        <div class="note-red">支持上传图片并插入到文章内容中</div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn-primary" id="insertActivityImg">+ 插入图片</button>
+        </div>
+        <div class="img-preview" id="activityImgPreview">这里显示插入图片的预览图</div>
+      </div>
+    </div>
+
+    <div class="right-col">
+      <div class="card aw-rule-card">
+        <div class="step-title" id="awRuleStepTitle">第四步：文章规则设置</div>
+
+        <div class="rule-group">
+          <div class="rule-title">选择要投放的主要平台</div>
+          <div class="platform-grid">
+            <label><input type="checkbox" /> 知乎</label>
+            <label><input type="checkbox" /> 公众号</label>
+            <label><input type="checkbox" /> 抖音</label>
+            <label><input type="checkbox" /> 小红书</label>
+            <label><input type="checkbox" /> 百家号</label>
+            <label><input type="checkbox" /> 头条号</label>
+            <label><input type="checkbox" /> 企业号</label>
+            <label><input type="checkbox" /> 哔哩哔哩</label>
+            <label><input type="checkbox" /> 搜狗</label>
+            <label><input type="checkbox" /> 网易</label>
+            <label><input type="checkbox" /> CSDN</label>
+          </div>
+        </div>
+
+        <div class="rule-group">
+          <div class="rule-title">选择文章类型（单选或不选）</div>
+          <div class="check-grid">
+            <label><input type="checkbox" /> 品牌传播</label>
+            <label><input type="checkbox" /> 产品宣传</label>
+            <label><input type="checkbox" /> 体验评测</label>
+            <label><input type="checkbox" /> 知识科普</label>
+            <label><input type="checkbox" /> 教程指南</label>
+            <label><input type="checkbox" /> 对话问答</label>
+            <label><input type="checkbox" /> 对比评测</label>
+            <label><input type="checkbox" /> 活动推广</label>
+            <label><input type="checkbox" /> 新闻报道</label>
+            <label><input type="checkbox" /> 场景关联</label>
+            <label><input type="checkbox" /> 结合热点</label>
+          </div>
+        </div>
+
+        <div class="rule-group">
+          <div class="rule-title">选择文章风格（单选或不选）</div>
+          <div class="check-grid">
+            <label><input type="checkbox" /> 专业严谨</label>
+            <label><input type="checkbox" /> 轻松活泼</label>
+            <label><input type="checkbox" /> 叙述描写</label>
+          </div>
+        </div>
+
+        <div class="rule-group">
+          <div class="rule-title">选择文章语调（单选或不选）</div>
+          <div class="check-grid">
+            <label><input type="checkbox" /> 平实朴素</label>
+            <label><input type="checkbox" /> 幽默风趣</label>
+            <label><input type="checkbox" /> 华丽优美</label>
+            <label><input type="checkbox" /> 亲切口语</label>
+            <label><input type="checkbox" /> 庄重正式</label>
+            <label><input type="checkbox" /> 犀利深刻</label>
+          </div>
+        </div>
+
+        <div class="row" style="display:flex; justify-content:center; margin-top:14px;">
+          <button class="btn-solid" id="startCreateBtn" style="min-width: 160px;">开启创作</button>
+        </div>
+        <div class="page-muted" style="text-align:center; margin-top:10px; color:#ef4444;">生成的文章将会在“文章管理”展现，创作需要一些时间，请稍等。</div>
+
+        <div class="aw-chat-card">
+          <div class="step-title">文案优化建议</div>
+          <div class="aw-chat-box" id="awChatBox"></div>
+          <div class="aw-chat-actions">
+            <input class="input" id="awChatInput" placeholder="输入你的需求/补充信息…" />
+            <button class="btn-primary" id="awChatSendBtn">内容发送</button>
+          </div>
+          <div class="aw-chat-bottom">
+            <button class="btn-primary" id="awCopyConfirmBtn" disabled>确定</button>
+            <button class="btn-solid" id="awCopyReoptBtn" disabled>重新优化</button>
+          </div>
+          <div class="page-muted" id="awChatHint" style="margin-top:8px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="awImgModal">
+  <div class="modal-card" style="width: min(640px, calc(100vw - 32px));">
+    <div class="modal-head">
+      <div>插入活动图片</div>
+      <button class="op" id="awImgClose" style="color:#fff;">关闭</button>
+    </div>
+    <div class="modal-body">
+      <div class="kb-form">
+        <div class="kb-form-row">
+          <div class="kb-label"><span class="req">*</span>选择图片</div>
+          <input class="input" id="awImgFile" type="file" accept="image/*" />
+        </div>
+        <div class="kb-form-row">
+          <div class="kb-label">预览</div>
+          <div class="img-preview" id="awImgModalPreview" style="height: 220px;">未选择图片</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="awImgInsertBtn">插入</button>
+      <button class="btn-solid" id="awImgCancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.creator-tabs {
+  display: flex;
+  gap: 44px;
+  justify-content: center;
+  margin: 10px 0 28px;
+}
+
+.tab-btn {
+  min-width: 140px;
+  height: 34px;
+  border-radius: 2px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
+  color: #6b7280;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.tab-btn.active {
+  background: #2f6bd8;
+  color: #fff;
+  border-color: #2f6bd8;
+}
+
+.creator-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+  font-size: 12px;
+}
+
+.creator-grid .input,
+.creator-grid .textarea {
+  font-size: 12px;
+}
+
+#awUserInput {
+  min-height: 96px;
+  max-height: 120px;
+  resize: vertical;
+}
+
+.left-col,
+.right-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+
+.left-col > .card,
+.right-col > .card {
+  flex: 1;
+}
+
+.right-col > .aw-rule-card {
+  flex: 1;
+}
+
+.aw-rule-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.aw-chat-card {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 260px;
+}
+
+.aw-chat-box {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 2px;
+  background: #fff;
+  overflow: auto;
+  padding: 10px;
+  white-space: normal;
+  flex: 1;
+  min-height: 260px;
+}
+
+.aw-chat-msg {
+  display: flex;
+  margin: 8px 0;
+}
+
+.aw-chat-msg.user {
+  justify-content: flex-end;
+}
+
+.aw-chat-bubble {
+  max-width: 92%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
+}
+
+.aw-chat-msg.user .aw-chat-bubble {
+  background: rgba(47, 107, 216, 0.08);
+  border-color: rgba(47, 107, 216, 0.25);
+}
+
+.aw-chat-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.aw-chat-actions .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.aw-chat-bottom {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.aw-filter-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: 10px 0;
+}
+
+.aw-search-row {
+  margin: 10px 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.aw-search-row .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.aw-lexicon-table {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 2px;
+  background: #fff;
+}
+
+.aw-lexicon-scroll {
+  max-height: 190px;
+  overflow: auto;
+}
+
+.aw-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.aw-table th,
+.aw-table td {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 10px 12px;
+  vertical-align: middle;
+}
+
+.aw-table thead th {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+}
+
+.aw-date-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.aw-date-select {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.aw-action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.aw-action-row .aw-limit {
+  margin-left: auto;
+}
+
+#awProductPickerBar,
+#awImagePickerBar {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.aw-preview {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 2px;
+  background: #fff;
+  min-height: 88px;
+  max-height: 110px;
+  padding: 10px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.aw-preview.aw-picker-open {
+  max-height: none;
+  overflow: visible;
+  white-space: normal;
+}
+
+.step-title {
+  font-weight: 800;
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.list-box {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 2px;
+  background: #fff;
+  min-height: 160px;
+  padding: 10px;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.pick {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  color: #111827;
+}
+
+.pick-text {
+  color: #111827;
+}
+
+.img-preview {
+  margin-top: 10px;
+  border: 1px solid #2f6bd8;
+  border-radius: 2px;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ef4444;
+  background: #fff;
+}
+
+.rule-group {
+  margin-top: 12px;
+}
+
+.rule-title {
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.platform-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px 12px;
+  font-size: 12px;
+}
+
+.check-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px 12px;
+  font-size: 12px;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.two-input {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 1100px) {
+  .creator-grid {
+    grid-template-columns: 1fr;
+  }
+  .check-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .platform-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+</style>

@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS enterprise_docs (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    enterprise_id BIGINT NULL,
+    doc_name VARCHAR(300) NOT NULL,
+    file_url VARCHAR(500) NOT NULL,
+    file_type VARCHAR(50) NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+

@@ -1,0 +1,250 @@
+<div class="page-center" style="max-width: 1100px;">
+  <div class="page-title" id="pageTitle" style="margin:0 0 12px;"></div>
+
+  <div class="dq-stepbar">
+    <button class="dq-step active" data-step="role">AI角色定位</button>
+    <button class="dq-step" data-step="template">模版内容设置</button>
+    <button class="dq-step" data-step="rules">注意事项</button>
+    <button class="dq-step" data-step="style">内容风格（选填）</button>
+    <button class="dq-step" data-step="good">正确示例（选填）</button>
+    <button class="dq-step" data-step="bad">错误示例（选填）</button>
+    <div style="flex:1;"></div>
+    <button class="dq-step dq-step-ghost" id="paramBtn">参数参考</button>
+    <button class="dq-step dq-step-ghost" id="advancedBtn">高级设置</button>
+  </div>
+
+  <div class="dq-cards">
+    <div class="dq-card" data-step-panel="role">
+      <div class="dq-card-title">AI角色定位</div>
+      <textarea class="textarea" id="roleText" placeholder="描述AI的角色和语气，支持占位符：{{企业名称}}、{{产品名称}}，例子：
+• 资深营销顾问
+• 新媒体编辑
+• 资深文案
+• 产品经理"></textarea>
+    </div>
+
+    <div class="dq-card" data-step-panel="template">
+      <div class="dq-card-title">模版内容设置</div>
+      <textarea class="textarea" id="templateText" placeholder="描述要生成的内容（支持占位符：{{企业名称}}、{{产品名称}}、{{关键词}}），给出结构：
+标题
+小标题
+正文要点
+结尾CTA"></textarea>
+    </div>
+
+    <div class="dq-card" data-step-panel="rules">
+      <div class="dq-card-title">注意事项</div>
+      <textarea class="textarea" id="rulesText" placeholder="明确必须遵守的规则（支持占位符：{{禁用词}}），如：
+不得涉黄暴恐
+不得泄露隐私
+用词简洁口语化
+保持品牌调性一致"></textarea>
+    </div>
+
+    <div class="dq-card" data-step-panel="style">
+      <div class="dq-card-title">内容风格（选填）</div>
+      <textarea class="textarea" id="styleText" placeholder="选择或描述风格，如：
+干练
+诙谐
+专业
+小红书体
+B站口播"></textarea>
+    </div>
+
+    <div class="dq-card" data-step-panel="good">
+      <div class="dq-card-title">正确示例（选填）</div>
+      <textarea class="textarea" id="goodText" placeholder="给出1-2个高质量示例，标注结构与格式。"></textarea>
+    </div>
+
+    <div class="dq-card" data-step-panel="bad">
+      <div class="dq-card-title">错误示例（选填）</div>
+      <textarea class="textarea" id="badText" placeholder="给出常见错误示例，便于模型对比避免。"></textarea>
+    </div>
+  </div>
+
+  <div class="dq-models">
+    <div class="dq-model" data-model="deepseek">deepseek</div>
+    <div class="dq-model" data-model="qwen">千问</div>
+    <div class="dq-model" data-model="zhipu">智谱</div>
+    <div class="dq-model" data-model="xunfei">讯飞</div>
+    <div class="dq-model" data-model="wenxin">文心</div>
+    <div class="dq-model" data-model="hunyuan">混元</div>
+    <div class="dq-model" data-model="kimi">月之暗面</div>
+    <div class="dq-model" data-model="baichuan">百川</div>
+    <div class="dq-model" data-model="minimax">MiniMax</div>
+    <div class="dq-model" data-model="huoshan">火山</div>
+    <div class="dq-model" data-model="guiji">硅基流动</div>
+  </div>
+
+  <div class="dq-actions">
+    <button class="dq-big dq-save" id="saveBtn">保存模版</button>
+    <button class="dq-big dq-submit" id="submitBtn">提交生成（余额：0.00元）</button>
+  </div>
+
+  <div class="dq-bottom">
+    <div class="dq-bottom-left">
+      <button class="btn-primary" id="clearBtn">清空全部提示词</button>
+      <button class="btn-solid" id="demoBtn">样例演示</button>
+      <button class="btn-solid" id="copyBtn">复制</button>
+    </div>
+    <div class="dq-bottom-right">
+      <div class="dq-count" id="resultCount">0条结果</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="dqModal">
+  <div class="modal-card" style="width: min(720px, calc(100vw - 32px));">
+    <div class="modal-head">
+      <div id="dqModalTitle">参数参考</div>
+      <button class="btn-icon" id="dqModalClose" style="background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.18); color:#fff;">✕</button>
+    </div>
+    <div class="modal-body" id="dqModalBody"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="dqModalCancel">关闭</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.dq-stepbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.dq-step {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+  font-weight: 800;
+  color: #111827;
+  cursor: pointer;
+}
+
+.dq-step.active {
+  background: linear-gradient(90deg, #f59e0b 0%, #a855f7 100%);
+  border-color: transparent;
+  color: #fff;
+}
+
+.dq-step-ghost {
+  background: rgba(124, 58, 237, 0.08);
+  color: #7c3aed;
+}
+
+.dq-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dq-card {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.dq-card-title {
+  font-weight: 900;
+  color: #111827;
+  margin-bottom: 10px;
+}
+
+.dq-card textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+
+.dq-models {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.dq-model {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+  color: #111827;
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.dq-model.active {
+  background: #2f6bd8;
+  border-color: #2f6bd8;
+  color: #fff;
+}
+
+.dq-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.dq-big {
+  height: 52px;
+  border-radius: 14px;
+  border: 0;
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.dq-save {
+  background: linear-gradient(90deg, #f59e0b 0%, #7c3aed 100%);
+}
+
+.dq-submit {
+  background: linear-gradient(90deg, #7c3aed 0%, #f59e0b 100%);
+}
+
+.dq-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.dq-bottom-left {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dq-count {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+  color: #111827;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .dq-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .dq-cards {
+    grid-template-columns: 1fr;
+  }
+  .dq-actions {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

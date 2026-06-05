@@ -1,0 +1,428 @@
+<div class="page-title" id="pageTitle" style="margin:0 0 12px;"></div>
+
+<div class="po-wrap">
+  <div class="po-left">
+    <div class="po-head">创建任务</div>
+    <div class="po-form">
+      <div class="po-row">
+        <label class="po-label">请输入关键词</label>
+        <input class="input" id="poKeyword" placeholder="" />
+      </div>
+      <div class="po-row">
+        <label class="po-label">信息类型</label>
+        <select class="select" id="poInfoType">
+          <option value="all">全部</option>
+          <option value="news">新闻</option>
+          <option value="app">APP</option>
+          <option value="forum">论坛</option>
+        </select>
+      </div>
+      <div class="po-row">
+        <label class="po-label">情感类型</label>
+        <div class="po-radio">
+          <label><input type="radio" name="poSent" value="all" checked /> 全部</label>
+          <label><input type="radio" name="poSent" value="positive" /> 正面</label>
+          <label><input type="radio" name="poSent" value="negative" /> 负面</label>
+        </div>
+      </div>
+      <div class="po-row">
+        <label class="po-label">监测频率</label>
+        <div class="po-radio">
+          <label><input type="radio" name="poFreq" value="realtime" checked /> 实时</label>
+          <label><input type="radio" name="poFreq" value="daily" /> 每日</label>
+          <label><input type="radio" name="poFreq" value="weekly" /> 每周</label>
+          <label><input type="radio" name="poFreq" value="manual" /> 手动</label>
+        </div>
+      </div>
+      <div class="po-row" style="display:flex; justify-content:center; margin-top: 8px;">
+        <button class="btn-solid" id="poCreateBtn" style="min-width: 140px;">确定</button>
+      </div>
+    </div>
+
+    <div class="po-head" style="margin-top: 16px;">任务列表</div>
+    <div class="po-task-list" id="poTaskList"></div>
+  </div>
+
+  <div class="po-tools" id="poTools">
+    <button class="po-tool active" data-tool="task" title="任务">
+      <svg class="po-tool-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"/></svg>
+    </button>
+    <button class="po-tool" data-tool="link" title="链接"><svg class="po-tool-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.6 13.4a1 1 0 0 1 0-1.4l2.8-2.8a3 3 0 0 1 4.2 4.2l-2 2a3 3 0 0 1-4.2 0 1 1 0 1 1 1.4-1.4 1 1 0 0 0 1.4 0l2-2a1 1 0 0 0-1.4-1.4l-2.8 2.8a1 1 0 0 1-1.4 0z"/><path d="M13.4 10.6a1 1 0 0 1 0 1.4l-2.8 2.8a3 3 0 0 1-4.2-4.2l2-2a3 3 0 0 1 4.2 0 1 1 0 1 1-1.4 1.4 1 1 0 0 0-1.4 0l-2 2a1 1 0 1 0 1.4 1.4l2.8-2.8a1 1 0 0 1 1.4 0z"/></svg></button>
+    <button class="po-tool" data-tool="tag" title="标签"><svg class="po-tool-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 13.2l-7.4 7.4a2 2 0 0 1-2.8 0L3 13.2V4h9.2l8.4 8.4a2 2 0 0 1 0 2.8zM6.5 7.5a1.5 1.5 0 1 0 0 .01z"/></svg></button>
+    <button class="po-tool" data-tool="img" title="图片"><svg class="po-tool-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm0 2v10h16V7H4zm3 8 2.5-3 2 2.4 2.5-3.4L19 15H7zm2-5a1.5 1.5 0 1 0 0 .01z"/></svg></button>
+    <button class="po-tool" data-tool="file" title="文档"><svg class="po-tool-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm8 1.5V8h4.5L14 3.5zM7 12h10v2H7v-2zm0 4h10v2H7v-2z"/></svg></button>
+  </div>
+
+  <div class="po-main">
+    <div class="po-main-head">
+      <div class="po-main-title" id="poMainTitle">任务名称</div>
+      <div class="po-main-actions">
+        <button class="btn-solid" id="poEnterBtn" style="min-width: 88px;">进入</button>
+        <button class="btn-solid" id="poScanBtn" style="min-width: 88px;">扫描</button>
+        <button class="btn-primary" id="poReportBtn" style="min-width: 88px;">分析报告</button>
+      </div>
+    </div>
+    <div class="po-tabs-bar" id="poTabsBar"></div>
+    <div class="po-results" id="poResults"></div>
+  </div>
+</div>
+
+<div class="modal" id="poModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div id="poModalTitle">分析报告</div>
+      <button class="btn-icon" id="poModalClose" style="background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.18); color:#fff;">✕</button>
+    </div>
+    <div class="modal-body" id="poModalBody"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="poModalCancel">关闭</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.po-wrap {
+  display: grid;
+  grid-template-columns: 280px 44px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.po-wrap.compact {
+  grid-template-columns: 200px 44px 1fr;
+}
+
+.po-left {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.po-left .input,
+.po-left .select {
+  width: 100%;
+  min-width: 0;
+}
+
+.po-head {
+  font-weight: 900;
+  font-size: 14px;
+  color: #111827;
+  margin-bottom: 10px;
+}
+
+.po-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.po-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.po-label {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.po-radio {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px 10px;
+  font-size: 12px;
+  color: #111827;
+}
+
+.po-radio label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.po-task-list {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  background: rgba(243, 244, 246, 0.7);
+  overflow: hidden;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.po-task-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.po-task-list::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.18);
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+}
+
+.po-task-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.po-task {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 10px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.po-task:last-child {
+  border-bottom: 0;
+}
+
+.po-task.active {
+  outline: 2px solid rgba(47, 107, 216, 0.25);
+}
+
+.po-task-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.po-task-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.po-task-actions .op {
+  font-size: 12px;
+  border: 0;
+  background: transparent;
+  height: auto;
+  padding: 0;
+  border-radius: 0;
+}
+
+.po-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  padding-top: 42px;
+}
+
+.po-tool {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.po-tool.active {
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: 0 6px 12px rgba(37, 99, 235, 0.12);
+}
+
+.po-tool-icon {
+  width: 18px;
+  height: 18px;
+  fill: #111827;
+  display: block;
+}
+
+.po-tool.active .po-tool-icon {
+  fill: #2563eb;
+}
+
+.po-main {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.po-main-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.po-main-title {
+  font-weight: 900;
+  color: #111827;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.po-main-actions {
+  display: flex;
+  gap: 10px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.po-results {
+  padding: 10px;
+  min-height: 420px;
+  background: rgba(243, 244, 246, 0.45);
+}
+
+.po-results.multi {
+  display: grid;
+  grid-template-columns: repeat(var(--po-cols, 1), minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.po-col {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 72vh;
+}
+
+.po-col.active {
+  outline: 2px solid rgba(47, 107, 216, 0.25);
+}
+
+.po-col-head {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(248, 250, 252, 0.8);
+}
+
+.po-col-title {
+  font-weight: 900;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.po-col-body {
+  padding: 10px;
+  overflow: auto;
+  background: rgba(243, 244, 246, 0.25);
+}
+
+.po-tabs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 0 12px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(248, 250, 252, 0.8);
+  min-height: 36px;
+  align-items: flex-end;
+}
+
+.po-tab {
+  position: relative;
+  padding: 8px 16px 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.15s, border-color 0.15s;
+  outline: none;
+  margin-bottom: -1px;
+}
+
+.po-tab:hover {
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.05);
+  border-radius: 6px 6px 0 0;
+}
+
+.po-tab.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+  background: rgba(37, 99, 235, 0.06);
+  border-radius: 6px 6px 0 0;
+}
+
+.po-item {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.po-item-title {
+  font-weight: 900;
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.po-item-title .tag {
+  color: #6b7280;
+  margin-right: 6px;
+}
+
+.po-item-desc {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.8;
+  margin-top: 8px;
+}
+
+.po-item-meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: #6b7280;
+  font-size: 12px;
+  margin-top: 10px;
+}
+
+.po-item-meta .link {
+  color: #2563eb;
+  cursor: pointer;
+}
+
+@media (max-width: 1100px) {
+  .po-wrap {
+    grid-template-columns: 1fr;
+  }
+  .po-tools {
+    flex-direction: row;
+    justify-content: center;
+    padding-top: 0;
+  }
+}
+</style>

@@ -1,0 +1,99 @@
+<div class="page-center" style="max-width: 980px;">
+  <div class="page-title" style="margin:0 0 10px; color:#b8860b;">文章管理</div>
+
+  <div class="toolbar" style="margin-bottom: 10px;">
+    <div class="toolbar-left">
+      <input class="input" id="keyword" placeholder="请输入文章名称" />
+      <span class="page-muted">搜索</span>
+    </div>
+    <div class="toolbar-right">
+      <button class="btn-primary" id="bulkDeleteBtn">批量删除</button>
+      <button class="btn-solid" id="filterByDateBtn">按日期筛选</button>
+    </div>
+  </div>
+
+  <div class="table-wrap square" style="max-height: 520px; overflow: auto;">
+    <table class="am-table">
+      <thead>
+        <tr>
+          <th style="width: 60px;"><input type="checkbox" id="checkAll" /></th>
+          <th style="width: 80px;">序号</th>
+          <th>文章名称</th>
+          <th style="width: 160px;">生成日期</th>
+          <th style="width: 140px;">文章类型</th>
+          <th style="width: 120px;">审核</th>
+          <th style="width: 200px;">操作</th>
+        </tr>
+      </thead>
+      <tbody id="articleTable">
+        <tr><td colspan="7" class="empty">加载中...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="modal" id="articleModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div id="modalTitle"></div>
+        <button class="btn-icon" id="modalClose" style="background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.18); color:#fff;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="toolbar" style="margin:0 0 10px;">
+          <div class="toolbar-left">
+            <select class="select" id="formatSelect">
+              <option value="markdown">公众号格式（Markdown）</option>
+              <option value="txt">文本格式（TXT）</option>
+            </select>
+          </div>
+          <div class="toolbar-right">
+            <button class="btn-solid" id="copyBtn">一键复制</button>
+          </div>
+        </div>
+        <textarea class="textarea" id="articleOutput" style="min-height: 420px;"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-solid" id="approveBtn" style="display:none;">通过审核</button>
+        <button class="btn-primary" id="modalCancel">关闭</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.am-actions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.am-table th,
+.am-table td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.am-table th {
+  white-space: nowrap;
+}
+
+.am-title {
+  text-align: left;
+  display: block;
+  max-width: 420px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.am-table .kb-input {
+  text-align: center;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.am-table .select {
+  text-align: center;
+}
+</style>

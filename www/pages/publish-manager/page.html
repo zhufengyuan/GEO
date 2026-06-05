@@ -1,0 +1,119 @@
+<div class="page-center" style="max-width: 980px;">
+  <div class="page-title" style="margin:0 0 10px;">发布管理</div>
+
+  <div class="pm-tabs" style="margin: 8px 0 14px;">
+    <button class="pm-tab on" type="button" data-tab="records">发布记录</button>
+    <button class="pm-tab" type="button" data-tab="articles">文章列表</button>
+  </div>
+
+  <div id="pmRecordsView">
+    <div class="toolbar" style="margin: 10px 0;">
+      <div class="toolbar-left">
+        <input class="input" id="pmKeyword" placeholder="请输入文章名称" />
+        <span class="page-muted">搜索</span>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn-solid" id="filterByPublishDateBtn" type="button">按发布日期筛选</button>
+      </div>
+    </div>
+
+    <div class="table-wrap square">
+      <table class="pm-table" style="min-width: 1180px; table-layout: auto;">
+        <thead>
+          <tr>
+            <th style="width: 60px;">序号</th>
+            <th style="min-width: 220px;">文章名称</th>
+            <th style="width: 140px;">生成日期</th>
+            <th style="width: 120px;">文章类型</th>
+            <th style="width: 140px;">发布时间</th>
+            <th style="min-width: 240px;">已发布平台</th>
+            <th style="min-width: 320px;">链接</th>
+            <th style="width: 140px;">平台发布次数</th>
+            <th style="width: 120px;">收录情况</th>
+            <th style="width: 120px;">引用次数</th>
+          </tr>
+        </thead>
+        <tbody id="publishTable">
+          <tr><td colspan="10" class="empty">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="pmArticlesView" style="display:none;">
+    <div class="toolbar" style="margin: 10px 0;">
+      <div class="toolbar-left">
+        <input class="input" id="pmArticleKeyword" placeholder="请输入文章名称" />
+        <span class="page-muted">搜索</span>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn-solid" id="filterByArticleDateBtn" type="button">按生成日期筛选</button>
+      </div>
+    </div>
+
+    <div class="table-wrap square" style="max-height: 520px; overflow: auto;">
+      <table class="pm-table" style="min-width: 1180px; table-layout: auto;">
+        <thead>
+          <tr>
+            <th style="width: 60px;">序号</th>
+            <th style="min-width: 260px;">文章名称</th>
+            <th style="width: 140px;">生成日期</th>
+            <th style="width: 120px;">文章类型</th>
+            <th style="min-width: 260px;">发布状态</th>
+            <th style="width: 160px;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="pmArticleTable">
+          <tr><td colspan="6" class="empty">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+.pm-tabs {
+  display: inline-flex;
+  gap: 10px;
+}
+
+.pm-tab {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+.pm-tab.on {
+  color: #ffffff;
+  border-color: rgba(79, 70, 229, 0.22);
+  background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 55%, #2563eb 100%);
+}
+
+.pm-title {
+  display: block;
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pm-link {
+  display: block;
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pm-pending {
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 700;
+}
+</style>
