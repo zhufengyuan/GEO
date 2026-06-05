@@ -1,0 +1,67 @@
+<div class="page-center">
+  <div class="diag-page-header">
+    <div class="diag-page-title">企业官网诊断</div>
+    <div class="diag-page-desc-row">
+      <div class="diag-page-desc">诊断企业官网是否能给AI爬取、解析、结构化数据（需有官网）</div>
+      <a class="page-hint" href="#" id="serviceLink">如需官网优化服务商，请联系客服</a>
+    </div>
+  </div>
+
+  <div class="diag-info-block">
+    <div class="diag-info-title">标准信息</div>
+    <div class="diag-info-hint">（下面的信息从企业基础信息库引用自动显示，基础库没有的用户自行填写）</div>
+    <table class="diag-info-table three-col">
+      <tbody>
+        <tr>
+          <td class="diag-label">企业全称</td>
+          <td class="diag-field"><input id="wd_enterprise_full_name" placeholder="请输入企业全称" /></td>
+          <td class="diag-label">企业简称</td>
+          <td class="diag-field"><input id="wd_enterprise_short_name" placeholder="请输入企业简称" /></td>
+          <td class="diag-label">成立时间</td>
+          <td class="diag-field"><input id="wd_founded_time" placeholder="请输入成立时间" /></td>
+        </tr>
+        <tr>
+          <td class="diag-label">联系电话</td>
+          <td class="diag-field"><input id="wd_enterprise_contact" placeholder="请输入联系电话" /></td>
+          <td class="diag-label">注册地址</td>
+          <td class="diag-field"><input id="wd_enterprise_address" placeholder="请输入注册地址" /></td>
+          <td class="diag-label">官方网址</td>
+          <td class="diag-field"><input id="wd_enterprise_website" placeholder="请输入官方网址" /></td>
+        </tr>
+        <tr>
+          <td class="diag-label">完整工商名称</td>
+          <td class="diag-field"><input id="wd_enterprise_full_name_dup" placeholder="请输入完整工商名称" /></td>
+          <td class="diag-label">工商注册标准地址</td>
+          <td class="diag-field" colspan="3"><input id="wd_enterprise_address_dup" placeholder="请输入工商注册标准地址" /></td>
+        </tr>
+        <tr>
+          <td class="diag-label">核心产品/服务</td>
+          <td class="diag-field" colspan="5"><input id="wd_main_products" placeholder="请输入核心产品/服务" /></td>
+        </tr>
+        <tr>
+          <td class="diag-label">资质/荣誉/认证</td>
+          <td class="diag-field" colspan="5"><textarea id="wd_honors" placeholder="请输入资质/荣誉/认证（可选）"></textarea></td>
+        </tr>
+        <tr>
+          <td class="diag-label">企业官方简介</td>
+          <td class="diag-field" colspan="5"><textarea id="wd_company_profile" placeholder="请输入企业官方简介（可选）"></textarea></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="diag-action-row">
+    <button class="btn-solid" id="runBtn">马上诊断</button>
+  </div>
+
+  <div class="report" style="min-height:360px; margin-top: 14px;">
+    <div class="report-header">诊断结果</div>
+    <div class="report-body" id="reportBody">
+      <div class="report-placeholder">点击诊断按钮后，结果将显示在此处</div>
+    </div>
+  </div>
+
+  <div class="diag-action-row">
+    <button class="btn-primary" id="downloadBtn">下载分析报告</button>
+  </div>
+</div>

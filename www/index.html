@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>时代科技 - GEO优化后台管理</title>
+    <link rel="stylesheet" href="styles/theme.css?v=2026-06-04-reform-2" />
+  </head>
+  <body>
+    <div class="app">
+      <div class="header">
+        <div class="logo">时代科技</div>
+        <div class="tip">请勿夸大宣传、伪造专家及报告、冒充权威、虚假宣传等手段，勿违反广告法，否则后果自负。</div>
+        <div class="header-right">
+          <div class="sys-expiry" id="sysExpiry">系统到期时间：—</div>
+          <div class="user" aria-label="用户">👤</div>
+        </div>
+      </div>
+
+      <div class="container">
+        <div class="sidebar" id="sidebar">
+          <div class="menu-section">
+            <div class="menu-item active" data-page="home">工作台</div>
+          </div>
+
+          <div class="menu-section">
+            <div class="menu-item" data-toggle="prepare">准备工作</div>
+            <div class="sub-menu" data-page="knowledge-base" data-parent="prepare">企业知识库</div>
+            <div class="sub-menu" data-page="original-data-diagnosis" data-parent="prepare">基础数据诊断</div>
+            <div class="sub-menu" data-page="website-diagnosis" data-parent="prepare">企业官网诊断</div>
+            <div class="sub-menu" data-page="competitor-analysis" data-parent="prepare">竞争对手分析</div>
+            <div class="sub-menu" data-page="diagnosis-report" data-parent="prepare">企业诊断报告</div>
+            <div class="sub-menu" data-page="optimization-plan" data-parent="prepare">优化建议方案</div>
+          </div>
+
+          <div class="menu-section">
+            <div class="menu-item" data-toggle="geo">GEO优化</div>
+            <div class="sub-menu" data-page="question-bank" data-parent="geo">创建问题词库</div>
+            <div class="sub-menu" data-page="question-bank-manager" data-parent="geo">问题词库管理</div>
+            <div class="sub-menu" data-page="article-writing" data-parent="geo">文章创作</div>
+            <div class="sub-menu" data-page="article-manager" data-parent="geo">文章管理</div>
+            <div class="sub-menu" data-page="media-publish" data-parent="geo">自媒体发布</div>
+            <div class="sub-menu" data-page="official-publish" data-parent="geo">官网发布</div>
+            <div class="sub-menu" data-page="publish-manager" data-parent="geo">发布管理</div>
+          </div>
+
+          <div class="menu-section">
+            <div class="menu-item" data-toggle="analysis" data-default-page="data-statistics">数据分析</div>
+            <div class="sub-menu" data-toggle="stats" data-page="data-statistics" data-parent="analysis">数据统计</div>
+            <div class="sub-menu" data-page="data-query" data-parent="stats">查询</div>
+            <div class="sub-menu" data-page="config" data-parent="analysis">消耗明细</div>
+            <div class="menu-item" data-page="public-opinion">舆情监控</div>
+            <div class="menu-item" data-page="ai-toolbox">AI工具箱</div>
+            <div class="menu-item" data-page="real-name">实名认证</div>
+            <div class="menu-item" data-page="contact">联系我们</div>
+          </div>
+        </div>
+
+        <div class="main">
+          <div class="content" id="contentBody">
+            <div class="card">
+              <div class="loading">加载中...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="index.js?v=2026-06-04-reform-2"></script>
+  </body>
+</html>

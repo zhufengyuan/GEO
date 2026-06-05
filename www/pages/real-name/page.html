@@ -1,0 +1,111 @@
+<div class="page-center" style="max-width: 1100px;">
+  <div class="rn-title">
+    <div class="page-title" id="pageTitle" style="margin:0;">实名认证</div>
+    <div class="rn-status" id="rnStatus">未认证</div>
+  </div>
+  <div class="rn-tip">
+    为了保障账号安全，请完成实名认证，认证完成后可享受更高额度、更多权益。
+  </div>
+
+  <div class="rn-stage">
+    <button class="rn-card" id="rnCard">
+      <div class="rn-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 22V7l8-4 8 4v15H4zm2-2h12V8.3L12 5.1 6 8.3V20zm2-2v-2h2v2H8zm0-4v-2h2v2H8zm0-4V8h2v2H8zm4 8v-2h2v2h-2zm0-4v-2h2v2h-2zm0-4V8h2v2h-2zm4 8v-2h2v2h-2zm0-4v-2h2v2h-2zm0-4V8h2v2h-2z"/>
+        </svg>
+      </div>
+      <div class="rn-card-text">实名认证</div>
+    </button>
+  </div>
+</div>
+
+<div class="modal" id="rnModal">
+  <div class="modal-card" style="width: min(520px, calc(100vw - 32px));">
+    <div class="modal-head">
+      <div id="rnModalTitle">实名认证</div>
+      <button class="btn-icon" id="rnModalClose" style="background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.18); color:#fff;">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <input class="input" id="rnName" placeholder="真实姓名" />
+        <input class="input" id="rnId" placeholder="身份证号" />
+      </div>
+      <div class="page-muted" style="margin-top:10px;">占位：后续接入实名认证接口与状态回写。</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-solid" id="rnSubmit">提交认证</button>
+      <button class="btn-primary" id="rnCancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.rn-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.rn-status {
+  font-size: 12px;
+  font-weight: 900;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(59, 130, 246, 0.08);
+  color: #2563eb;
+}
+
+.rn-tip {
+  margin-top: 10px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  color: #1f2937;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.rn-stage {
+  margin-top: 34px;
+  display: flex;
+  justify-content: center;
+}
+
+.rn-card {
+  width: 220px;
+  height: 140px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.10);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.rn-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(59, 130, 246, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rn-icon svg {
+  width: 26px;
+  height: 26px;
+  fill: #2563eb;
+}
+
+.rn-card-text {
+  font-weight: 900;
+  color: #111827;
+}
+</style>
+

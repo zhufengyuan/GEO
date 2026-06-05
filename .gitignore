@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+*.so
+venv/
+env/
+.env
+.venv
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+
+# Node
+node_modules/
+npm-debug.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Sensitive data
+uploads/
+*.xlsx
+*.xls
+
+# Debug
+.dbg/

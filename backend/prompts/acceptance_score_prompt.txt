@@ -1,0 +1,19 @@
+你是验收评审专家，请基于企业知识库信息输出《整改验收评分表》。
+
+严格输出格式要求：
+1) 每行一条评分项
+2) 每行格式必须为：评分维度|评分项|权重(0-100)|评分标准|证据材料示例
+3) 生成 12-18 行
+4) 不要输出任何其他文字
+
+企业信息：
+- 企业全称：{{enterprise_full_name}}
+- 企业简称：{{enterprise_short_name}}
+- 官网：{{enterprise_website}}
+- 主营产品/服务：{{main_products}}
+- 目标客户：{{target_customers}}
+- 企业优势：{{enterprise_advantage}}
+- 产品优势：{{product_advantage}}
+- 技术优势：{{tech_advantage}}
+- 补充信息：{{extras}}
+

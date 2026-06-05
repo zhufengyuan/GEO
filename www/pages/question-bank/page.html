@@ -1,0 +1,225 @@
+<div class="page-center" style="max-width: 1100px;">
+  <div class="page-title" style="text-align:center; margin:0 0 14px; color:#2563eb; font-weight:800;">问题词主要用于写作标题</div>
+
+  <div class="card" style="padding:18px;">
+    <div class="qb-grid-top">
+      <div>
+        <div class="qb-row">
+          <div class="qb-label"><span class="req">*</span>请输入企业名称或简称</div>
+          <div class="qb-right qb-red">例如：xx科技公司，xx科技，中间用逗号隔开</div>
+        </div>
+        <input class="input qb-input" id="companyInput" placeholder="请输入企业名称或简称" />
+      </div>
+
+      <div>
+        <div class="qb-row">
+          <div class="qb-label"><span class="req">*</span>行业/产品关键词</div>
+          <div class="qb-right qb-red">每次只能输入一个，可单选或多选，补充更多维度的关键词，能让生成的问题更精准</div>
+        </div>
+        <input class="input qb-input" id="industryKeyword" placeholder="请输入" />
+      </div>
+    </div>
+
+    <div class="qb-word-grid" style="margin-top: 14px;">
+      <div class="qb-word">
+        <div class="qb-word-title">区域词</div>
+        <input class="input qb-mini" id="regionWord" placeholder="主要是你服务的区域，如省、市" />
+      </div>
+      <div class="qb-word">
+        <div class="qb-word-title">功能词</div>
+        <input class="input qb-mini" id="featureWord" placeholder="你产品的功能，如保温、降压" />
+      </div>
+      <div class="qb-word">
+        <div class="qb-word-title">属性词</div>
+        <input class="input qb-mini" id="attributeWord" placeholder="产品的型号、材质、款式、规格等" />
+      </div>
+      <div class="qb-word">
+        <div class="qb-word-title">场景词</div>
+        <input class="input qb-mini" id="sceneWord" placeholder="产品使用场景如居家、户外" />
+      </div>
+      <div class="qb-word">
+        <div class="qb-word-title">使用人群</div>
+        <input class="input qb-mini" id="peopleWord" placeholder="你产品的目标人群，如儿童、学生" />
+      </div>
+      <div class="qb-word">
+        <div class="qb-word-title">痛点词</div>
+        <input class="input qb-mini" id="painWord" placeholder="用户的痛点，如切割难、不会安装等" />
+      </div>
+      <div class="qb-word">
+        <div class="qb-word-title">价格词</div>
+        <input class="input qb-mini" id="priceWord" placeholder="填产品的价格区间" />
+      </div>
+      <div class="qb-word">
+        <div class="qb-word-title">其他</div>
+        <input class="input qb-mini" id="otherWord" placeholder="可填写其他补充信息" />
+      </div>
+    </div>
+
+    <div class="qb-decision" style="margin-top: 18px;">
+      <div class="qb-row" style="margin-bottom: 10px;">
+        <div class="qb-label">请选择消费者决策路径</div>
+        <div class="qb-right qb-red">每阶段的决策会产生不同的提问问题，会更精准</div>
+      </div>
+      <div class="qb-dec-list">
+        <label class="qb-dec-item"><input type="radio" name="decisionStage" value="认知触发" checked /> <span class="qb-dec-title">认知触发阶段</span> — <span class="qb-dec-desc">消费者产生产品需求后，向大模型咨询品牌推荐</span></label>
+        <label class="qb-dec-item"><input type="radio" name="decisionStage" value="对比筛选" /> <span class="qb-dec-title">对比筛选阶段</span> — <span class="qb-dec-desc">大模型推荐多个品牌后，会多角度对比各个品牌</span></label>
+        <label class="qb-dec-item"><input type="radio" name="decisionStage" value="锁定意向" /> <span class="qb-dec-title">锁定意向阶段</span> — <span class="qb-dec-desc">消费者初步确定心仪品牌</span></label>
+        <label class="qb-dec-item"><input type="radio" name="decisionStage" value="求证决策" /> <span class="qb-dec-title">求证决策阶段</span> — <span class="qb-dec-desc">确定心仪品牌型号后，进入细节深挖、消除顾虑阶段</span></label>
+        <label class="qb-dec-item"><input type="radio" name="decisionStage" value="风险权衡犹豫" /> <span class="qb-dec-title">风险权衡犹豫阶段</span> — <span class="qb-dec-desc">心理兜底决策</span></label>
+        <label class="qb-dec-item"><input type="radio" name="decisionStage" value="最终下单履约" /> <span class="qb-dec-title">最终下单履约阶段</span> — <span class="qb-dec-desc">完成购买&amp;长期复购</span></label>
+      </div>
+    </div>
+
+    <div class="action-row" style="margin: 22px 0 0;">
+      <button class="big-action" id="createBtn">马上生成</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="toolbar" style="margin-bottom:10px;">
+      <div class="toolbar-left">
+        <div class="page-title" style="margin:0;">生成结果</div>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn-primary" id="toManagerBtn">进入管理</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:70px;">序号</th>
+            <th style="width:160px;">关键词</th>
+            <th style="width:160px;">决策阶段</th>
+            <th>问题关键词</th>
+            <th style="width:140px;">创建时间</th>
+            <th style="width:120px;">状态</th>
+          </tr>
+        </thead>
+        <tbody id="resultTable">
+          <tr>
+            <td>1</td>
+            <td>示例关键词</td>
+            <td>认知触发</td>
+            <td>示例问题关键词</td>
+            <td>2026-05-02</td>
+            <td>待处理</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+.qb-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.qb-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.qb-right {
+  font-size: 13px;
+  margin-left: 8px;
+}
+
+.qb-red {
+  color: #ef4444;
+  font-weight: 400;
+}
+
+.qb-sub {
+  font-size: 12px;
+  color: #ef4444;
+  margin-top: 6px;
+}
+
+.qb-grid-top {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.qb-input {
+  min-width: 0;
+  width: 100%;
+}
+
+.qb-word-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 18px;
+}
+
+.qb-word {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qb-word-title {
+  width: 70px;
+  font-weight: 700;
+  color: #111827;
+  font-size: 13px;
+}
+
+.qb-mini {
+  width: 100%;
+  min-width: 0;
+}
+
+.qb-dec-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.qb-dec-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #374151;
+}
+
+.qb-dec-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.qb-dec-desc {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+@media (max-width: 980px) {
+  .qb-word-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .qb-word-grid {
+    grid-template-columns: 1fr;
+  }
+  .qb-word {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .qb-word-title {
+    width: auto;
+  }
+}
+</style>

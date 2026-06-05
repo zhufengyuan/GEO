@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS enterprise_image_categories (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    enterprise_id BIGINT NULL,
+    category VARCHAR(100) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+

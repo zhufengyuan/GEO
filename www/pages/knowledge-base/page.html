@@ -1,0 +1,755 @@
+<div class="page-center">
+  <div class="page-title" id="pageTitle" style="margin:0 0 12px; text-align:center;"></div>
+  <div class="kb-tabs">
+    <div class="kb-tab active" data-tab="base">企业基础信息</div>
+    <div class="kb-tab" data-tab="docs">企业介绍</div>
+    <div class="kb-tab" data-tab="images">企业图片库</div>
+    <div class="kb-tab" data-tab="products">产品库</div>
+    <div class="kb-tab" data-tab="website">导入网址</div>
+    <div class="kb-tab" data-tab="files">导入文件</div>
+  </div>
+
+  <div class="kb-panel" data-panel="base">
+    <div class="kb-note">
+      <div class="kb-note-title">信息越完善，越利于优质文案创作。</div>
+      <div class="kb-note-sub"></div>
+    </div>
+
+    <div class="kb-table-wrap">
+      <table class="kb-table">
+        <tbody>
+          <tr>
+            <td class="kb-label kb-required" data-kb-key="企业全称">企业全称：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label kb-required" data-kb-key="企业简称">企业简称：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label kb-required" data-kb-key="企业地址">注册地址：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label kb-required" data-kb-key="企业联系方式">联系方式：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+          </tr>
+          <tr>
+            <td class="kb-label kb-required" data-kb-key="主营产品">产品/服务：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label kb-required" data-kb-key="目标客户">客户群体：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label" data-kb-key="成立时间">成立时间：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label" data-kb-key="所在行业">所在行业：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+          </tr>
+          <tr>
+            <td class="kb-label" data-kb-key="企业官网">企业官网：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label" data-kb-key="行业地位">行业地位：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label" data-kb-key="销售区域范围">销售区域：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label" data-kb-key="销售方式或渠道">销售模式：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+          </tr>
+          <tr>
+            <td class="kb-label" data-kb-key="企业优势">企业优势：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label" data-kb-key="产品优势">产品优势：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label" data-kb-key="技术优势">技术优势：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label" data-kb-key="管理模式优势">管理模式优势：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+          </tr>
+          <tr>
+            <td class="kb-label" data-kb-key="客户复购率">客服复购率：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label" data-kb-key="客户好评率">客户好评率：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label" data-kb-key="服务响应时间">服务响应时间：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label" data-kb-key="产品交付时限">产品交付期限：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+          </tr>
+          <tr>
+            <td class="kb-label" data-kb-key="历史累计营业额">销售规模：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label" data-kb-key="员工数量">员工数量：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label" data-kb-key="厂房或店面面积">厂房/店面积：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label"></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td class="kb-label" data-kb-key="企业愿景">企业愿景：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label" data-kb-key="企业宗旨">企业宗旨：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label" data-kb-key="企业使命">企业使命：</td>
+            <td><input class="kb-input" placeholder="请输入" /></td>
+            <td class="kb-label"></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="kb-save-row" style="display:flex; justify-content:flex-end;">
+      <button class="btn-solid" id="saveBaseBtn">保存</button>
+    </div>
+
+    <div class="kb-block">
+      <div class="kb-block-head">
+        <div class="kb-block-title">产品/服务特点优势：</div>
+      </div>
+      <div class="kb-block-hint">
+        请描述您的产品/服务的优势，比如产品的品质、材质、功能、性能、规格、专业度、用户口碑、交货时效、售后等等方面<br />
+        例子：虎头牌保温杯，使用的是航空级的钢材，轻薄耐用，保温48小时，淘宝好评率达90%，当天发货<br />
+        可输入多个产品，每个产品介绍完后，用分号“;”隔开
+      </div>
+      <textarea class="kb-textarea" placeholder="请输入（多个产品用 ; 隔开）"></textarea>
+      <div class="kb-save-row">
+        <button class="kb-save" data-save="adv">保存</button>
+      </div>
+    </div>
+
+    <div class="kb-block">
+      <div class="kb-block-head">
+        <div class="kb-block-title">企业资质证书、荣誉证书：</div>
+      </div>
+      <div class="kb-block-hint">
+        请输入企业所获各项证书、资质，如专利、商标、高新企业、ISO、检测报告、验厂报告等等，须完整的证书名称、证号、颁发机构、时间等信息<br />
+        例子：ISO环境管理体系注册证书，证书号;ISO14001:2015，颁发机构;URS，颁发时间;2015年4月15日
+      </div>
+      <textarea class="kb-textarea" placeholder="请输入"></textarea>
+      <div class="kb-save-row">
+        <button class="kb-save" data-save="honor">保存</button>
+      </div>
+    </div>
+
+    <div class="kb-block">
+      <div class="kb-block-head">
+        <div class="kb-block-title">已合作的重要客户（最好是比较知名的企业）：</div>
+      </div>
+      <div class="kb-block-hint">
+        须客户的全称，尽量简单描述合作的业务产品、金额、成功案例，客户满意度、复购等
+      </div>
+      <textarea class="kb-textarea" placeholder="请输入"></textarea>
+      <div class="kb-save-row">
+        <button class="kb-save" data-save="clients">保存</button>
+      </div>
+    </div>
+
+    <div class="kb-block">
+      <div class="kb-block-head">
+        <div class="kb-block-title">企业发展历程、荣誉、重大事件：</div>
+      </div>
+      <div class="kb-block-hint">
+        请以时间轴顺序去表述，尽量简洁扼要。例如：1981年4月，公司正式成立
+      </div>
+      <div style="display:flex; justify-content:flex-start; margin-bottom: 6px;">
+        <button class="btn-primary" id="genTimelineBtn">系统生成</button>
+      </div>
+      <div class="table-wrap square" style="margin-top:10px;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 120px;">时间</th>
+              <th>事件</th>
+              <th style="width: 140px;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="timelineTable">
+            <tr>
+              <td><input class="kb-input" placeholder="1981-04" /></td>
+              <td><input class="kb-input" placeholder="公司正式成立" /></td>
+              <td>
+                <button class="op" data-action="add">新增</button>
+                <button class="op op-danger" data-action="delete">删除</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="kb-save-row" style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn-solid" id="saveTimelineBtn">保存</button>
+      </div>
+    </div>
+
+    <div class="kb-block">
+      <div class="kb-block-head">
+        <div class="kb-block-title">创始人/团队介绍：</div>
+      </div>
+      <textarea class="kb-textarea" id="kb_team_intro" placeholder="赖虎、邓雍杰、朱凤元"></textarea>
+      <div class="kb-save-row">
+        <button class="kb-save" data-save="team_intro">保存</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="kb-panel hidden" data-panel="docs">
+    <div class="page-center" style="max-width: 1100px;">
+      <div class="page-title" style="margin:0 0 6px;">企业介绍</div>
+      <div class="page-muted" style="margin:0 0 10px;">这是以后对外统一介绍参考材料，请严谨审核修改后保存</div>
+
+      <div class="kb-block">
+        <div class="kb-block-head">
+          <div class="kb-block-title">企业简介：</div>
+        </div>
+        <div class="kb-block-hint">
+          用系统生成，企业知识库越完整，生成的简介越准确和专业。仅作参考，请严谨审核后保存。
+        </div>
+        <div style="display:flex; justify-content:flex-start; margin-bottom: 6px;">
+          <button class="btn-primary" id="genProfileBtn">系统生成</button>
+        </div>
+        <textarea class="kb-textarea" id="companyProfile" placeholder="点击系统生成，或自行编辑"></textarea>
+        <div class="kb-save-row" style="display:flex; gap:10px; justify-content:flex-end;">
+          <button class="btn-solid" id="saveProfileBtn">保存</button>
+        </div>
+      </div>
+
+      <div class="kb-block">
+        <div class="kb-block-head">
+          <div class="kb-block-title">企业介绍：</div>
+        </div>
+        <div class="kb-block-hint">
+          这是以后对外统一介绍参考材料，请严谨审核修改后保存
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-start; margin-bottom: 6px; flex-wrap:wrap;">
+          <button class="btn-primary" id="genLibraryBtn">系统生成</button>
+        </div>
+        <textarea class="kb-textarea" id="enterpriseLibrary" placeholder="点击系统生成，或自行编辑"></textarea>
+        <div class="kb-save-row" style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
+          <button class="btn-primary" id="downloadLibraryBtn">下载企业介绍</button>
+          <button class="btn-solid" id="saveLibraryBtn">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="kb-panel hidden" data-panel="images">
+    <div class="page-center" style="max-width: 1100px;">
+      <div class="u-row" style="margin-bottom: 10px;">
+        <div class="u-left">
+          <div class="page-title" style="margin:0;">企业图片库</div>
+          <span class="pill-small">建议分类管理：活动/产品/资质/案例</span>
+        </div>
+        <div class="u-right">
+          <button class="btn-solid" id="addImageCategoryBtn">添加分类+</button>
+          <button class="btn-primary" id="editImageCategoryBtn">编辑</button>
+          <button class="btn-primary" id="deleteImageCategoryBtn">删除</button>
+          <button class="btn-primary hidden" id="backToCategoryBtn">返回</button>
+        </div>
+      </div>
+
+      <div class="table-wrap" id="imgCategoryWrap" style="margin-bottom: 12px;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 60px;"><input type="checkbox" id="imgCatCheckAll" /></th>
+              <th style="width: 80px;">序号</th>
+              <th style="width: 120px;">图片分类</th>
+              <th style="width: 170px;">创建时间</th>
+              <th style="width: 220px;">备注</th>
+              <th style="width: 120px;">使用次数</th>
+              <th style="width: 120px;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="imgCategoryTable">
+            <tr><td colspan="7" class="empty">请先添加分类</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-wrap hidden" id="imgListWrap" style="margin-bottom: 12px;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 60px;"><input type="checkbox" /></th>
+              <th style="width: 80px;">序号</th>
+              <th style="width: 120px;">图片分类</th>
+              <th>图片</th>
+              <th style="width: 120px;">使用次数</th>
+              <th style="width: 170px;">创建时间</th>
+              <th style="width: 220px;">备注</th>
+              <th style="width: 120px;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="imgListTable">
+            <tr><td colspan="8" class="empty">暂无图片</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="modal" id="imgModal">
+        <div class="modal-card" style="width: 400px; max-height: 200px;">
+          <div class="modal-head">
+            <div id="imgModalTitle">添加分类</div>
+            <button class="btn-icon" id="imgModalClose" style="background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.18); color:#fff;">✕</button>
+          </div>
+          <div class="modal-body">
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <div class="page-muted">分类名称</div>
+              <input class="input" id="imgCategoryName" placeholder="请输入" />
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn-solid" id="imgConfirmBtn">确定</button>
+            <button class="btn-primary" id="imgCancelBtn">取消</button>
+          </div>
+        </div>
+      </div>
+      <input type="file" id="imgFileInput" accept="image/*" multiple style="display:none;" />
+    </div>
+  </div>
+  <div class="kb-panel hidden" data-panel="products">
+    <div class="page-center" style="max-width: 1100px;">
+      <div class="u-row" style="margin-bottom: 10px;">
+        <div class="u-left">
+          <div class="page-title" style="margin:0;">产品库</div>
+          <span class="page-muted" style="font-size:12px;">温馨提示：完整的产品信息，对于创作优质文案非常重要</span>
+        </div>
+        <div class="u-right">
+          <button class="btn-solid" id="importProductBtn">导入产品表格</button>
+        </div>
+      </div>
+
+      <div class="page-muted" style="margin-bottom: 10px;">
+        可以导入您原有的产品信息表格，但尽量提供下方表格的栏目及完整信息。
+      </div>
+
+      <div class="table-wrap square" style="margin-bottom: 12px; overflow:auto;">
+        <table style="min-width: 1900px;">
+          <thead>
+            <tr>
+              <th style="width: 60px;">序号</th>
+              <th style="width: 160px;">产品图片</th>
+              <th style="width: 170px;">精准产品名称</th>
+              <th style="width: 180px;">产品核心材质</th>
+              <th style="width: 220px;">产品核心特点</th>
+              <th style="width: 170px;">产品核心参数</th>
+              <th style="width: 210px;">产品使用场景</th>
+              <th style="width: 180px;">产品核心优势</th>
+              <th style="width: 220px;">适配客户/人群</th>
+              <th style="width: 230px;">定制服务能力</th>
+              <th style="width: 200px;">适配市场</th>
+              <th style="width: 68px;">编辑</th>
+              <th style="width: 68px;">删除</th>
+            </tr>
+          </thead>
+          <tbody id="productTable">
+            <tr>
+              <td class="p-seq">1</td>
+              <td>
+                <div class="pimg-cell" data-img-count="0">
+                  <div class="pimg-grid"></div>
+                  <button class="op" data-action="insert-image">插入图片</button>
+                  <div class="page-muted" style="font-size:12px;">最多9张</div>
+                </div>
+              </td>
+              <td><input class="kb-input kb-input-plain" value="旅行背包" /></td>
+              <td><input class="kb-input kb-input-plain" value="涤纶" /></td>
+              <td><input class="kb-input kb-input-plain" value="防水工艺" /></td>
+              <td><input class="kb-input kb-input-plain" value="尺寸" /></td>
+              <td><input class="kb-input kb-input-plain" value="短途旅行" /></td>
+              <td><input class="kb-input kb-input-plain" value="环保" /></td>
+              <td><input class="kb-input kb-input-plain" value="B端采购" /></td>
+              <td><input class="kb-input kb-input-plain" value="LOGO定制" /></td>
+              <td><input class="kb-input kb-input-plain" value="国内" /></td>
+              <td><button class="op" data-action="edit">编辑</button></td>
+              <td><button class="op op-danger" data-action="delete">删除</button></td>
+            </tr>
+            <tr>
+              <td class="p-seq">2</td>
+              <td>
+                <div class="pimg-cell" data-img-count="0">
+                  <div class="pimg-grid"></div>
+                  <button class="op" data-action="insert-image">插入图片</button>
+                  <div class="page-muted" style="font-size:12px;">最多9张</div>
+                </div>
+              </td>
+              <td><input class="kb-input kb-input-plain" value="旅行背包" /></td>
+              <td><input class="kb-input kb-input-plain" value="帆布等" /></td>
+              <td><input class="kb-input kb-input-plain" value="带usb接口等" /></td>
+              <td><input class="kb-input kb-input-plain" value="重量" /></td>
+              <td><input class="kb-input kb-input-plain" value="商务出差" /></td>
+              <td><input class="kb-input kb-input-plain" value="耐磨" /></td>
+              <td><input class="kb-input kb-input-plain" value="品牌方" /></td>
+              <td><input class="kb-input kb-input-plain" value="改版" /></td>
+              <td><input class="kb-input kb-input-plain" value="欧美" /></td>
+              <td><button class="op" data-action="edit">编辑</button></td>
+              <td><button class="op op-danger" data-action="delete">删除</button></td>
+            </tr>
+            <tr>
+              <td class="p-seq">3</td>
+              <td>
+                <div class="pimg-cell" data-img-count="0">
+                  <div class="pimg-grid"></div>
+                  <button class="op" data-action="insert-image">插入图片</button>
+                  <div class="page-muted" style="font-size:12px;">最多9张</div>
+                </div>
+              </td>
+              <td><input class="kb-input kb-input-plain" value="旅行背包" /></td>
+              <td><input class="kb-input kb-input-plain" value="帆布等" /></td>
+              <td><input class="kb-input kb-input-plain" value="带usb接口等" /></td>
+              <td><input class="kb-input kb-input-plain" value="容量" /></td>
+              <td><input class="kb-input kb-input-plain" value="登机等" /></td>
+              <td><input class="kb-input kb-input-plain" value="多功能分区" /></td>
+              <td><input class="kb-input kb-input-plain" value="跨境卖家" /></td>
+              <td><input class="kb-input kb-input-plain" value="打样" /></td>
+              <td><input class="kb-input kb-input-plain" value="日本" /></td>
+              <td><button class="op" data-action="edit">编辑</button></td>
+              <td><button class="op op-danger" data-action="delete">删除</button></td>
+            </tr>
+            <tr>
+              <td class="p-seq">4</td>
+              <td>
+                <div class="pimg-cell" data-img-count="0">
+                  <div class="pimg-grid"></div>
+                  <button class="op" data-action="insert-image">插入图片</button>
+                  <div class="page-muted" style="font-size:12px;">最多9张</div>
+                </div>
+              </td>
+              <td><input class="kb-input kb-input-plain" value="旅行背包" /></td>
+              <td><input class="kb-input kb-input-plain" value="帆布等" /></td>
+              <td><input class="kb-input kb-input-plain" value="带usb接口等" /></td>
+              <td><input class="kb-input kb-input-plain" value="容量" /></td>
+              <td><input class="kb-input kb-input-plain" value="登机等" /></td>
+              <td><input class="kb-input kb-input-plain" value="多功能分区" /></td>
+              <td><input class="kb-input kb-input-plain" value="跨境卖家" /></td>
+              <td><input class="kb-input kb-input-plain" value="OEM/ODM" /></td>
+              <td><input class="kb-input kb-input-plain" value="东南亚" /></td>
+              <td><button class="op" data-action="edit">编辑</button></td>
+              <td><button class="op op-danger" data-action="delete">删除</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="u-row" style="justify-content:flex-end;">
+        <button class="btn-solid" id="saveProductBtn">保存</button>
+      </div>
+
+      <div class="page-muted" style="margin-top: 12px;">
+        系统说明：
+        <div>1、用户导入自己原有的产品表格后，自动匹配上面表格字段；如果用户有但该表格没有的字段，则不显示用户多出的那些</div>
+        <div>2、用户可以自行插入产品的图片，每个产品最多9张图片</div>
+        <div>3、用户发布有关产品文章时，可以从产品库选择产品</div>
+      </div>
+
+      <input type="file" id="productImageInput" accept="image/*" multiple style="display:none;" />
+      <input type="file" id="productExcelInput" accept=".xlsx,.xls" style="display:none;" />
+    </div>
+  </div>
+  <div class="kb-panel hidden" data-panel="website">
+    <div class="page-center" style="max-width: 980px;">
+      <div class="page-title" style="margin:0 0 10px;">导入网址链接</div>
+      <div class="page-muted" style="margin-bottom: 10px; font-weight: 400;">
+        请导入您曾经往往发布过的文章等信息的网址链接，这样有利于机器人学习您的写作风格和习惯，参考过往的数据。
+      </div>
+      <div class="table-wrap square" style="margin-bottom: 12px;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 80px;">序号</th>
+              <th>输入或黏贴网址</th>
+              <th style="width: 160px;">创建时间</th>
+              <th style="width: 80px;">删除</th>
+            </tr>
+          </thead>
+          <tbody id="websiteTable">
+            <tr>
+              <td>1</td>
+              <td><input class="kb-input" placeholder="https://" /></td>
+              <td>—</td>
+              <td><button class="op op-danger" data-action="delete">删除</button></td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td><input class="kb-input" placeholder="https://" /></td>
+              <td>—</td>
+              <td><button class="op op-danger" data-action="delete">删除</button></td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td><input class="kb-input" placeholder="https://" /></td>
+              <td>—</td>
+              <td><button class="op op-danger" data-action="delete">删除</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="u-row" style="justify-content:flex-end;">
+        <button class="btn-primary" id="importWebsiteBtn">导入</button>
+        <button class="btn-solid" id="saveWebsiteBtn">保存</button>
+      </div>
+      <input type="file" id="websiteFileInput" accept=".txt,.csv" style="display:none;" />
+    </div>
+  </div>
+  <div class="kb-panel hidden" data-panel="files">
+    <div class="page-center" style="max-width: 980px;">
+      <div class="page-title" style="margin:0 0 10px;">导入文件</div>
+      <div class="page-muted" style="margin-bottom: 10px; font-weight: 400;">
+        请导入您企业的产品手册、客户案例、营销方案、技术文档等带有企业的文档，这样更利于创作优质的文章。
+      </div>
+
+      <div class="u-row" style="justify-content:flex-end; margin-bottom: 10px;">
+        <button class="btn-solid" id="importFileBtn">导入文档</button>
+      </div>
+
+      <div class="table-wrap square">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 80px; text-align:center;">序号</th>
+              <th style="text-align:left;">文档名称</th>
+              <th style="width: 160px; text-align:center;">创建时间</th>
+              <th style="width: 80px; text-align:center;">删除</th>
+            </tr>
+          </thead>
+          <tbody id="fileTable">
+            <tr><td colspan="4" class="empty">暂无文件</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <input type="file" id="kbFileInput" multiple style="display:none;" />
+    </div>
+  </div>
+
+  <div class="modal" id="ocrHintModal">
+    <div class="modal-card" style="width: 460px; max-height: 260px;">
+      <div class="modal-head">
+        <div id="ocrHintTitle">提示</div>
+        <button class="btn-icon" id="ocrHintClose" style="background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.18); color:#fff;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="page-muted" id="ocrHintText" style="line-height:1.8;">
+          后续将接入 OCR 识别图片信息；当前先支持上传/插入图片。
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-solid" id="ocrHintOk">继续</button>
+        <button class="btn-primary" id="ocrHintCancel">取消</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal" id="importModal">
+    <div class="modal-card" style="width: 460px; max-height: 280px;">
+      <div class="modal-head">
+        <div id="importModalTitle">导入</div>
+        <button class="btn-icon" id="importModalClose" style="background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.18); color:#fff;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="page-muted" id="importModalText" style="line-height:1.8;">
+          请选择方式继续
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-solid" id="importUploadBtn">上传</button>
+        <button class="btn-primary" id="importFromBtn">导入</button>
+        <button class="btn-primary" id="importCancelBtn">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.kb-tabs {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 10px 2px;
+  margin-bottom: 10px;
+}
+
+.kb-tab {
+  font-size: 15px;
+  color: #6b7280;
+  padding: 8px 2px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.kb-tab.active {
+  color: #2563eb;
+  font-weight: 800;
+  border-bottom-color: #2563eb;
+}
+
+.kb-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 6px 0 10px;
+}
+
+.kb-note-title {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.kb-note-sub {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.kb-table-wrap {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.kb-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.kb-table td {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 12px 12px;
+  font-size: 12px;
+}
+
+.kb-label {
+  width: 120px;
+  color: #6b7280;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.kb-required {
+  color: #ef4444;
+}
+
+.req {
+  margin-right: 2px;
+  font-weight: 900;
+}
+
+.kb-table .req {
+  display: none;
+}
+
+.kb-input {
+  width: 100%;
+  height: 32px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 2px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.kb-input-plain {
+  border-color: transparent;
+  background: transparent;
+}
+
+.kb-input-plain:focus {
+  border-color: rgba(47, 107, 216, 0.35);
+  background: rgba(255, 255, 255, 0.9);
+  outline: none;
+}
+
+.kb-save-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: 12px 0 16px;
+}
+
+.p-seq {
+  text-align: center;
+}
+
+.pimg-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.kb-save {
+  padding: 6px 22px;
+  height: 30px;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  background: #fff;
+  border-radius: 2px;
+  color: #2563eb;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.kb-save:hover {
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.kb-block {
+  margin-top: 16px;
+}
+
+.kb-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.kb-block-title {
+  font-size: 13px;
+  font-weight: 400;
+  color: #111827;
+}
+
+.kb-block-hint {
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 400;
+  margin-bottom: 6px;
+}
+
+.kb-panel[data-panel="products"] th,
+.kb-panel[data-panel="products"] td {
+  vertical-align: middle;
+}
+
+.kb-panel[data-panel="products"] th:nth-last-child(2),
+.kb-panel[data-panel="products"] th:last-child,
+.kb-panel[data-panel="products"] td:nth-last-child(2),
+.kb-panel[data-panel="products"] td:last-child {
+  text-align: center !important;
+}
+
+.kb-panel[data-panel="products"] th:nth-last-child(2),
+.kb-panel[data-panel="products"] th:last-child,
+.kb-panel[data-panel="products"] td:nth-last-child(2),
+.kb-panel[data-panel="products"] td:last-child {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.kb-panel[data-panel="products"] td:nth-last-child(2) .op,
+.kb-panel[data-panel="products"] td:last-child .op {
+  width: 100%;
+  justify-content: center;
+}
+
+.kb-textarea {
+  width: 100%;
+  min-height: 110px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 2px;
+  padding: 10px;
+  font-size: 12px;
+  background: #fff;
+  resize: vertical;
+}
+
+.kb-bottom {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 16px 0 8px;
+}
+</style>

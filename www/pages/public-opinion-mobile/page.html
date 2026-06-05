@@ -1,0 +1,131 @@
+<div class="page-center" style="max-width: 1100px;">
+  <div class="page-title" id="pageTitle" style="margin:0 0 12px;"></div>
+
+  <div class="u-row" style="margin-bottom: 12px;">
+    <div class="u-left">
+      <div class="page-muted">移动端预览（Mock）</div>
+    </div>
+    <div class="u-right">
+      <button class="btn-solid" id="refreshBtn">刷新</button>
+    </div>
+  </div>
+
+  <div style="display:flex; justify-content:center;">
+    <div class="phone">
+      <div class="phone-top">
+        <div class="phone-title">舆情雷达</div>
+      </div>
+      <div class="phone-body">
+        <div class="phone-search">
+          <input class="input" id="mSearch" placeholder="搜索关键词" />
+          <button class="btn-solid" id="mGo" style="min-width: 72px;">搜索</button>
+        </div>
+        <div class="phone-tabs">
+          <button class="m-tab active" data-tab="list">列表</button>
+          <button class="m-tab" data-tab="alert">预警</button>
+          <button class="m-tab" data-tab="me">我的</button>
+        </div>
+        <div class="phone-list" id="mList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.phone {
+  width: 375px;
+  height: 720px;
+  border-radius: 24px;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  background: #0b1220;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25);
+  padding: 10px;
+}
+
+.phone-top {
+  height: 44px;
+  border-radius: 18px;
+  background: linear-gradient(90deg, #6b5cff 0%, #3b82f6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 900;
+}
+
+.phone-body {
+  height: calc(100% - 54px);
+  margin-top: 10px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 12px;
+  overflow: hidden;
+}
+
+.phone-search {
+  display: grid;
+  grid-template-columns: 1fr 72px;
+  gap: 10px;
+}
+
+.phone-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.m-tab {
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
+  color: #6b7280;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.m-tab.active {
+  background: #2f6bd8;
+  border-color: #2f6bd8;
+  color: #fff;
+}
+
+.phone-list {
+  margin-top: 12px;
+  height: calc(100% - 96px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.m-item {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  background: #fff;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.m-title {
+  font-weight: 900;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #111827;
+}
+
+.m-desc {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #6b7280;
+}
+
+.m-meta {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  color: #6b7280;
+}
+</style>
+

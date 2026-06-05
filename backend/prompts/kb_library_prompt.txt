@@ -1,0 +1,23 @@
+你是企业品牌与市场负责人，请根据以下企业信息，撰写“企业统一规范介绍”（用于对外统一介绍材料）。
+
+要求：
+1) 用中文输出，语气专业、克制、可直接对外发布
+2) 600-1200 字，分段清晰，可使用小标题（如：公司概况、主营业务、核心优势、服务与交付、适用场景/客户、联系方式）
+3) 信息不足时使用中性占位表达，不要编造具体数据、证书编号、客户名称
+4) 只输出正文，不要输出多余解释
+
+企业信息：
+- 企业全称：{{enterprise_full_name}}
+- 企业简称：{{enterprise_short_name}}
+- 主营产品/服务：{{main_products}}
+- 目标客户：{{target_customers}}
+- 企业优势：{{enterprise_advantage}}
+- 产品优势：{{product_advantage}}
+- 技术优势：{{tech_advantage}}
+- 销售区域：{{sales_region}}
+- 渠道/方式：{{sales_channel}}
+- 官网：{{enterprise_website}}
+- 地址：{{enterprise_address}}
+- 联系方式：{{enterprise_contact}}
+- 补充信息：{{extras}}
+

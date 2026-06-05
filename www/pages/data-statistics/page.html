@@ -1,0 +1,500 @@
+<div class="page-center" style="max-width: 1100px;">
+  <div class="card ds-head" style="padding: 14px 16px;">
+    <div class="ds-head-row">
+      <div class="ds-head-left">
+        <div class="ds-head-icon">📊</div>
+        <div class="ds-head-title">数据统计</div>
+      </div>
+      <div class="ds-head-right">
+        <div class="ds-filters" id="timeFilters">
+          <button class="ds-filter active" data-range="7">近7天</button>
+          <button class="ds-filter" data-range="30">近30天</button>
+          <button class="ds-filter" data-range="90">近90天</button>
+          <button class="ds-filter" data-range="all">全部</button>
+        </div>
+        <button class="btn-primary" id="exportBtn">导出报告</button>
+        <button class="btn-primary" id="refreshBtn">刷新</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-kpi-grid">
+    <div class="ds-kpi-card">
+      <div class="ds-kpi-top">
+        <div class="ds-kpi-ico ds-kpi-ico-1">✎</div>
+        <div class="ds-kpi-badge" id="kpiBadgeArticles">近7天</div>
+      </div>
+      <div class="ds-kpi-value" id="kpiArticles">0</div>
+      <div class="ds-kpi-label">生成文章数</div>
+      <div class="ds-kpi-bar ds-bar-1"></div>
+    </div>
+
+    <div class="ds-kpi-card">
+      <div class="ds-kpi-top">
+        <div class="ds-kpi-ico ds-kpi-ico-2">🔗</div>
+        <div class="ds-kpi-badge" id="kpiBadgeLinks">近7天</div>
+      </div>
+      <div class="ds-kpi-value" id="kpiLinks">0</div>
+      <div class="ds-kpi-label">追踪链接数</div>
+      <div class="ds-kpi-bar ds-bar-2"></div>
+    </div>
+
+    <div class="ds-kpi-card">
+      <div class="ds-kpi-top">
+        <div class="ds-kpi-ico ds-kpi-ico-3">✓</div>
+        <div class="ds-kpi-badge" id="kpiBadgeIndexed">近7天</div>
+      </div>
+      <div class="ds-kpi-value" id="kpiIndexed">0</div>
+      <div class="ds-kpi-label">已收录数</div>
+      <div class="ds-kpi-bar ds-bar-3"></div>
+    </div>
+
+    <div class="ds-kpi-card">
+      <div class="ds-kpi-top">
+        <div class="ds-kpi-ico ds-kpi-ico-4">🤖</div>
+        <div class="ds-kpi-badge" id="kpiBadgeCited">近7天</div>
+      </div>
+      <div class="ds-kpi-value" id="kpiCited">0</div>
+      <div class="ds-kpi-label">AI引用次数</div>
+      <div class="ds-kpi-bar ds-bar-4"></div>
+    </div>
+  </div>
+
+  <div class="card ds-trend" style="padding: 14px 16px; margin-top: 12px;">
+    <div class="ds-trend-row">
+      <div class="ds-trend-title"><span class="ds-head-icon">📈</span>数据趋势</div>
+      <div class="ds-trend-legend">
+        <span class="ds-leg"><span class="dot dot-a"></span>文章</span>
+        <span class="ds-leg"><span class="dot dot-b"></span>收录</span>
+      </div>
+    </div>
+    <div class="ds-trend-plot" id="dsTrendPlot">
+      <div class="ds-gridline"></div>
+      <div class="ds-gridline"></div>
+      <div class="ds-gridline"></div>
+      <div class="ds-gridline"></div>
+      <svg id="dsTrendSvg" class="ds-trend-svg" viewBox="0 0 1000 260" preserveAspectRatio="none"></svg>
+      <div class="ds-tooltip" id="dsTooltip" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="card ds-data" style="padding: 14px 16px; margin-top: 12px;">
+    <div class="ds-data-head">
+      <div class="ds-trend-title"><span class="ds-head-icon">🧾</span>明细数据</div>
+      <div class="ds-views" id="dsViewBtns"></div>
+    </div>
+    <div class="page-muted" id="dsMeta" style="margin-top:8px;">等待数据…</div>
+    <div class="table-wrap ds-table-scroll" id="dsTableWrap" style="margin-top: 10px;">
+      <table>
+        <thead id="dsThead"></thead>
+        <tbody id="dsTbody"></tbody>
+      </table>
+    </div>
+    <div class="ds-card-grid" id="dsCardGrid" style="margin-top: 10px; display:none;"></div>
+  </div>
+</div>
+
+<style>
+
+.ds-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ds-head-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ds-head-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(47, 107, 216, 0.08);
+  color: #2f6bd8;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.ds-head-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.ds-head-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ds-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ds-filter {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(47, 107, 216, 0.08);
+  color: #2563eb;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ds-filter.active {
+  background: #2f6bd8;
+  border-color: #2f6bd8;
+  color: #fff;
+}
+
+
+.ds-kpi-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ds-kpi-card {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.ds-kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ds-kpi-ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #111827;
+  font-weight: 900;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.ds-kpi-ico-1 { background: rgba(99, 102, 241, 0.12); }
+.ds-kpi-ico-2 { background: rgba(168, 85, 247, 0.12); }
+.ds-kpi-ico-3 { background: rgba(34, 197, 94, 0.14); }
+.ds-kpi-ico-4 { background: rgba(249, 115, 22, 0.14); }
+
+.ds-kpi-badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #6b7280;
+  font-weight: 800;
+}
+
+.ds-bad-red {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+.ds-kpi-value {
+  font-size: 26px;
+  font-weight: 900;
+  color: #111827;
+}
+
+.ds-kpi-label {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.ds-kpi-bar {
+  height: 3px;
+  border-radius: 999px;
+  margin-top: 14px;
+}
+
+.ds-bar-1 { background: #6366f1; }
+.ds-bar-2 { background: #a855f7; }
+.ds-bar-3 { background: #22c55e; }
+.ds-bar-4 { background: #f97316; }
+
+.ds-trend-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ds-trend-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.ds-trend-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.ds-trend-plot {
+  position: relative;
+  height: 260px;
+}
+
+.ds-trend-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 260px;
+  display: block;
+}
+
+.ds-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(17, 24, 39, 0.92);
+  color: #fff;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  max-width: 240px;
+}
+
+.ds-data-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ds-views {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.ds-sheets {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.ds-view {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(124, 58, 237, 0.06);
+  color: #7c3aed;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-view.active {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #fff;
+}
+
+.ds-sheet-btn {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(47, 107, 216, 0.06);
+  color: #2563eb;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-sheet-btn.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.ds-card-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ds-card {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.ds-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--ds-accent, #7c3aed);
+}
+
+.ds-card-title {
+  font-weight: 900;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-card-value {
+  font-size: 24px;
+  font-weight: 900;
+  color: #111827;
+  margin-top: 10px;
+}
+
+.ds-card-sub {
+  color: #6b7280;
+  font-size: 12px;
+  margin-top: 6px;
+  line-height: 1.7;
+}
+
+.ds-card-kvs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ds-card-kv {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(102, 126, 234, 0.06);
+  border: 1px solid rgba(102, 126, 234, 0.14);
+  color: #374151;
+  font-size: 12px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-table-scroll {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 360px;
+}
+
+.ds-table-scroll table {
+  width: max-content;
+  min-width: 100%;
+}
+
+.ds-table-scroll thead th {
+  white-space: normal;
+  word-break: break-all;
+}
+
+@media (max-width: 980px) {
+  .ds-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.ds-leg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.dot-a { background: #6366f1; }
+.dot-b { background: #22c55e; }
+
+.ds-trend-plot {
+  margin-top: 12px;
+  height: 220px;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.75);
+  position: relative;
+  overflow: hidden;
+}
+
+.ds-gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.ds-gridline:nth-child(1) { top: 20%; }
+.ds-gridline:nth-child(2) { top: 40%; }
+.ds-gridline:nth-child(3) { top: 60%; }
+.ds-gridline:nth-child(4) { top: 80%; }
+
+@media (max-width: 1100px) {
+  .ds-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 520px) {
+  .ds-head-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .ds-head-right {
+    width: 100%;
+  }
+  .ds-kpi-grid { grid-template-columns: 1fr; }
+}
+</style>
