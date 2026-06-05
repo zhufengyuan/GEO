@@ -29,6 +29,8 @@ from urllib.parse import urlparse
 
 from backend.config import settings
 from backend.utils.api_response import api_response, APIException
+from backend.utils.sanitize import sanitize_obj as _sanitize_obj
+from backend.utils.kb_helpers import load_kb_section, load_full_kb, build_kb_context
 from backend.database import apply_migrations
 from backend.schemas import (
     LoginRequest,
@@ -40,66 +42,9 @@ from backend.schemas import (
     MonitorTaskCreateRequest,
 )
 
-import math
-import numbers
-
 
 class SafeJSONResponse(JSONResponse):
     def render(self, content) -> bytes:
-        def _sanitize_value(v):
-            try:
-                import pandas as pd  # type: ignore
-                try:
-                    if pd.isna(v):
-                        return None
-                except Exception:
-                    pass
-            except Exception:
-                pass
-            if v is None:
-                return None
-            if isinstance(v, bool):
-                return v
-            if isinstance(v, float):
-                if not math.isfinite(v):
-                    return None
-                return v
-            if isinstance(v, numbers.Number):
-                try:
-                    fv = float(v)
-                except Exception:
-                    return None
-                if not math.isfinite(fv):
-                    return None
-                try:
-                    if isinstance(v, int):
-                        return int(v)
-                except Exception:
-                    pass
-                return fv
-            return v
-
-        def _sanitize_key(k):
-            kk = _sanitize_value(k)
-            if kk is None:
-                return "null"
-            try:
-                if isinstance(kk, numbers.Number) and not isinstance(kk, bool):
-                    return str(kk)
-            except Exception:
-                pass
-            return str(kk)
-
-        def _sanitize_obj(obj):
-            if isinstance(obj, dict):
-                out = {}
-                for k, v in obj.items():
-                    out[_sanitize_key(k)] = _sanitize_obj(v)
-                return out
-            if isinstance(obj, (list, tuple, set)):
-                return [_sanitize_obj(x) for x in obj]
-            return _sanitize_value(obj)
-
         encoded = jsonable_encoder(content)
         encoded = _sanitize_obj(encoded)
         return json.dumps(encoded, ensure_ascii=False, allow_nan=False).encode("utf-8")
@@ -317,21 +262,8 @@ async def articles_create(req: ArticleCreateRequest, user=Depends(get_current_us
     lexicon = query_row("SELECT * FROM lexicons WHERE id=%s", [lexicon_id]) if lexicon_id > 0 else None
     lexicon = lexicon or {}
 
-    def load_kb_section(sec: str):
-        row = query_row(
-            "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
-            [user["id"], sec],
-        ) or {}
-        content = row.get("content")
-        if not content:
-            return None
-        try:
-            return json.loads(content)
-        except Exception:
-            return content
-
-    kb_base = load_kb_section("企业基础信息")
-    kb_docs = load_kb_section("docs")
+    kb_base = load_kb_section(user["id"], "企业基础信息")
+    kb_docs = load_kb_section(user["id"], "docs")
 
     task = {
         "tab": req.tab,
@@ -871,8 +803,8 @@ async def monitor_tasks_delete(tid: int, user=Depends(get_current_user)):
 @app.post("/api/v1/files/upload")
 async def files_upload(file: UploadFile = File(...), user=Depends(get_current_user)):
     from backend.database import insert
-    upload_dir = Path("uploads")
-    upload_dir.mkdir(exist_ok=True)
+    upload_dir = Path(_PROJECT_ROOT) / "data" / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
     ext = Path(file.filename).suffix
     save_name = f"{uuid.uuid4().hex}{ext}"
     save_path = upload_dir / save_name
@@ -898,7 +830,7 @@ async def files_get(fid: int, user=Depends(get_current_user)):
     row = query_row("SELECT * FROM enterprise_images WHERE id=%s", [fid])
     if not row:
         return fail("NOT_FOUND", "文件不存在")
-    path = Path("uploads") / str(row["image_url"]).split("/")[-1]
+    path = (Path(_PROJECT_ROOT) / "data" / "uploads") / str(row["image_url"]).split("/")[-1]
     if not path.exists():
         return fail("NOT_FOUND", "文件不存在")
     return FileResponse(path, filename=row.get("file_name"))
@@ -999,61 +931,12 @@ async def ai_execute(body: dict, user=Depends(get_current_user)):
     hint = body.get("hint", "")
     page_context = str(body.get("page_context") or "").strip()
 
-    enterprise = query_row("SELECT * FROM enterprise_base_info ORDER BY id DESC LIMIT 1") or {}
-    lexicon = {}
-    if lexicon_id:
-        lexicon = query_row("SELECT * FROM lexicons WHERE id=%s", [lexicon_id]) or {}
-
-    kb_base = {}
-    kb_docs = {}
-    try:
-        row1 = query_row(
-            "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
-            [user["id"], "企业基础信息"],
-        ) or {}
-        kb_base = json.loads(row1.get("content") or "{}") if row1 else {}
-    except Exception:
-        kb_base = {}
-
-    try:
-        row2 = query_row(
-            "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
-            [user["id"], "docs"],
-        ) or {}
-        kb_docs = json.loads(row2.get("content") or "{}") if row2 else {}
-    except Exception:
-        kb_docs = {}
-
-    def _timeline_text(d):
-        rows = d.get("timeline_rows") if isinstance(d, dict) else None
-        if not isinstance(rows, list) or not rows:
-            return ""
-        parts = []
-        for r in rows[:30]:
-            t = str((r or {}).get("time") or "").strip()
-            e = str((r or {}).get("event") or "").strip()
-            if t or e:
-                parts.append(f"{t} {e}".strip())
-        return "\n".join(parts)
-
-    kb = {
-        "enterprise_full_name": kb_base.get("企业全称") or enterprise.get("enterprise_full_name") or "",
-        "enterprise_short_name": kb_base.get("企业简称") or enterprise.get("enterprise_short_name") or "",
-        "enterprise_address": kb_base.get("企业地址") or enterprise.get("enterprise_address") or "",
-        "enterprise_contact": kb_base.get("企业联系方式") or enterprise.get("enterprise_contact") or "",
-        "enterprise_website": kb_base.get("企业官网") or enterprise.get("enterprise_website") or "",
-        "main_products": kb_base.get("主营产品") or enterprise.get("main_products") or "",
-        "target_customers": kb_base.get("目标客户") or enterprise.get("target_customers") or "",
-        "sales_region": kb_base.get("销售区域范围") or enterprise.get("sales_region") or "",
-        "sales_channel": kb_base.get("销售方式或渠道") or enterprise.get("sales_channel") or "",
-        "enterprise_advantage": kb_base.get("企业优势") or enterprise.get("enterprise_advantage") or "",
-        "product_advantage": kb_base.get("产品优势") or enterprise.get("product_advantage") or "",
-        "tech_advantage": kb_base.get("技术优势") or enterprise.get("tech_advantage") or "",
-        "company_profile": (kb_docs.get("company_profile") if isinstance(kb_docs, dict) else "") or "",
-        "enterprise_library": (kb_docs.get("enterprise_library") if isinstance(kb_docs, dict) else "") or "",
-        "timeline_text": _timeline_text(kb_docs if isinstance(kb_docs, dict) else {}),
-        "extras": json.dumps({"base": kb_base, "docs": kb_docs}, ensure_ascii=False),
-    }
+    full_kb = load_full_kb(user["id"], int(lexicon_id or 0))
+    enterprise = full_kb["enterprise"]
+    lexicon = full_kb["lexicon"]
+    kb_base = full_kb["kb_base"]
+    kb_docs = full_kb["kb_docs"]
+    kb = build_kb_context(kb_base, kb_docs, enterprise)
 
     if task == "generate_title":
         prompt = build_title_prompt(enterprise, lexicon, keyword, hint)
@@ -1176,25 +1059,12 @@ async def article_writing_init_chat(body: dict, user=Depends(get_current_user)):
     products = payload.get("products") if isinstance(payload.get("products"), list) else []
     images = payload.get("images") if isinstance(payload.get("images"), list) else []
 
-    enterprise = query_row("SELECT * FROM enterprise_base_info ORDER BY id DESC LIMIT 1") or {}
-    lexicon = query_row("SELECT * FROM lexicons WHERE id=%s", [lexicon_id]) if lexicon_id > 0 else None
-    lexicon = lexicon or {}
+    full_kb = load_full_kb(user["id"], lexicon_id)
+    enterprise = full_kb["enterprise"]
+    lexicon = full_kb["lexicon"]
+    kb_base = full_kb["kb_base"]
+    kb_docs = full_kb["kb_docs"]
 
-    def load_kb_section(sec: str):
-        row = query_row(
-            "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
-            [user["id"], sec],
-        ) or {}
-        content = row.get("content")
-        if not content:
-            return None
-        try:
-            return json.loads(content)
-        except Exception:
-            return content
-
-    kb_base = load_kb_section("企业基础信息")
-    kb_docs = load_kb_section("docs")
     prompt = build_article_writing_init_chat_prompt(
         enterprise,
         lexicon,
@@ -1247,21 +1117,8 @@ async def article_writing_chat(body: dict, user=Depends(get_current_user)):
     lexicon = query_row("SELECT * FROM lexicons WHERE id=%s", [lexicon_id]) if lexicon_id > 0 else None
     lexicon = lexicon or {}
 
-    def load_kb_section(sec: str):
-        row = query_row(
-            "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
-            [user["id"], sec],
-        ) or {}
-        content = row.get("content")
-        if not content:
-            return None
-        try:
-            return json.loads(content)
-        except Exception:
-            return content
-
-    kb_base = load_kb_section("企业基础信息")
-    kb_docs = load_kb_section("docs")
+    kb_base = load_kb_section(user["id"], "企业基础信息")
+    kb_docs = load_kb_section(user["id"], "docs")
     prompt = build_article_product_chat_prompt(
         enterprise,
         lexicon,
@@ -1313,21 +1170,8 @@ async def article_writing_optimize(body: dict, user=Depends(get_current_user)):
     lexicon = query_row("SELECT * FROM lexicons WHERE id=%s", [lexicon_id]) if lexicon_id > 0 else None
     lexicon = lexicon or {}
 
-    def load_kb_section(sec: str):
-        row = query_row(
-            "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
-            [user["id"], sec],
-        ) or {}
-        content = row.get("content")
-        if not content:
-            return None
-        try:
-            return json.loads(content)
-        except Exception:
-            return content
-
-    kb_base = load_kb_section("企业基础信息")
-    kb_docs = load_kb_section("docs")
+    kb_base = load_kb_section(user["id"], "企业基础信息")
+    kb_docs = load_kb_section(user["id"], "docs")
     prompt = build_article_product_optimize_prompt(
         enterprise,
         lexicon,
@@ -1378,55 +1222,10 @@ async def official_media_list(
     user=Depends(get_current_user),
 ):
     from backend.services.excel_service import read_official_media_excel
-    import math
-    import datetime
-    import numbers
     rows = read_official_media_excel()
 
-    def _sanitize(v):
-        try:
-            import pandas as pd  # type: ignore
-            try:
-                if pd.isna(v):
-                    return None
-            except Exception:
-                pass
-            if isinstance(v, getattr(pd, "Timestamp", ())):
-                try:
-                    return v.to_pydatetime().isoformat()
-                except Exception:
-                    return str(v)
-        except Exception:
-            pass
-        if v is None:
-            return None
-        if isinstance(v, (datetime.datetime, datetime.date)):
-            return v.isoformat()
-        if isinstance(v, bool):
-            return v
-        if isinstance(v, numbers.Number):
-            try:
-                fv = float(v)
-            except Exception:
-                return None
-            if not math.isfinite(fv):
-                return None
-            try:
-                if isinstance(v, int):
-                    return int(v)
-            except Exception:
-                pass
-            return fv
-        return v
-
-    def _sanitize_obj(obj):
-        if isinstance(obj, dict):
-            return {k: _sanitize_obj(_sanitize(v)) for k, v in obj.items()}
-        if isinstance(obj, list):
-            return [_sanitize_obj(_sanitize(x)) for x in obj]
-        return _sanitize(obj)
-
-    rows = _sanitize_obj(rows)
+    from backend.utils.sanitize import sanitize_obj as _sanitize_obj_external
+    rows = _sanitize_obj_external(rows)
     if keyword:
         kw = keyword.strip().lower()
         def _match(r):
@@ -1875,7 +1674,7 @@ async def tools_summarize_urls(body: dict = Body(...), user=Depends(get_current_
     return ok({"urls": safe_urls, "summary": summary or ""})
 
 
-_DIAG_UPLOAD_DIR = Path("uploads")
+_DIAG_UPLOAD_DIR = Path(_PROJECT_ROOT) / "data" / "uploads"
 _DIAG_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -2004,13 +1803,17 @@ def get_plans():
 def vite_probe():
     return Response(status_code=204)
 
+_data_dir = (Path(_PROJECT_ROOT) / "data").resolve()
+if _data_dir.exists():
+    app.mount("/data", StaticFiles(directory=str(_data_dir)), name="data")
+
+_uploads_dir = (_data_dir / "uploads").resolve()
+if _uploads_dir.exists():
+    app.mount("/uploads", StaticFiles(directory=str(_uploads_dir)), name="uploads")
+
 _www_dir = (Path(_PROJECT_ROOT) / "www").resolve()
 if _www_dir.exists():
     app.mount("/", StaticFiles(directory=str(_www_dir), html=True), name="www")
-
-_uploads_dir = (Path(_PROJECT_ROOT) / "uploads").resolve()
-if _uploads_dir.exists():
-    app.mount("/uploads", StaticFiles(directory=str(_uploads_dir)), name="uploads")
 
 if __name__ == "__main__":
     import uvicorn

@@ -14,7 +14,7 @@ from backend.config import settings
 import math
 import datetime
 
-_DEFAULT_EXCEL = (Path(__file__).resolve().parents[2] / "2026年网站媒体及官方自媒体报价-Q2.xls").as_posix()
+_DEFAULT_EXCEL = (Path(__file__).resolve().parents[2] / "data" / "2026年网站媒体及官方自媒体报价-Q2.xls").as_posix()
 EXCEL_PATH = str(getattr(settings, "OFFICIAL_MEDIA_EXCEL", "") or _DEFAULT_EXCEL)
 
 

@@ -80,6 +80,11 @@ if (!nzchar(geo_root)) {
 www_dir <- normalizePath(file.path(geo_root, "www"), winslash = "/", mustWork = TRUE)
 shiny::addResourcePath("geo", www_dir)
 
+data_dir <- normalizePath(file.path(geo_root, "data"), winslash = "/", mustWork = FALSE)
+if (dir.exists(data_dir)) {
+  shiny::addResourcePath("data", data_dir)
+}
+
 llm_svg_dir <- as.character(geo_config$llm_svg_dir %||% file.path(geo_root, "svg"))
 llm_svg_dir <- normalizePath(llm_svg_dir, winslash = "/", mustWork = FALSE)
 llm_svg_files <- character(0)
@@ -1126,17 +1131,15 @@ session$onFlushed(function() {
     shiny::showNotification("缺少依赖包：请安装 readxl", type = "error")
     return()
   }
-  xls_path <- file.path(geo_config$app_dir, "2026年网站媒体及官方自媒体报价-Q2.xls")
+  xls_path <- file.path(geo_config$app_dir, "data", "2026年网站媒体及官方自媒体报价-Q2.xls")
   if (!file.exists(xls_path)) {
     shiny::showNotification("未找到报价表文件：2026年网站媒体及官方自媒体报价-Q2.xls", type = "warning")
     return()
   }
   xls_name <- basename(xls_path)
-  xls_www <- file.path(www_dir, xls_name)
-  try(file.copy(xls_path, xls_www, overwrite = TRUE), silent = TRUE)
   session$sendCustomMessage(
     "geo_public_opinion_config",
-    list(ts = as.numeric(Sys.time()) * 1000, default_excel = xls_name)
+    list(ts = as.numeric(Sys.time()) * 1000, default_excel = paste0("/data/", xls_name))
   )
   sheets <- NULL
   try(sheets <- readxl::excel_sheets(xls_path), silent = TRUE)
@@ -1192,7 +1195,7 @@ session$onFlushed(function() {
     return()
   }
 
-  xlsx_path <- file.path(geo_config$app_dir, "数据统计_测试数据.xlsx")
+  xlsx_path <- file.path(geo_config$app_dir, "data", "数据统计_测试数据.xlsx")
   if (!file.exists(xlsx_path)) {
     shiny::showNotification("未找到测试数据：数据统计_测试数据.xlsx", type = "warning")
     return()

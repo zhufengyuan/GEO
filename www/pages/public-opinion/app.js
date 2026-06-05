@@ -975,7 +975,15 @@ export function initPublicOpinion(els, options = {}) {
 
     setLoading(true);
     try {
-      const url = new URL(`../../${key}`, import.meta.url).toString();
+      const resolveDefaultExcelUrl = (k) => {
+        const s = toText(k);
+        if (!s) return '';
+        if (/^https?:\/\//i.test(s)) return s;
+        if (s.startsWith('/')) return new URL(s, window.location.origin).toString();
+        if (s.startsWith('data/')) return new URL(`/${s}`, window.location.origin).toString();
+        return new URL(`../../${s}`, import.meta.url).toString();
+      };
+      const url = resolveDefaultExcelUrl(key);
       const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) throw new Error('fetch failed');
       const buf = await res.arrayBuffer();

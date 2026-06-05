@@ -859,7 +859,7 @@ file: <文件>
 }
 ```
 
-> 文件存储在 uploads/ 目录，URL 前缀 /uploads/。
+> 文件存储在 data/uploads/ 目录，URL 前缀 /uploads/（URL 不变，仅真实目录迁移）。
 > 同时记录到 enterprise_images 表（如存在）。
 
 ### 9.2 文件列表
@@ -951,7 +951,7 @@ status 取值：active（活跃）/ paused（暂停）。
 
 ## 12. 诊断文件模块 `/api/v1/diagnosis-files`
 
-诊断结果以文本文件形式存储在 uploads/ 目录，支持保存、读取、下载（转为 .doc）、清除。
+诊断结果以文本文件形式存储在 data/uploads/ 目录，支持保存、读取、下载（转为 .doc）、清除。
 
 | 方法 | 路径 | 认证 | 说明 |
 |------|------|------|------|
@@ -973,7 +973,7 @@ Content-Type: application/json
 }
 ```
 
-> 文件命名规则：uploads/diag_{user_id}_{task}_{model}.txt
+> 文件命名规则：data/uploads/diag_{user_id}_{task}_{model}.txt
 > task 取值：data_diagnosis / website_diagnosis / competitor_analysis / diagnosis_report 等
 
 ### 12.2 获取诊断结果

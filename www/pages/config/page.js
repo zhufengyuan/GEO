@@ -5,7 +5,6 @@ const Page = {
     initTemplate('消耗明细');
 
     const els = {
-      tabs: document.getElementById('cmTabs'),
       kw: document.getElementById('kw'),
       date: document.getElementById('date'),
       rows: document.getElementById('rows'),
@@ -230,25 +229,6 @@ const Page = {
         })
         .join('');
     };
-
-    const setActiveTab = (key) => {
-      els.tabs?.querySelectorAll('.pill').forEach((p) => {
-        p.classList.toggle('active', p.getAttribute('data-tab') === key);
-      });
-    };
-
-    els.tabs?.addEventListener('click', (e) => {
-      const el = e.target instanceof HTMLElement ? e.target.closest('.pill') : null;
-      const tab = el?.getAttribute('data-tab');
-      if (!tab) return;
-      if (tab === 'add') {
-        openModal();
-        setActiveTab('list');
-        window.geoConsume?.({ event_type: 'ui', page: 'config', action: 'open_add', units: 1, amount: 0 });
-        return;
-      }
-      setActiveTab('list');
-    });
 
     const requestData = () => {
       const payload = {

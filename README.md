@@ -234,8 +234,10 @@ GEO/
 ├── geo_config.R                         # R 数据库/LLM 连接配置
 ├── 文心千帆_bak.py                       # 大模型调用备份脚本
 │
-├── 2026年网站媒体及官方自媒体报价-Q2.xls  # 媒体资源报价数据
-├── 数据统计_测试数据.xlsx                 # 数据统计测试数据
+├── data/                                # 数据集目录（统一存放所有数据文件）
+│   ├── 2026年网站媒体及官方自媒体报价-Q2.xls  # 媒体资源报价数据
+│   ├── 数据统计_测试数据.xlsx                 # 数据统计测试数据
+│   └── uploads/                         # 上传文件存储目录（运行时自动创建）
 │
 ├── svg/                                 # AI 平台图标
 │   ├── doubao-color.svg                 # 豆包
@@ -243,12 +245,9 @@ GEO/
 │   ├── qwen-color.svg                   # 通义千问
 │   └── zhipu-color.svg                  # 智谱
 │
-├── uploads/                             # 上传文件存储目录（运行时自动创建）
-│
 └── www/                                 # 前端静态资源
     ├── index.html                       # SPA 主壳（header + sidebar + content）
     ├── index.js                         # 路由引擎（PAGES 映射 → 动态加载）
-    ├── 2026年网站媒体及官方自媒体报价-Q2.xls  # 前端 Excel 副本（SheetJS 读取）
     ├── styles/
     │   └── theme.css                    # 全局主题（CSS Variables，蓝紫毛玻璃）
     └── pages/                           # 功能页（23 个目录 + 1 个公共 JS）
@@ -458,6 +457,7 @@ INFO:     Uvicorn running on http://0.0.0.0:8000
 | http://localhost:8000/api/v1/health | 健康检查（返回 `{"success":true,"data":{"status":"ok","version":"1.0.0"}}`） |
 | http://localhost:8000/api/v1/docs | Swagger 交互式 API 文档 |
 | http://localhost:8000/api/v1/redoc | ReDoc API 文档 |
+| http://localhost:8000/data/* | 数据集静态访问（来自 data/） |
 | http://localhost:8000/uploads/* | 上传文件访问 |
 
 ### 第六步：（可选）启动 R Shiny 宿主
@@ -600,7 +600,14 @@ server {
 
     # ─── 上传文件静态访问 ───
     location /uploads/ {
-        alias /srv/geo/uploads/;
+        alias /srv/geo/data/uploads/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # ─── 数据集静态访问 ───
+    location /data/ {
+        alias /srv/geo/data/;
         expires 30d;
         add_header Cache-Control "public, immutable";
     }
@@ -947,7 +954,7 @@ prompt_service.py 的 build_* 函数：
 
 2. JWT Secret：生产环境必须更换 JWT_SECRET，建议使用 python -c "import secrets; print(secrets.token_urlsafe(32))" 生成随机密钥。
 
-3. Excel 数据文件：2026年网站媒体及官方自媒体报价-Q2.xls 是媒体发布功能的数据源，项目根目录和 www/ 目录下各有一份，需保持一致。更新报价时两份同步修改。
+3. Excel 数据文件：2026年网站媒体及官方自媒体报价-Q2.xls 是媒体发布功能的数据源，统一放在 data/ 目录下（前端通过 /data 读取）。
 
 4. AUTH_DISABLED 开关：生产部署时务必设置 AUTH_DISABLED=False，否则所有请求跳过认证。
 
@@ -955,7 +962,7 @@ prompt_service.py 的 build_* 函数：
 
 6. 字符编码：数据库及所有相关配置请统一使用 utf8mb4，避免中文内容乱码。
 
-7. 静态资源托管：FastAPI 通过 StaticFiles 直接挂载 www/（SPA）和 uploads/（上传文件），无需额外 Nginx 配置即可独立运行。生产环境建议 Nginx 直接托管静态资源以减轻后端负载。
+7. 静态资源托管：FastAPI 通过 StaticFiles 直接挂载 www/（SPA）、data/（数据集静态访问）以及 /uploads（对应 data/uploads），无需额外 Nginx 配置即可独立运行。生产环境建议 Nginx 直接托管静态资源以减轻后端负载。
 
 8. 迁移脚本幂等性：所有建表语句使用 CREATE TABLE IF NOT EXISTS，种子数据使用 INSERT IGNORE，支持重复启动。
 

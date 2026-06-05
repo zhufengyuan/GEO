@@ -5,9 +5,9 @@ geo_config <- list(
   app_dir = app_dir,
   llm_icon_dir = file.path(app_dir, "icons"),
   llm_svg_dir = file.path(app_dir, "svg"),
-  llm_url = "http://YOUR_SERVER_IP:5200/wenxinqianfan",
+  llm_url = "http://YOUR_LLM_HOST:5200/wenxinqianfan",
   db_config = list(
-    host = "YOUR_SERVER_IP",
+    host = "YOUR_DB_HOST",
     user = "root",
     password = "YOUR_DB_PASSWORD",
     dbname = "geo",
