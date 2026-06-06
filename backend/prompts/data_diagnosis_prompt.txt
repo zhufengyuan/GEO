@@ -21,9 +21,6 @@
 - 企业统一规范介绍：{{enterprise_library}}
 - 发展历程（如有）：{{timeline_text}}
 
-用户手动输入（如有文章链接/内容，用于对比诊断）：
-{{manual}}
-
 页面填写信息（来自诊断页表单，优先参考）：
 {{page_context}}
 

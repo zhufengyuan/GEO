@@ -21,7 +21,6 @@ const Page = {
 
     const prefillFields = [
       { id: 'dr_enterprise_full_name', kbKey: '企业全称' },
-      { id: 'dr_enterprise_full_name_dup', kbKey: '企业全称' },
       { id: 'dr_main_products', kbKey: '主营产品' }
     ];
 
@@ -48,20 +47,6 @@ const Page = {
       });
       return lines.join('\n');
     };
-
-    const fullNameInput = document.getElementById('dr_enterprise_full_name');
-    const fullNameDupInput = document.getElementById('dr_enterprise_full_name_dup');
-    if (fullNameInput instanceof HTMLInputElement && fullNameDupInput instanceof HTMLInputElement) {
-      const sync = () => {
-        if (!fullNameDupInput.classList.contains('manual-input')) return;
-        const v = String(fullNameInput.value || '');
-        if (String(fullNameDupInput.value || '').trim() === '' || String(fullNameDupInput.value || '') === String(fullNameInput.value || '')) {
-          fullNameDupInput.value = v;
-        }
-      };
-      fullNameInput.addEventListener('input', sync);
-      sync();
-    }
 
     const pillsRoot = document.querySelector('.diag-model-block');
     const modelCache = {};

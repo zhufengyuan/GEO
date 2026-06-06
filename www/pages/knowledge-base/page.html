@@ -2,9 +2,10 @@
   <div class="page-title" id="pageTitle" style="margin:0 0 12px; text-align:center;"></div>
   <div class="kb-tabs">
     <div class="kb-tab active" data-tab="base">企业基础信息</div>
+    <div class="kb-tab" data-tab="positioning">企业定位</div>
     <div class="kb-tab" data-tab="docs">企业介绍</div>
-    <div class="kb-tab" data-tab="images">企业图片库</div>
     <div class="kb-tab" data-tab="products">产品库</div>
+    <div class="kb-tab" data-tab="images">企业图片库</div>
     <div class="kb-tab" data-tab="website">导入网址</div>
     <div class="kb-tab" data-tab="files">导入文件</div>
   </div>
@@ -33,9 +34,9 @@
             <td><input class="kb-input" placeholder="请输入" /></td>
             <td class="kb-label kb-required" data-kb-key="目标客户">客户群体：</td>
             <td><input class="kb-input" placeholder="请输入" /></td>
-            <td class="kb-label" data-kb-key="成立时间">成立时间：</td>
+            <td class="kb-label kb-required" data-kb-key="成立时间">成立时间：</td>
             <td><input class="kb-input" placeholder="请输入" /></td>
-            <td class="kb-label" data-kb-key="所在行业">所在行业：</td>
+            <td class="kb-label kb-required" data-kb-key="所在行业">所在行业：</td>
             <td><input class="kb-input" placeholder="请输入" /></td>
           </tr>
           <tr>
@@ -87,6 +88,10 @@
             <td><input class="kb-input" placeholder="请输入" /></td>
             <td class="kb-label"></td>
             <td></td>
+          </tr>
+          <tr>
+            <td class="kb-label" data-kb-key="其他">其他：</td>
+            <td colspan="7"><input class="kb-input" placeholder="请输入" /></td>
           </tr>
         </tbody>
       </table>
@@ -184,6 +189,36 @@
       </div>
     </div>
 
+  </div>
+
+  <div class="kb-panel hidden" data-panel="positioning">
+    <div class="page-center" style="max-width: 1100px;">
+      <div class="page-title" style="margin:0 0 6px;">开始定位</div>
+
+      <div class="kb-block">
+        <div class="kb-block-head">
+          <div class="kb-block-title">主定位：</div>
+        </div>
+        <div style="display:flex; justify-content:flex-start; margin-bottom: 6px;">
+          <button class="btn-primary" id="genMainPositioningBtn">系统生成</button>
+        </div>
+        <textarea class="kb-textarea" id="mainPositioning" placeholder="点击系统生成，或自行编辑"></textarea>
+      </div>
+
+      <div class="kb-block">
+        <div class="kb-block-head">
+          <div class="kb-block-title">子定位：</div>
+        </div>
+        <div style="display:flex; justify-content:flex-start; margin-bottom: 6px;">
+          <button class="btn-primary" id="genSubPositioningBtn">系统生成</button>
+        </div>
+        <textarea class="kb-textarea" id="subPositioning" placeholder="点击系统生成，或自行编辑"></textarea>
+      </div>
+
+      <div class="kb-save-row" style="display:flex; gap:10px; justify-content:flex-end; margin-top: 12px;">
+        <button class="btn-solid" id="savePositioningBtn">保存</button>
+      </div>
+    </div>
   </div>
 
   <div class="kb-panel hidden" data-panel="docs">

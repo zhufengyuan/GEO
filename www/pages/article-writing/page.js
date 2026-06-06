@@ -33,12 +33,28 @@ const Page = {
     const genActivityDescBtn = document.getElementById('genActivityDescBtn');
     const insertActivityImgBtn = document.getElementById('insertActivityImg');
     const activityImgPreview = document.getElementById('activityImgPreview');
+    const insertBrandImgBtn = document.getElementById('insertBrandImg');
+    const brandImgPreview = document.getElementById('brandImgPreview');
     const awImgModal = document.getElementById('awImgModal');
+    const awImgModalTitle = document.getElementById('awImgModalTitle');
     const awImgClose = document.getElementById('awImgClose');
     const awImgCancel = document.getElementById('awImgCancel');
     const awImgFile = document.getElementById('awImgFile');
     const awImgModalPreview = document.getElementById('awImgModalPreview');
     const awImgInsertBtn = document.getElementById('awImgInsertBtn');
+    const brandCompanyNameEl = document.getElementById('brand_company_name');
+    const brandIndustryEl = document.getElementById('brand_industry');
+    const brandMainProductsEl = document.getElementById('brand_main_products');
+    const brandCustomerModeEl = document.getElementById('brand_customer_mode');
+    const brandCoreCapabilityEl = document.getElementById('brand_core_capability');
+    const brandEnterpriseAdvantageEl = document.getElementById('brand_enterprise_advantage');
+    const brandServiceProcessEl = document.getElementById('brand_service_process');
+    const brandCertificationsEl = document.getElementById('brand_certifications');
+    const brandSuccessCasesEl = document.getElementById('brand_success_cases');
+    const brandTargetMarketEl = document.getElementById('brand_target_market');
+    const brandBrandPositioningEl = document.getElementById('brand_brand_positioning');
+    const brandForbiddenContentEl = document.getElementById('brand_forbidden_content');
+    const brandCopyTypeRoot = document.getElementById('brandCopyType');
     const chatCard = root.querySelector('.aw-chat-card');
     const chatBox = document.getElementById('awChatBox');
     const chatInput = document.getElementById('awChatInput');
@@ -70,7 +86,10 @@ const Page = {
       brandTitleReqId: '',
       activityDescReqId: '',
       activityImageDataUrl: '',
+      brandImageDataUrl: '',
+      imgModalTarget: '',
       chatHistory: [],
+      chatViewFrom: 0,
       chatContextKey: '',
       chatInitReqId: '',
       chatReqId: '',
@@ -90,7 +109,10 @@ const Page = {
         p.classList.toggle('hidden', k !== key);
       });
       if (ruleStepTitle) {
-        ruleStepTitle.textContent = key === 'product' ? '第四步：文章规则设置' : '第二步：文章规则设置';
+        ruleStepTitle.textContent = key === 'activity' ? '第三步：文章规则设置' : '第四步：文章规则设置';
+      }
+      if (chatCard instanceof HTMLElement) {
+        chatCard.style.display = key === 'product' ? '' : 'none';
       }
     };
 
@@ -99,7 +121,7 @@ const Page = {
         const key = t.getAttribute('data-tab');
         if (!key) return;
         show(key);
-        ensureChatReady();
+        if (key === 'product') ensureChatReady();
       });
     });
 
@@ -141,7 +163,7 @@ const Page = {
     const mainArticleTypeByTab = (tab) => {
       if (tab === 'product') return '产品宣传';
       if (tab === 'brand') return '企业品牌';
-      if (tab === 'activity') return '活动关键词';
+      if (tab === 'activity') return '主题活动';
       return '';
     };
 
@@ -159,9 +181,11 @@ const Page = {
     const renderChat = () => {
       if (!chatBox) return;
       chatBox.innerHTML = '';
-      const list = Array.isArray(state.chatHistory) ? state.chatHistory : [];
+      const all = Array.isArray(state.chatHistory) ? state.chatHistory : [];
+      const from = Number(state.chatViewFrom || 0);
+      const list = all.slice(Math.max(0, from));
       if (!list.length) {
-        chatBox.textContent = '对话尚未开始。';
+        chatBox.textContent = from > 0 ? '' : '对话尚未开始。';
         return;
       }
       list.forEach((m) => {
@@ -207,6 +231,7 @@ const Page = {
 
     const resetChat = () => {
       state.chatHistory = [];
+      state.chatViewFrom = 0;
       renderChat();
     };
 
@@ -439,10 +464,11 @@ const Page = {
         .map((x, idx) => {
           const id = String(x?.id || '').trim();
           const checked = id && id === String(state.currentLexiconId || '') ? 'checked' : '';
+          const name = lexiconDisplayName(x) || '—';
           return `<tr>
             <td><input type="radio" name="awLexiconPick" data-id="${escapeHtml(id)}" ${checked} /></td>
             <td>${idx + 1}</td>
-            <td>${escapeHtml(lexiconDisplayName(x) || '—')}</td>
+            <td class="aw-lexicon-name-cell" title="${escapeHtml(name)}">${escapeHtml(name)}</td>
             <td>${escapeHtml(lexiconCreatedAt(x) || '—')}</td>
           </tr>`;
         })
@@ -578,6 +604,26 @@ const Page = {
       if (!img) return;
       state.activityImageDataUrl = '';
       refreshActivityImgPreview();
+    });
+
+    const refreshBrandImgPreview = () => {
+      if (!brandImgPreview) return;
+      if (!state.brandImageDataUrl) {
+        brandImgPreview.textContent = '这里显示插入图片的预览图';
+        return;
+      }
+      brandImgPreview.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;width:100%;height:100%;">
+        <img src="${escapeHtml(state.brandImageDataUrl)}" style="max-width:100%;max-height:180px;object-fit:contain;" />
+        <div class="page-muted" style="color:#ef4444;">点击图片可移除</div>
+      </div>`;
+    };
+    brandImgPreview?.addEventListener('click', (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLElement)) return;
+      const img = t.closest('img');
+      if (!img) return;
+      state.brandImageDataUrl = '';
+      refreshBrandImgPreview();
     });
 
     const productKey = (p, idx) => {
@@ -752,7 +798,7 @@ const Page = {
         const qs = qsGen.length ? qsGen : qsFromDb;
         state.questions = qs;
         renderQuestionsList(qs);
-        ensureChatReady();
+        if (state.activeTab === 'product') ensureChatReady();
         return;
       }
       if (d.type === 'geo_knowledge_base_data') {
@@ -975,6 +1021,9 @@ const Page = {
         alert(ctx.hint || '请先补齐必要信息后再重新优化。');
         return;
       }
+      state.chatHistory = [];
+      state.chatViewFrom = 0;
+      if (chatBox) chatBox.innerHTML = '';
       const reqId = String(Date.now());
       state.draftOptimizeReqId = reqId;
       state.draftGenerating = true;
@@ -1028,7 +1077,7 @@ const Page = {
       if (!(t instanceof HTMLInputElement)) return;
       if (t.type !== 'radio') return;
       state.selectedQuestion = String(t.value || '').trim();
-      ensureChatReady();
+      if (state.activeTab === 'product') ensureChatReady();
     });
 
     brandUseSelectedBtn?.addEventListener('click', () => {
@@ -1088,6 +1137,16 @@ const Page = {
     insertActivityImgBtn?.addEventListener('click', () => {
       if (awImgFile) awImgFile.value = '';
       if (awImgModalPreview) awImgModalPreview.textContent = '未选择图片';
+      state.imgModalTarget = 'activity';
+      if (awImgModalTitle) awImgModalTitle.textContent = '插入图片';
+      openImgModal();
+    });
+
+    insertBrandImgBtn?.addEventListener('click', () => {
+      if (awImgFile) awImgFile.value = '';
+      if (awImgModalPreview) awImgModalPreview.textContent = '未选择图片';
+      state.imgModalTarget = 'brand';
+      if (awImgModalTitle) awImgModalTitle.textContent = '插入图片';
       openImgModal();
     });
 
@@ -1101,12 +1160,22 @@ const Page = {
         if (awImgModalPreview) {
           awImgModalPreview.innerHTML = `<img src="${escapeHtml(url)}" style="max-width:100%;max-height:200px;object-fit:contain;" />`;
         }
-        state.activityImageDataUrl = url;
+        if (state.imgModalTarget === 'brand') state.brandImageDataUrl = url;
+        else state.activityImageDataUrl = url;
       };
       reader.readAsDataURL(file);
     });
 
     awImgInsertBtn?.addEventListener('click', () => {
+      if (state.imgModalTarget === 'brand') {
+        if (!state.brandImageDataUrl) {
+          alert('请先选择图片。');
+          return;
+        }
+        refreshBrandImgPreview();
+        closeImgModal();
+        return;
+      }
       if (!state.activityImageDataUrl) {
         alert('请先选择图片。');
         return;
@@ -1116,6 +1185,7 @@ const Page = {
     });
 
     refreshActivityImgPreview();
+    refreshBrandImgPreview();
 
     const renderProductPreview = () => {
       if (!productPreview) return;
@@ -1173,7 +1243,7 @@ const Page = {
     hydrateSelections();
     updateProductPickerBar();
     updateImagePickerBar();
-    ensureChatReady();
+    if (state.activeTab === 'product') ensureChatReady();
 
     pickProductBtn?.addEventListener('click', () => {
       if (!productPreview) return;
@@ -1238,7 +1308,7 @@ const Page = {
         state.selectedProducts = list.filter((p, i) => productKey(p, i) !== key);
       }
       updateProductPickerBar();
-      ensureChatReady();
+      if (state.activeTab === 'product') ensureChatReady();
     });
 
     productPickerBar?.addEventListener('click', (e) => {
@@ -1254,7 +1324,7 @@ const Page = {
         productPreview?.classList.remove('aw-picker-open');
         updateProductPickerBar();
         renderProductPreview();
-        ensureChatReady();
+        if (state.activeTab === 'product') ensureChatReady();
         return;
       }
       if (action === 'aw-product-done') {
@@ -1267,7 +1337,7 @@ const Page = {
         productPreview?.classList.remove('aw-picker-open');
         updateProductPickerBar();
         renderProductPreview();
-        ensureChatReady();
+        if (state.activeTab === 'product') ensureChatReady();
       }
     });
 
@@ -1309,7 +1379,7 @@ const Page = {
         imagesPreview?.classList.remove('aw-picker-open');
         updateImagePickerBar();
         renderImagesPreview();
-        ensureChatReady();
+        if (state.activeTab === 'product') ensureChatReady();
         return;
       }
       if (action === 'aw-image-done') {
@@ -1322,7 +1392,7 @@ const Page = {
         imagesPreview?.classList.remove('aw-picker-open');
         updateImagePickerBar();
         renderImagesPreview();
-        ensureChatReady();
+        if (state.activeTab === 'product') ensureChatReady();
       }
     });
 
@@ -1346,6 +1416,16 @@ const Page = {
 
     const shouldKeepChatMessage = (role, text) => {
       const t = String(text || '').trim();
+      if (
+        t.startsWith('【生成文案】') ||
+        t.startsWith('【优化后文案】') ||
+        t.startsWith('【重新优化建议】') ||
+        t.includes('【生成文案】') ||
+        t.includes('【优化后文案】') ||
+        t.includes('【重新优化建议】')
+      ) {
+        return false;
+      }
       if (chatNoise(t)) return false;
       if (chatRelevantKeywords.some((k) => t.includes(k))) return true;
       if (role === 'user') return t.length >= 8;
@@ -1397,7 +1477,7 @@ const Page = {
       const lexiconId =
         tab === 'product'
           ? String(lexiconSelect?.value || '').trim()
-          : String(state.brandLexiconId || lexiconSelect?.value || '').trim();
+          : '';
 
       let userInput = '';
       let title = '';
@@ -1435,13 +1515,40 @@ const Page = {
         }
         userInput = createUserInput;
       } else if (tab === 'brand') {
-        title = String(brandTitleInput?.value || '').trim();
-        userInput = valueOrPlaceholder(brandTitleHint);
-        questionText = normalizeLabel(brandTitleSelect?.selectedOptions?.[0]?.textContent || '') || title;
+        const picked = brandCopyTypeRoot?.querySelector?.('input[type="radio"]:checked');
+        questionText = normalizeLabel(picked?.value || '');
+        if (!questionText) {
+          alert('请先在第二步选择文案类型（单选）。');
+          return;
+        }
+        activityImage = state.brandImageDataUrl;
+        const rows = [
+          ['企业名称', brandCompanyNameEl],
+          ['所属行业', brandIndustryEl],
+          ['主营产品/服务', brandMainProductsEl],
+          ['客户模式', brandCustomerModeEl],
+          ['核心能力', brandCoreCapabilityEl],
+          ['企业优势', brandEnterpriseAdvantageEl],
+          ['服务流程', brandServiceProcessEl],
+          ['资质认证', brandCertificationsEl],
+          ['成功案例', brandSuccessCasesEl],
+          ['目标市场', brandTargetMarketEl],
+          ['品牌定位', brandBrandPositioningEl],
+          ['禁止出现的内容', brandForbiddenContentEl],
+          ['文案类型', { value: questionText }],
+        ];
+        userInput = rows
+          .map(([k, el]) => {
+            const v = String(el?.value || '').trim();
+            return v ? `- ${k}：${v}` : '';
+          })
+          .filter(Boolean)
+          .join('\n');
+        if (state.brandImageDataUrl) userInput = `${userInput}\n\n- 已插入图片：1张`;
       } else if (tab === 'activity') {
         userInput = valueOrPlaceholder(activityDesc);
         activityImage = state.activityImageDataUrl;
-        questionText = normalizeLabel(brandTitleSelect?.selectedOptions?.[0]?.textContent || '');
+        questionText = '';
       }
 
       const selectedProducts = tab === 'product' && Array.isArray(state.selectedProducts)

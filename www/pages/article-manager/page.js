@@ -70,11 +70,11 @@ const Page = {
       const list = Array.isArray(state.items) ? state.items : [];
       list.sort((a, b) => parseDateMs(b.created_at) - parseDateMs(a.created_at));
       if (!list.length && !state.loading) {
-        table.innerHTML = `<tr><td colspan="7" class="empty">暂无数据</td></tr>`;
+        table.innerHTML = `<tr><td colspan="6" class="empty">暂无数据</td></tr>`;
         return;
       }
       if (!list.length && state.loading) {
-        table.innerHTML = `<tr><td colspan="7" class="empty">加载中...</td></tr>`;
+        table.innerHTML = `<tr><td colspan="6" class="empty">加载中...</td></tr>`;
         return;
       }
       const rows = list
@@ -85,23 +85,26 @@ const Page = {
             .map((t) => `<option ${t === currentType ? 'selected' : ''}>${t}</option>`)
             .join('');
           const reviewed = Number(it.review_status || 0) === 1;
+          const reviewBtn = reviewed
+            ? '<button class="op" data-action="review" disabled>已审核</button>'
+            : '<button class="op" data-action="review">审核</button>';
           return `<tr data-id="${it.id}">
             <td><input type="checkbox" class="row-check" /></td>
             <td style="text-align:center;">${idx + 1}</td>
             <td><div class="am-title" title="${stripTypePrefix(it.title || '').replaceAll('"', '&quot;')}">${stripTypePrefix(it.title || '')}</div></td>
             <td>${it.created_at || ''}</td>
             <td><select class="select" style="height: 32px;">${options}</select></td>
-            <td>${reviewed ? '<button class="op" data-action="review" disabled>已审核</button>' : '<button class="op" data-action="review">审核</button>'}</td>
             <td><div class="am-actions">
               <button class="op" data-action="edit">编辑</button>
               <button class="op op-danger" data-action="delete">删除</button>
-              <button class="op" data-action="publish">去发布</button>
+              ${reviewBtn}
+              <button class="op" data-action="publish">发布</button>
             </div></td>
           </tr>`;
         })
         .join('');
       const loadMoreText = state.loading ? '加载中...' : (state.hasMore ? '继续下滑加载更多' : '没有更多了');
-      table.innerHTML = `${rows}<tr id="amLoadMoreRow"><td colspan="7" class="empty">${loadMoreText}</td></tr>`;
+      table.innerHTML = `${rows}<tr id="amLoadMoreRow"><td colspan="6" class="empty">${loadMoreText}</td></tr>`;
       setupLoadMoreObserver();
     };
 
@@ -202,6 +205,8 @@ const Page = {
         render();
         if (approveBtn) approveBtn.style.display = 'none';
         closeModal();
+        localStorage.setItem('mp_prefill_article_id', String(id));
+        window.navigateTo?.('media-publish');
       }
     };
     Page._handler = onMessage;

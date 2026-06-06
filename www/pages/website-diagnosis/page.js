@@ -12,12 +12,10 @@ const Page = {
     const prefillFields = [
       { id: 'wd_enterprise_full_name', kbKey: '企业全称' },
       { id: 'wd_enterprise_address', kbKey: '企业地址' },
-      { id: 'wd_enterprise_full_name_dup', kbKey: '企业全称' },
       { id: 'wd_enterprise_short_name', kbKey: '企业简称' },
       { id: 'wd_founded_time', kbKey: '成立时间' },
       { id: 'wd_enterprise_contact', kbKey: '企业联系方式' },
       { id: 'wd_enterprise_website', kbKey: '企业官网' },
-      { id: 'wd_enterprise_address_dup', kbKey: '企业地址' },
       { id: 'wd_main_products', kbKey: '主营产品' },
       { id: 'wd_honors', kbKey: '企业资质证书、荣誉证书' },
       { id: 'wd_company_profile', kbKey: '企业简介' },
@@ -53,30 +51,6 @@ const Page = {
       });
       return lines.join('\n');
     };
-
-    const fn = document.getElementById('wd_enterprise_full_name');
-    const fnDup = document.getElementById('wd_enterprise_full_name_dup');
-    if (fn instanceof HTMLInputElement && fnDup instanceof HTMLInputElement) {
-      const sync = () => {
-        if (!fnDup.classList.contains('manual-input')) return;
-        const v = String(fn.value || '');
-        if (String(fnDup.value || '').trim() === '' || String(fnDup.value || '') === String(fn.value || '')) fnDup.value = v;
-      };
-      fn.addEventListener('input', sync);
-      sync();
-    }
-
-    const addr = document.getElementById('wd_enterprise_address');
-    const addrDup = document.getElementById('wd_enterprise_address_dup');
-    if (addr instanceof HTMLInputElement && addrDup instanceof HTMLInputElement) {
-      const sync = () => {
-        if (!addrDup.classList.contains('manual-input')) return;
-        const v = String(addr.value || '');
-        if (String(addrDup.value || '').trim() === '' || String(addrDup.value || '') === String(addr.value || '')) addrDup.value = v;
-      };
-      addr.addEventListener('input', sync);
-      sync();
-    }
 
     const serviceLink = document.getElementById('serviceLink');
     serviceLink?.addEventListener('click', (e) => {

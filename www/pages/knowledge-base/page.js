@@ -983,6 +983,28 @@ const Page = {
       window.geoDownloadEnterpriseIntroWord?.({ company_profile, enterprise_library, filename: '企业介绍' });
     });
 
+    document.getElementById('genMainPositioningBtn')?.addEventListener('click', () => {
+      kbReqSeq += 1;
+      const req_id = `kb_${Date.now()}_${kbReqSeq}`;
+      const el = document.getElementById('mainPositioning');
+      if (el) el.value = '生成中...';
+      window.geoAiExecute?.({ task: 'generate_kb_positioning_main', req_id });
+      window.geoConsume?.({ event_type: 'ai_generate', page: 'knowledge-base', action: 'gen_main_positioning', units: 1, amount: 0 });
+    });
+    document.getElementById('genSubPositioningBtn')?.addEventListener('click', () => {
+      kbReqSeq += 1;
+      const req_id = `kb_${Date.now()}_${kbReqSeq}`;
+      const el = document.getElementById('subPositioning');
+      if (el) el.value = '生成中...';
+      window.geoAiExecute?.({ task: 'generate_kb_positioning_sub', req_id });
+      window.geoConsume?.({ event_type: 'ai_generate', page: 'knowledge-base', action: 'gen_sub_positioning', units: 1, amount: 0 });
+    });
+    document.getElementById('savePositioningBtn')?.addEventListener('click', () => {
+      const main_positioning = document.getElementById('mainPositioning')?.value || '';
+      const sub_positioning = document.getElementById('subPositioning')?.value || '';
+      window.geoSave?.(savePanelPayload('positioning', { main_positioning, sub_positioning }));
+    });
+
     document.getElementById('saveWebsiteBtn')?.addEventListener('click', () => {
       const urls = [];
       root.querySelectorAll('.kb-panel[data-panel="website"] .kb-input').forEach((i) => {
@@ -1300,6 +1322,14 @@ const Page = {
       if (Array.isArray(data.timeline_rows)) setTimelineRows(data.timeline_rows);
     };
 
+    const fillPositioning = (data) => {
+      if (!data || typeof data !== 'object') return;
+      const main = document.getElementById('mainPositioning');
+      const sub = document.getElementById('subPositioning');
+      if (main) main.value = String(data.main_positioning ?? '');
+      if (sub) sub.value = String(data.sub_positioning ?? '');
+    };
+
     const fillWebsite = (data) => {
       if (!data || typeof data !== 'object') return;
       if (Array.isArray(data.urls)) fillWebsiteInputs(data.urls);
@@ -1342,6 +1372,9 @@ const Page = {
       if (sec === 'docs') {
         fillDocs(d.payload?.data);
       }
+      if (sec === 'positioning') {
+        fillPositioning(d.payload?.data);
+      }
       if (sec === 'website') {
         fillWebsite(d.payload?.data);
       }
@@ -1368,6 +1401,16 @@ const Page = {
       }
       if (task === 'generate_kb_library') {
         const el = document.getElementById('enterpriseLibrary');
+        if (el) el.value = text || '';
+        return;
+      }
+      if (task === 'generate_kb_positioning_main') {
+        const el = document.getElementById('mainPositioning');
+        if (el) el.value = text || '';
+        return;
+      }
+      if (task === 'generate_kb_positioning_sub') {
+        const el = document.getElementById('subPositioning');
         if (el) el.value = text || '';
         return;
       }
@@ -1428,6 +1471,7 @@ const Page = {
     window.geoQueryKnowledgeBase?.({ section: '企业基础信息', ts: Date.now() });
     window.geoQueryKnowledgeBase?.({ section: 'images', ts: Date.now() });
     window.geoQueryKnowledgeBase?.({ section: 'docs', ts: Date.now() });
+    window.geoQueryKnowledgeBase?.({ section: 'positioning', ts: Date.now() });
     window.geoQueryKnowledgeBase?.({ section: 'products', ts: Date.now() });
     window.geoQueryKnowledgeBase?.({ section: 'website', ts: Date.now() });
     window.geoQueryKnowledgeBase?.({ section: 'files', ts: Date.now() });

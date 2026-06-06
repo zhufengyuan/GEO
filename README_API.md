@@ -10,9 +10,9 @@
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | DEBUG | bool | True | 调试模式：开启日志中间件、CORS 放开为 * |
-| DB_HOST | str | "127.0.0.1" | MySQL 地址（建议通过环境变量或本地配置注入） |
+| DB_HOST | str | "YOUR_SERVER_IP" | MySQL 地址 |
 | DB_USER | str | "root" | MySQL 用户 |
-| DB_PASSWORD | str | — | MySQL 密码 |
+| DB_PASSWORD | str | "YOUR_DB_PASSWORD" | MySQL 密码 |
 | DB_NAME | str | "geo" | 数据库名 |
 | DB_PORT | int | 3306 | MySQL 端口 |
 | DB_CHARSET | str | "utf8mb4" | 字符集 |
@@ -22,10 +22,10 @@
 | JWT_REFRESH_EXPIRE_DAYS | int | 30 | Refresh Token 有效期 |
 | AUTH_DISABLED | bool | True | 跳过认证开关（生产环境设为 False） |
 | DEV_USER_ID | int | 1 | 开发模式默认用户 ID |
-| LLM_URL | str | "http://127.0.0.1:5200/wenxinqianfan" | 大模型服务地址（可通过环境变量 `LLM_URL` 或根目录 `config.R` 的 `llm_url` 注入） |
-| WENXIN_API_KEY | str | — | 文心千帆 Key（如需使用；建议通过本地配置注入，避免硬编码进仓库） |
-| WENXIN_SECRET_KEY | str | — | 文心千帆 Secret（如需使用；建议通过本地配置注入，避免硬编码进仓库） |
-| OFFICIAL_MEDIA_EXCEL | str | 自动指向项目根 .xls | 媒体报价 Excel 文件路径 |
+| LLM_URL | str | "http://YOUR_SERVER_IP:5200/wenxinqianfan" | 大模型服务地址 |
+| WENXIN_API_KEY | str | "YOUR_WENXIN_API_KEY" | 文心千帆 Key |
+| WENXIN_SECRET_KEY | str | "YOUR_WENXIN_SECRET_KEY" | 文心千帆 Secret |
+| OFFICIAL_MEDIA_EXCEL | str | 自动指向 data/.xls | 媒体报价 Excel 文件路径 |
 | OFFICIAL_PUBLISH_PARTNER_URL | str | "" | （可选）官网发布渠道对接地址（用于 `/official-publish/submit` 转发） |
 | OFFICIAL_PUBLISH_PARTNER_TOKEN | str | "" | （可选）官网发布渠道鉴权 Token（Bearer） |
 | CORS_ORIGINS | List[str] | [localhost:4510, localhost:8000] | CORS 白名单 |
@@ -440,7 +440,7 @@ Content-Type: application/json
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| tab | string | 是 | 文章类型：product（产品宣传）/ brand（企业品牌）/ activity（活动创作） |
+| tab | string | 是 | 文章类型：product（产品宣传）/ brand（企业品牌）/ activity（主题活动创建） |
 | lexicon_id | int | 是 | 关联的词库 ID |
 | question_text | string | 是 | 问题词 |
 | platforms | string[] | 是 | 目标发布平台列表 |
@@ -449,8 +449,8 @@ Content-Type: application/json
 | tone | string | 否 | 语调（客观中立/积极正面等） |
 | brand_embed | bool | 否 | 是否嵌入品牌信息 |
 | title | string | 否 | 不传则从 LLM 输出提取 |
-| activity_image | string | 否 | 活动图片 URL |
-| user_input | string | 否 | 用户补充输入 |
+| activity_image | string | 否 | 主题活动图片（可选，URL 或 dataURL） |
+| user_input | string | 否 | 用户补充输入（产品宣传创作会承载对话摘要） |
 | product | object | 否 | 选中的产品信息（单选，兼容旧版本） |
 | products | object[] | 否 | 选中的产品信息（多选，最多3个；用于产品宣传创作增强） |
 | images | object[] | 否 | 插入图片列表（最多3张） |
@@ -537,10 +537,12 @@ Content-Type: application/json
 | task 值 | 说明 | 使用的模板文件 | 额外参数 |
 |---------|------|----------------|----------|
 | generate_title | 生成标题建议 | title_prompt.txt | keyword, hint |
-| generate_activity_desc | 生成活动描述 | activity_desc_prompt.txt | keyword, hint |
+| generate_activity_desc | 生成主题活动描述 | activity_desc_prompt.txt | keyword, hint |
 | generate_kb_profile | 生成企业档案 | kb_profile_prompt.txt | — |
 | generate_kb_library | 生成企业文库 | kb_library_prompt.txt | — |
 | generate_kb_timeline | 生成发展历程 | kb_timeline_prompt.txt | — |
+| generate_kb_positioning_main | 生成企业定位（主定位） | kb_positioning_prompt.txt | — |
+| generate_kb_positioning_sub | 生成企业定位（子定位） | kb_positioning_prompt.txt | — |
 | data_diagnosis | 基础数据诊断 | data_diagnosis_prompt.txt | manual 或 input、page_context |
 | website_diagnosis | 官网诊断 | website_diagnosis_prompt.txt | page_context |
 | competitor_analysis | 竞争对手分析 | competitor_analysis_prompt.txt | competitors 或 input、page_context |
@@ -1033,7 +1035,7 @@ Content-Type: application/json
 | 优化建议方案 | /api/v1/ai/execute (task=optimization_plan) |
 | 创建问题词库 (question-bank) | POST /api/v1/question-words |
 | 问题词库管理 (question-bank-manager) | GET /api/v1/question-words、DELETE /api/v1/question-words |
-| 文章创作 (article-writing) | GET /api/v1/question-words/suggest、POST/GET /api/v1/geo-ui-saves、GET /api/v1/products、GET /api/v1/enterprise-images、POST /api/v1/article-writing/init-chat、POST /api/v1/ai/execute (task=article_product_chat/article_product_generate) |
+| 文章创作 (article-writing) | GET /api/v1/question-words/suggest、POST/GET /api/v1/geo-ui-saves、GET /api/v1/products、GET /api/v1/enterprise-images、POST /api/v1/article-writing/init-chat、POST /api/v1/article-writing/chat、POST /api/v1/article-writing/generate、POST /api/v1/article-writing/optimize |
 | 文章管理 (article-manager) | GET/PUT/DELETE /api/v1/articles |
 | 自媒体发布 (media-publish) | POST /api/v1/publish-records |
 | 官网发布 (official-publish) | GET /api/v1/official-media/* |
@@ -1100,4 +1102,4 @@ async def _startup():
 
 ---
 
-*文档版本：1.0.0 | 最后更新：2026-06-05*
+*文档版本：1.0.0 | 最后更新：2026-06-06*

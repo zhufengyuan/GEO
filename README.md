@@ -60,9 +60,16 @@ STEP 1  创建问题词库  →  STEP 2  文章创作  →  STEP 3  媒体发布
 | 步骤 | 模块 | 前端路由 | 功能说明 |
 |------|------|----------|----------|
 | STEP 1 | 问题词库 | question-bank | 输入企业名、行业/产品关键词（问题关键词）、区域词、功能词、场景词、使用人群等；点击"马上生成"后会把关键词拆分为多行记录，并在"问题词库管理"中可筛选、导出、批量删除 |
-| STEP 2 | 文章创作 | article-writing | 基于问题词，按产品宣传 / 企业品牌 / 活动创作三种类型，配置平台、风格、品牌嵌入规则，AI 批量生成内容 |
+| STEP 2 | 文章创作 | article-writing | 基于问题词，按产品宣传 / 企业品牌 / 主题活动创建三种类型，配置平台、风格、品牌嵌入规则，AI 批量生成内容 |
 | STEP 3 | 媒体发布 | media-publish / official-publish | 从媒体资源库筛选全国网站媒体和官方自媒体（含报价、平台、地区、粉丝数、认证等），一键投放文章 |
 | STEP 4 | 发布管理 | publish-manager | 统一管理所有发布记录，追踪收录状态与引用次数 |
+
+#### 文章创作（article-writing）补充说明
+
+- 产品宣传创作：右下角“文案优化建议”仅在该模块显示；对话中与创作相关的内容会作为 `user_input` 写入提示词（进入 `task_corpus`）。
+- 重新优化：会清空聊天框并删除历史上下文；如需继续优化或生成，请重新补充信息后再操作。
+- 企业品牌创作：按“完善标准信息 → 选择文案类型（单选）→ 插入图片（可选）”三步填写，生成时会把第一步/第二步内容同步进入提示词。
+- 主题活动创建：用于主题活动方向内容生成，支持插入活动图片。
 
 ### 数据分析与监控
 
@@ -163,121 +170,25 @@ STEP 1  创建问题词库  →  STEP 2  文章创作  →  STEP 3  媒体发布
 
 ```
 GEO/
-├── backend/                              # 后端业务逻辑（Python FastAPI）
-│   ├── main.py                           # FastAPI 入口（路由注册、中间件、静态资源）
-│   ├── config.py                         # Settings 配置类（数据库、JWT、LLM、CORS）
-│   ├── database.py                       # 数据库连接池 + CRUD 封装 + 迁移执行
-│   ├── schemas.py                        # Pydantic v2 请求/响应模型
-│   ├── requirements.txt                  # Python 依赖（15 个包）
-│   ├── auth/                             # 认证模块
-│   │   ├── routes.py                     #   /api/v1/auth/*（login/register/refresh/logout/me）
-│   │   ├── jwt_handler.py                #   JWT 生成/解码（纯 HmacSHA256，无第三方库）
-│   │   └── dependencies.py               #   FastAPI Depends 注入（get_current_user）
-│   ├── api/                              # 可选 APIRouter 模块（由 main.py 统一 include_router）
-│   │   ├── __init__.py
-│   │   └── publish_records.py
-│   ├── services/                         # 服务层
-│   │   ├── auth_service.py               #   用户认证（bcrypt 密码哈希 + 用户 CRUD）
-│   │   ├── llm_service.py                #   大模型调用（httpx 异步 + requests 同步备选）
-│   │   ├── prompt_service.py             #   提示词模板渲染（20 个模板 + build_* 构建函数）
-│   │   ├── excel_service.py              #   Excel 媒体报价读取
-│   │   └── consume_service.py            #   消耗记录服务
-│   ├── utils/                            # 工具层
-│   │   ├── api_response.py               #   统一响应 ok/fail/APIException + HTTP 状态码映射
-│   │   └── pagination.py                 #   分页工具（最大 500 条/页）
-│   ├── prompts/                          # 提示词模板文件（20 个 .txt）
-│   │   ├── article_product_prompt.txt    # 产品宣传文章模板
-│   │   ├── article_product_chat_prompt.txt # 产品宣传对话采集模板（只提问）
-│   │   ├── article_writing_init_chat_prompt.txt # 文章创作页初始化打招呼模板
-│   │   ├── article_brand_prompt.txt      # 企业品牌文章模板
-│   │   ├── article_activity_prompt.txt   # 活动创作文章模板
-│   │   ├── article_prompt.txt            # 通用文章模板（备选）
-│   │   ├── title_prompt.txt              # 标题生成模板
-│   │   ├── activity_desc_prompt.txt      # 活动描述生成模板
-│   │   ├── expand_words_prompt.txt       # 拓展词（近义词/相关词）模板
-│   │   ├── kb_profile_prompt.txt         # 企业档案生成模板
-│   │   ├── kb_library_prompt.txt         # 企业文库生成模板
-│   │   ├── kb_timeline_prompt.txt        # 发展历程生成模板
-│   │   ├── data_diagnosis_prompt.txt     # 基础数据诊断模板
-│   │   ├── website_diagnosis_prompt.txt  # 官网诊断模板
-│   │   ├── competitor_analysis_prompt.txt# 竞争对手分析模板
-│   │   ├── diagnosis_report_prompt.txt   # 诊断报告模板
-│   │   ├── optimization_plan_prompt.txt  # 优化方案模板
-│   │   ├── optimization_schedule_prompt.txt # 优化排期模板
-│   │   └── acceptance_score_prompt.txt   # 验收评分模板
-│   └── migrations/                       # MySQL 迁移脚本（22 个，启动时按序号自动执行）
-│       ├── 001_create_users.sql          # users + user_enterprise 表
-│       ├── 002_create_subscriptions.sql   # subscriptions + plans 表（含初始数据）
-│       ├── 003_create_lexicons.sql       # lexicons 表（词库）
-│       ├── 004_create_monitor_tasks.sql  # monitor_tasks 表（舆情监测）
-│       ├── 005_create_tenants.sql        # tenants + user_tenant 表
-│       ├── 006_create_enterprise_base_info.sql # enterprise_base_info 表（20 个字段）
-│       ├── 007_create_articles.sql       # articles 表
-│       ├── 008_create_question_words.sql # question_words 表
-│       ├── 009_seed_dev_user.sql         # 种子数据（开发用户）
-│       ├── 010_create_consumption_details.sql # consumption_details 表
-│       ├── 011_create_publish_records.sql # publish_records 表
-│       ├── 012_create_knowledge_base_sections.sql # knowledge_base_sections 表
-│       ├── 013_create_enterprise_images.sql # enterprise_images 表（上传文件/图片）
-│       ├── 014_create_geo_ui_saves.sql    # geo_ui_saves 表（前端保存草稿/状态）
-│       ├── 015_create_products.sql        # products 表（产品库）
-│       ├── 016_create_product_images.sql  # product_images 表（产品图片，最多9张）
-│       ├── 017_create_enterprise_image_categories.sql # enterprise_image_categories 表（图片分类）
-│       ├── 018_create_enterprise_docs.sql # enterprise_docs 表（企业文档）
-│       ├── 019_create_article_links.sql   # article_links 表（发布链接）
-│       ├── 020_alter_publish_records_add_link.sql # publish_records.link_url
-│       ├── 021_alter_articles_add_review.sql # articles.review_status/reviewed_at
-│       └── 022_alter_product_images_upgrade.sql # product_images 升级
+├── backend/                              # FastAPI 后端
+│   ├── main.py                           # 应用入口（路由/中间件/静态资源挂载）
+│   ├── config.py                         # 配置（数据库/JWT/LLM/CORS）
+│   ├── database.py                       # 连接池 + migrations 执行
+│   ├── api/                              # APIRouter 模块
+│   ├── services/                         # 业务服务层
+│   ├── prompts/                          # 提示词模板（.txt）
+│   └── migrations/                       # MySQL 迁移脚本（.sql）
 │
-├── geo.Rmd                              # R Shiny 宿主页面（可选）
-├── config.R                             # R 全局配置（路径、API BaseUrl）
-├── geo_config.R                         # R 数据库/LLM 连接配置
-├── 文心千帆_bak.py                       # 大模型调用备份脚本
+├── www/                                  # 前端 SPA（原生 HTML/CSS/ES Modules）
+├── data/                                 # 数据集目录（Excel + data/uploads）
+│   ├── 2026年网站媒体及官方自媒体报价-Q2.xls
+│   ├── 数据统计_测试数据.xlsx
+│   └── uploads/
 │
-├── data/                                # 数据集目录（统一存放所有数据文件）
-│   ├── 2026年网站媒体及官方自媒体报价-Q2.xls  # 媒体资源报价数据
-│   ├── 数据统计_测试数据.xlsx                 # 数据统计测试数据
-│   └── uploads/                         # 上传文件存储目录（运行时自动创建）
-│
-├── svg/                                 # AI 平台图标
-│   ├── doubao-color.svg                 # 豆包
-│   ├── kimi-color.svg                   # Kimi
-│   ├── qwen-color.svg                   # 通义千问
-│   └── zhipu-color.svg                  # 智谱
-│
-└── www/                                 # 前端静态资源
-    ├── index.html                       # SPA 主壳（header + sidebar + content）
-    ├── index.js                         # 路由引擎（PAGES 映射 → 动态加载）
-    ├── styles/
-    │   └── theme.css                    # 全局主题（CSS Variables，蓝紫毛玻璃）
-    └── pages/                           # 功能页（23 个目录 + 1 个公共 JS）
-        ├── diag-common.js               # 诊断模块公共脚本（AI 调用、结果渲染）
-        ├── _shared/                     # 公共组件模板
-        │   ├── page-template.html       #   页面 HTML 骨架模板
-        │   └── page-template.js         #   页面 JS 骨架模板
-        ├── home/                        # 工作台（仪表盘）
-        ├── knowledge-base/              # 企业知识库（含图片库/产品库/导入网址/导入文件）
-        ├── original-data-diagnosis/     # 基础数据诊断
-        ├── website-diagnosis/           # 企业官网诊断
-        ├── competitor-analysis/         # 竞争对手分析
-        ├── diagnosis-report/            # 企业诊断报告
-        ├── optimization-plan/           # 优化建议方案
-        ├── question-bank/               # 创建问题词库
-        ├── question-bank-manager/       # 问题词库管理
-        ├── article-writing/             # 文章创作
-        ├── article-manager/             # 文章管理
-        ├── media-publish/               # 自媒体发布
-        ├── official-publish/            # 官网发布（媒体资源库）
-        ├── publish-manager/             # 发布管理
-        ├── data-statistics/             # 数据统计
-        ├── data-query/                  # 数据查询
-        ├── public-opinion/              # 舆情监控
-        ├── public-opinion-mobile/       # 舆情监控（移动端适配）
-        ├── public-opinion-report/       # 舆情雷达分析报告
-        ├── config/                      # 消耗明细
-        ├── ai-toolbox/                  # AI 工具箱
-        ├── real-name/                   # 实名认证
-        └── contact/                     # 联系我们
+├── geo.Rmd                               # 可选：R Shiny 宿主页面（iframe 模式）
+├── config.R                              # R 配置（路径/API BaseUrl/DB/LLM）
+├── geo_config.R                          # R 配置（备用/同上）
+└── svg/                                  # SVG 图标资源
 ```
 
 ---
@@ -286,24 +197,11 @@ GEO/
 
 ### Python 环境
 
-Python 3.9+，依赖包见 backend/requirements.txt（共 15 个）：
+Python 3.9+，依赖见 backend/requirements.txt：
 
-```
-fastapi>=0.104.0          # Web 框架
-uvicorn[standard]>=0.24.0  # ASGI 服务器
-pymysql>=1.1.0             # MySQL 驱动
-dbutils>=3.0.0             # 连接池
-pydantic>=2.0.0            # 数据验证
-pydantic-settings>=2.0.0   # 配置管理
-python-jose[cryptography]>=3.3.0  # 当前代码未引用（可移除）
-passlib[bcrypt]>=1.7.4     # 密码哈希
-httpx>=0.25.0              # 异步 HTTP（LLM 调用）
-requests>=2.31.0           # 同步 HTTP（LLM 备选）
-pandas>=2.0.0              # Excel 读取
-openpyxl>=3.1.0            # Excel 读取引擎
-python-dotenv>=1.0.0       # 环境变量
-Pillow>=10.0.0             # 图片处理
-python-multipart>=0.0.6    # 文件上传
+```bash
+cd backend
+pip install -r requirements.txt
 ```
 
 ### R 环境（可选，仅 Shiny 宿主模式需要）
@@ -880,7 +778,7 @@ Refresh Token（有效期 30 天）：
 | article_product_chat_prompt.txt | 产品宣传对话采集（只提问） | question_text, product_json, images_json, history_json |
 | article_writing_init_chat_prompt.txt | 文章创作页 AI 初始化打招呼 | enterprise_full_name, question_text, products_json, images_json |
 | article_brand_prompt.txt | 企业品牌文章 | 同上 |
-| article_activity_prompt.txt | 活动创作文章 | 同上 |
+| article_activity_prompt.txt | 主题活动创建文章 | 同上 |
 | article_prompt.txt | 通用文章模板（兜底） | 同上 |
 | title_prompt.txt | 标题生成 | keyword, hint, enterprise_full_name |
 | activity_desc_prompt.txt | 活动描述生成 | keyword, hint, enterprise_full_name |

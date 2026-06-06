@@ -432,6 +432,27 @@ def build_kb_timeline_prompt(kb: dict) -> str:
     })
 
 
+def build_kb_positioning_prompt(kb: dict, mode: str = "main", current_text: str = "") -> str:
+    tpl = _read_template("kb_positioning_prompt.txt")
+    return render_prompt(tpl, {
+        "mode": mode or "main",
+        "current_text": current_text or "",
+        "enterprise_full_name": kb.get("enterprise_full_name", ""),
+        "enterprise_short_name": kb.get("enterprise_short_name", ""),
+        "enterprise_website": kb.get("enterprise_website", ""),
+        "main_products": kb.get("main_products", ""),
+        "target_customers": kb.get("target_customers", ""),
+        "sales_region": kb.get("sales_region", ""),
+        "enterprise_advantage": kb.get("enterprise_advantage", ""),
+        "product_advantage": kb.get("product_advantage", ""),
+        "tech_advantage": kb.get("tech_advantage", ""),
+        "company_profile": kb.get("company_profile", ""),
+        "enterprise_library": kb.get("enterprise_library", ""),
+        "timeline_text": kb.get("timeline_text", ""),
+        "extras": kb.get("extras", ""),
+    })
+
+
 def build_data_diagnosis_prompt(kb: dict, manual: str, page_context: str = "") -> str:
     tpl = _read_template("data_diagnosis_prompt.txt")
     return render_prompt(tpl, {

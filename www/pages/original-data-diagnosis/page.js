@@ -7,7 +7,6 @@ const Page = {
 
     const reportBodyModel = document.getElementById('reportBodyModel');
     const reportBodySummary = document.getElementById('reportBodySummary');
-    const manualInput = document.getElementById('manualInput');
     const runModelBtn = document.getElementById('runModelBtn');
     const runSummaryBtn = document.getElementById('runSummaryBtn');
     const downloadBtn = document.getElementById('downloadBtn');
@@ -23,8 +22,6 @@ const Page = {
     const prefillFields = [
       { id: 'odd_enterprise_full_name', kbKey: '企业全称' },
       { id: 'odd_enterprise_address', kbKey: '企业地址' },
-      { id: 'odd_enterprise_full_name_dup', kbKey: '企业全称' },
-      { id: 'odd_enterprise_address_dup', kbKey: '企业地址' },
       { id: 'odd_enterprise_short_name', kbKey: '企业简称' },
       { id: 'odd_founded_time', kbKey: '成立时间' },
       { id: 'odd_enterprise_contact', kbKey: '企业联系方式' },
@@ -64,30 +61,6 @@ const Page = {
       });
       return lines.join('\n');
     };
-
-    const fn = document.getElementById('odd_enterprise_full_name');
-    const fnDup = document.getElementById('odd_enterprise_full_name_dup');
-    if (fn instanceof HTMLInputElement && fnDup instanceof HTMLInputElement) {
-      const sync = () => {
-        if (!fnDup.classList.contains('manual-input')) return;
-        const v = String(fn.value || '');
-        if (String(fnDup.value || '').trim() === '' || String(fnDup.value || '') === String(fn.value || '')) fnDup.value = v;
-      };
-      fn.addEventListener('input', sync);
-      sync();
-    }
-
-    const addr = document.getElementById('odd_enterprise_address');
-    const addrDup = document.getElementById('odd_enterprise_address_dup');
-    if (addr instanceof HTMLInputElement && addrDup instanceof HTMLInputElement) {
-      const sync = () => {
-        if (!addrDup.classList.contains('manual-input')) return;
-        const v = String(addr.value || '');
-        if (String(addrDup.value || '').trim() === '' || String(addrDup.value || '') === String(addr.value || '')) addrDup.value = v;
-      };
-      addr.addEventListener('input', sync);
-      sync();
-    }
 
     const pillsRoot = document.querySelector('.diag-model-block');
     const modelCache = {};
@@ -152,28 +125,6 @@ const Page = {
       });
     };
 
-    const waitForUrlSummary = (reqId) => {
-      const rid = String(reqId || '');
-      if (!rid) return Promise.resolve({ urls: [], summary: '' });
-      return new Promise((resolve) => {
-        const timer = setTimeout(() => {
-          window.removeEventListener('message', onMsg);
-          resolve({ urls: [], summary: '' });
-        }, 90000);
-        const onMsg = (event) => {
-          const d = event?.data;
-          if (!d || typeof d !== 'object') return;
-          if (d.type !== 'geo_summarize_urls_result') return;
-          if (String(d.payload?.req_id || '') !== rid) return;
-          clearTimeout(timer);
-          window.removeEventListener('message', onMsg);
-          const data = d.payload?.data || null;
-          resolve({ urls: Array.isArray(data?.urls) ? data.urls : [], summary: String(data?.summary || '') });
-        };
-        window.addEventListener('message', onMsg);
-      });
-    };
-
     const clearFiles = () => {
       return new Promise((resolve) => {
         const timer = setTimeout(() => {
@@ -230,22 +181,6 @@ const Page = {
     renderReport(reportBodySummary, '', { placeholder: '点击汇总分析按钮后，结果将显示在此处' });
 
     const runFourModels = async () => {
-      const manualBase = String(manualInput?.value || '').trim();
-      if (!manualBase) {
-        alert('请先在“手动输入诊断”中粘贴文章链接');
-        return;
-      }
-
-      const urls = manualBase
-        .split(/[;\n\r；]+/)
-        .map((x) => x.trim())
-        .filter(Boolean)
-        .slice(0, 10);
-      if (!urls.length) {
-        alert('请先在“手动输入诊断”中粘贴文章链接（多个用分号分开）');
-        return;
-      }
-
       setBusy(true);
       await clearFiles();
       MODELS.forEach((m) => {
@@ -257,15 +192,10 @@ const Page = {
       await saveKnowledgeBaseMerge('企业基础信息', patch);
       const page_context = buildPageContext(saveFields);
 
-      const sumReqId = `odd_urlsum_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-      window.geoSummarizeUrls?.({ req_id: sumReqId, urls });
-      const urlSummary = await waitForUrlSummary(sumReqId);
-      const summaryText = String(urlSummary?.summary || '').trim();
-
       const manualBlock =
-        `【用户输入的文章链接】\n${urls.join('；')}\n\n` +
-        `【系统抓取与归纳的链接内容摘要（用于诊断依据）】\n${summaryText || '（未能抓取到有效内容，请根据链接本身进行诊断）'}\n\n` +
-        `请基于以上摘要，与企业知识库/标准信息进行一致性核对，输出诊断结论与可疑点。`;
+        "请基于企业知识库与页面填写的标准信息，对企业基础数据进行一致性诊断。\n" +
+        "重点检查：企业全称/简称、成立时间、注册地址、联系方式、企业官网、核心产品/服务等信息是否前后一致。\n" +
+        "要求：不要编造；信息不足则标记“待补充”；输出可疑冲突点与修正建议。";
 
       const first = MODELS[0].id;
       setActivePill(first);

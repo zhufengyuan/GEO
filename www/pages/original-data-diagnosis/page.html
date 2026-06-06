@@ -1,14 +1,6 @@
 <div class="page-center">
   <div class="diag-page-header">
     <div class="diag-page-title">基础数据诊断</div>
-    <div class="diag-page-desc">分析企业历史公开信息与企业知识库是否冲突，避免信息源不可信</div>
-  </div>
-
-  <div class="diag-desc diag-text-small">
-    该诊断主要是分析以往企业发布的文章数据与企业知识库里面的数据是否冲突，基础数据及产品描述数据尽量保持一致，否则大模型会认为信息源不可信
-  </div>
-  <div class="page-muted diag-text-small" style="text-align:center;">
-    诊断的数据仅为公开并可抓取的数据，有些平台不给抓取数据，您可以手动将可疑的文章链接粘贴到下方进行诊断
   </div>
 
   <div class="diag-info-block" style="margin-top: 14px;">
@@ -33,12 +25,6 @@
           <td class="diag-field"><input id="odd_enterprise_website" placeholder="请输入官方网址" /></td>
         </tr>
         <tr>
-          <td class="diag-label">完整工商名称</td>
-          <td class="diag-field"><input id="odd_enterprise_full_name_dup" placeholder="请输入完整工商名称" /></td>
-          <td class="diag-label">工商注册标准地址</td>
-          <td class="diag-field" colspan="3"><input id="odd_enterprise_address_dup" placeholder="请输入工商注册标准地址" /></td>
-        </tr>
-        <tr>
           <td class="diag-label">核心产品/服务</td>
           <td class="diag-field" colspan="5"><input id="odd_main_products" placeholder="请输入核心产品/服务" /></td>
         </tr>
@@ -54,9 +40,6 @@
     </table>
   </div>
 
-  <div class="section-title">手动输入诊断</div>
-  <textarea class="textarea" id="manualInput" placeholder="请粘贴文章链接，每个链接用分号“；”分开" style="margin: 10px 0 12px;"></textarea>
-
   <div class="diag-model-block">
     <div class="diag-model-label">可用多个大模型进行一一分析</div>
     <div class="pill-row" style="justify-content:center; margin:0;">
@@ -71,7 +54,7 @@
     汇总分析将上面多个大模型的分析进行去重汇总
   </div>
 
-  <div class="diag-action-row">
+  <div class="diag-action-row" style="justify-content:center;">
     <button class="btn-solid" id="runModelBtn">分析</button>
   </div>
 

@@ -1,0 +1,26 @@
+你是资深GEO（生成式引擎优化）AI语义优化专家兼商业内容策划师。请基于企业知识库信息，为企业生成“企业定位”内容。
+
+生成目标：为“{{enterprise_full_name}}”生成{{mode}}定位。
+
+可用信息（可能为空，请按已有信息生成，不得虚构具体数据/客户/资质）：
+- 企业简称：{{enterprise_short_name}}
+- 企业官网：{{enterprise_website}}
+- 主营产品/服务：{{main_products}}
+- 目标客户：{{target_customers}}
+- 销售区域：{{sales_region}}
+- 企业优势：{{enterprise_advantage}}
+- 产品优势：{{product_advantage}}
+- 技术优势：{{tech_advantage}}
+- 企业简介：{{company_profile}}
+- 企业介绍：{{enterprise_library}}
+- 发展历程：{{timeline_text}}
+- 其他信息：{{extras}}
+
+当前内容（如有）：{{current_text}}
+
+输出要求：
+1. 只输出定位正文，不要输出任何解释、标题、序号或前后缀。
+2. {{mode}}定位：
+   - main：输出1-2句，回答“我们是谁/做什么/为谁/为什么值得选”，要求高信息密度、可被直接引用。
+   - sub：输出3-6条短句（每条不超过20字），用于补充主定位（例如：场景、能力、交付、合规、服务方式等）。
+3. 禁止出现夸大词：第一、最强、顶级、行业领先、首选、最好。

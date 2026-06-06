@@ -2,7 +2,7 @@
   <div class="creator-tabs">
     <button class="tab-btn active" data-tab="product">产品宣传创作</button>
     <button class="tab-btn" data-tab="brand">企业品牌创作</button>
-    <button class="tab-btn" data-tab="activity">活动关键词创作</button>
+    <button class="tab-btn" data-tab="activity">主题活动创建</button>
   </div>
 
   <div class="creator-grid">
@@ -21,10 +21,10 @@
             <table class="aw-table">
               <thead>
                 <tr>
-                  <th style="width: 60px;">选择</th>
-                  <th style="width: 80px;">序号</th>
-                  <th>问题词名称</th>
-                  <th style="width: 220px;">
+                  <th style="width: 56px;">选择</th>
+                  <th style="width: 56px;">序号</th>
+                  <th style="width: 180px;">问题词名称</th>
+                  <th style="width: 160px;">
                     <div class="aw-date-head">
                       <span>创建日期</span>
                       <select class="select aw-date-select" id="awLexiconDateSelect"></select>
@@ -59,19 +59,87 @@
       </div>
 
       <div class="card hidden" data-panel="brand">
-        <div class="step-title">第一步：确定标题</div>
-        <div class="page-muted" style="margin:8px 0;">标题可下拉选择问题词库关键词，或手动输入</div>
-        <div class="row" style="margin:10px 0; display:flex; gap:10px; align-items:center;">
-          <select class="select" id="brandTitleSelect" style="flex:1; min-width:0;"></select>
-          <button class="btn-primary" id="brandUseSelectedBtn">使用</button>
+        <div class="aw-brand-tip">请先在企业知识库里面完善企业基础信息、企业介绍、产品库信息</div>
+
+        <div class="step-title">第一步：完善标准信息（越完善详细，文案越优质）</div>
+        <div class="aw-form-row">
+          <div class="aw-form-item">
+            <div class="aw-label">企业名称</div>
+            <input class="input" id="brand_company_name" placeholder="例如：广州XX有限公司" />
+          </div>
+          <div class="aw-form-item">
+            <div class="aw-label">所属行业</div>
+            <input class="input" id="brand_industry" placeholder="例如：箱包制造 / SaaS / 法律服务" />
+          </div>
+          <div class="aw-form-item">
+            <div class="aw-label">主营产品/服务</div>
+            <input class="input" id="brand_main_products" placeholder="例如：旅行背包定制 / ERP系统" />
+          </div>
+
+          <div class="aw-form-item">
+            <div class="aw-label">客户模式B端 / C端 / B+C</div>
+            <select class="select" id="brand_customer_mode">
+              <option value="">请选择</option>
+              <option value="B端">B端</option>
+              <option value="C端">C端</option>
+              <option value="B+C">B+C</option>
+            </select>
+          </div>
+          <div class="aw-form-item">
+            <div class="aw-label">核心能力</div>
+            <input class="input" id="brand_core_capability" placeholder="例如：OEM/ODM / 私有化部署" />
+          </div>
+          <div class="aw-form-item">
+            <div class="aw-label">企业优势</div>
+            <textarea class="textarea" id="brand_enterprise_advantage" placeholder="例如：交期稳定、响应快、可定制"></textarea>
+          </div>
+
+          <div class="aw-form-item">
+            <div class="aw-label">服务流程</div>
+            <textarea class="textarea" id="brand_service_process" placeholder="例如：需求沟通→方案→执行→交付"></textarea>
+          </div>
+          <div class="aw-form-item">
+            <div class="aw-label">资质认证</div>
+            <input class="input" id="brand_certifications" placeholder="例如：ISO9001、BSCI" />
+          </div>
+          <div class="aw-form-item">
+            <div class="aw-label">成功案例</div>
+            <textarea class="textarea" id="brand_success_cases" placeholder="例如：服务过哪些客户/项目（真实）"></textarea>
+          </div>
+
+          <div class="aw-form-item">
+            <div class="aw-label">目标市场</div>
+            <input class="input" id="brand_target_market" placeholder="例如：国内 / 欧美 / 跨境电商" />
+          </div>
+          <div class="aw-form-item">
+            <div class="aw-label">品牌定位</div>
+            <input class="input" id="brand_brand_positioning" placeholder="例如：高性价比定制工厂" />
+          </div>
+          <div class="aw-form-item">
+            <div class="aw-label">禁止出现的内容</div>
+            <textarea class="textarea" id="brand_forbidden_content" placeholder="例如：第一/顶级/虚构案例/夸大承诺"></textarea>
+          </div>
         </div>
-        <input class="input" id="brandTitleInput" placeholder="请输入标题（不填则用下方方向提示词生成）" style="width:100%;" />
-        <div class="page-muted" style="margin:12px 0 6px;">方向提示词（不填则用默认占位内容生成）</div>
-        <textarea class="textarea" id="brandTitleHint" placeholder="例如：发展历程、创始人故事、企业荣誉、核心技术、客户案例、社会责任"></textarea>
-        <div class="row" style="display:flex; justify-content:center; margin-top:10px;">
-          <button class="btn-solid" id="genTitleBtn">用系统生成标题</button>
+
+        <div class="step-title" style="margin-top:14px;">第二步：选择文案类型（单选，逐一选择）</div>
+        <div id="brandCopyType" class="aw-radio-list">
+          <label class="aw-radio"><input type="radio" name="brand_copy_type" value="企业定位文案" /> 企业定位文案</label>
+          <label class="aw-radio"><input type="radio" name="brand_copy_type" value="企业介绍文案" /> 企业介绍文案</label>
+          <label class="aw-radio"><input type="radio" name="brand_copy_type" value="行业知识型文案" /> 行业知识型文案</label>
+          <label class="aw-radio"><input type="radio" name="brand_copy_type" value="采购决策型文案" /> 采购决策型文案</label>
+          <label class="aw-radio"><input type="radio" name="brand_copy_type" value="场景解决方案文案" /> 场景解决方案文案</label>
+          <label class="aw-radio"><input type="radio" name="brand_copy_type" value="FAQ知识库文案" /> FAQ知识库文案</label>
+          <label class="aw-radio"><input type="radio" name="brand_copy_type" value="企业能力拆解文案" /> 企业能力拆解文案</label>
+          <label class="aw-radio"><input type="radio" name="brand_copy_type" value="成功案例型文案" /> 成功案例型文案</label>
+          <label class="aw-radio"><input type="radio" name="brand_copy_type" value="品牌百科/AI知识库文案" /> 品牌百科/AI知识库文案</label>
         </div>
-        <div class="list-box" id="brandTitleSuggest" style="margin-top:10px;"></div>
+
+        <div class="step-title" style="margin-top:14px;">第三步：插入图片（可选）</div>
+        <div class="note-red">支持上传图片并插入到文章内容中</div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn-primary" id="insertBrandImg">+ 插入图片</button>
+        </div>
+        <div class="img-preview" id="brandImgPreview">这里显示插入图片的预览图</div>
       </div>
 
       <div class="card hidden" data-panel="activity">
@@ -174,7 +242,7 @@
 <div class="modal" id="awImgModal">
   <div class="modal-card" style="width: min(640px, calc(100vw - 32px));">
     <div class="modal-head">
-      <div>插入活动图片</div>
+      <div id="awImgModalTitle">插入图片</div>
       <button class="op" id="awImgClose" style="color:#fff;">关闭</button>
     </div>
     <div class="modal-body">
@@ -268,21 +336,19 @@
   margin-top: 14px;
   display: flex;
   flex-direction: column;
-  flex: none;
-  height: 360px;
-  min-height: 0;
+  flex: 1;
+  min-height: 260px;
 }
 
 .aw-chat-box {
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 2px;
   background: #fff;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: auto;
   padding: 10px;
   white-space: normal;
   flex: 1;
-  min-height: 0;
+  min-height: 260px;
 }
 
 .aw-chat-msg {
@@ -390,6 +456,76 @@
   height: 28px;
   padding: 0 10px;
   font-size: 12px;
+}
+
+.aw-lexicon-table .aw-table {
+  min-width: 440px;
+  table-layout: fixed;
+}
+
+.aw-lexicon-name-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aw-brand-tip {
+  margin-bottom: 10px;
+  color: #6b7280;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.aw-form-row {
+  margin: 10px 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.aw-form-item {
+  min-width: 0;
+}
+
+.aw-form-item .aw-label {
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.aw-form-item .input,
+.aw-form-item .textarea,
+.aw-form-item .select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(79, 70, 229, 0.18);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.aw-form-item .textarea {
+  height: 64px;
+  min-height: 64px;
+  resize: none;
+  padding: 12px 14px;
+}
+
+.aw-radio-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 18px;
+  margin-top: 8px;
+}
+
+.aw-radio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #111827;
 }
 
 .aw-action-row {
@@ -515,6 +651,18 @@
   }
   .platform-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .aw-form-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .aw-radio-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .aw-form-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>

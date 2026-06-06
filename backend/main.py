@@ -264,6 +264,9 @@ async def articles_create(req: ArticleCreateRequest, user=Depends(get_current_us
 
     kb_base = load_kb_section(user["id"], "企业基础信息")
     kb_docs = load_kb_section(user["id"], "docs")
+    kb_positioning = load_kb_section(user["id"], "positioning")
+    if kb_positioning is not None and isinstance(kb_docs, dict):
+        kb_docs = {**kb_docs, "positioning": kb_positioning}
 
     task = {
         "tab": req.tab,
@@ -914,6 +917,7 @@ async def ai_execute(body: dict, user=Depends(get_current_user)):
         build_kb_profile_prompt,
         build_kb_library_prompt,
         build_kb_timeline_prompt,
+        build_kb_positioning_prompt,
         build_article_prompt,
         build_article_product_chat_prompt,
         build_article_writing_init_chat_prompt,
@@ -942,13 +946,23 @@ async def ai_execute(body: dict, user=Depends(get_current_user)):
         prompt = build_title_prompt(enterprise, lexicon, keyword, hint)
     elif task == "generate_activity_desc":
         prompt = build_activity_desc_prompt(enterprise, lexicon, keyword, hint)
-    elif task in ("generate_kb_profile", "generate_kb_library", "generate_kb_timeline"):
+    elif task in (
+        "generate_kb_profile",
+        "generate_kb_library",
+        "generate_kb_timeline",
+        "generate_kb_positioning_main",
+        "generate_kb_positioning_sub",
+    ):
         if task == "generate_kb_profile":
             prompt = build_kb_profile_prompt(kb)
         elif task == "generate_kb_library":
             prompt = build_kb_library_prompt(kb)
-        else:
+        elif task == "generate_kb_timeline":
             prompt = build_kb_timeline_prompt(kb)
+        elif task == "generate_kb_positioning_sub":
+            prompt = build_kb_positioning_prompt(kb, mode="sub", current_text=str(body.get("current_text") or ""))
+        else:
+            prompt = build_kb_positioning_prompt(kb, mode="main", current_text=str(body.get("current_text") or ""))
     elif task == "data_diagnosis":
         manual = str(body.get("manual") or body.get("input") or "").strip()
         prompt = build_data_diagnosis_prompt(kb, manual, page_context)
@@ -1119,6 +1133,9 @@ async def article_writing_chat(body: dict, user=Depends(get_current_user)):
 
     kb_base = load_kb_section(user["id"], "企业基础信息")
     kb_docs = load_kb_section(user["id"], "docs")
+    kb_positioning = load_kb_section(user["id"], "positioning")
+    if kb_positioning is not None and isinstance(kb_docs, dict):
+        kb_docs = {**kb_docs, "positioning": kb_positioning}
     prompt = build_article_product_chat_prompt(
         enterprise,
         lexicon,
@@ -1172,6 +1189,9 @@ async def article_writing_optimize(body: dict, user=Depends(get_current_user)):
 
     kb_base = load_kb_section(user["id"], "企业基础信息")
     kb_docs = load_kb_section(user["id"], "docs")
+    kb_positioning = load_kb_section(user["id"], "positioning")
+    if kb_positioning is not None and isinstance(kb_docs, dict):
+        kb_docs = {**kb_docs, "positioning": kb_positioning}
     prompt = build_article_product_optimize_prompt(
         enterprise,
         lexicon,

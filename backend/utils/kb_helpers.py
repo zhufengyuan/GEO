@@ -54,7 +54,13 @@ def load_full_kb(user_id: int, lexicon_id: int = 0) -> Dict[str, Any]:
     enterprise = load_enterprise_info()
     lexicon = load_lexicon(lexicon_id)
     kb_base = load_kb_section(user_id, "企业基础信息")
-    kb_docs = load_kb_section(user_id, "docs")
+    kb_docs_raw = load_kb_section(user_id, "docs")
+    kb_positioning = load_kb_section(user_id, "positioning")
+    kb_docs = kb_docs_raw if isinstance(kb_docs_raw, dict) else ({} if kb_docs_raw is None else {"content": kb_docs_raw})
+    if kb_positioning is not None:
+        if not isinstance(kb_docs, dict):
+            kb_docs = {"content": kb_docs_raw}
+        kb_docs["positioning"] = kb_positioning
     return {
         "enterprise": enterprise,
         "lexicon": lexicon,
