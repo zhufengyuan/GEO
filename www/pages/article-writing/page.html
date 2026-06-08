@@ -350,13 +350,24 @@
     </div>
 
     <div class="right-col">
-      <div class="card aw-suggest-card" id="awSuggestSingle">
-        <div class="aw-suggest-head">
-          <div class="step-title" style="margin:0;">文案优化建议</div>
-          <button class="btn-solid" id="awViewArticleBtn" disabled>文案显示</button>
+      <div class="card aw-suggest-card aw-result-card" id="awSuggestSingle">
+        <div class="aw-result-layout aw-result-layout--single">
+          <div class="aw-result-section">
+            <div class="aw-result-head">
+              <div class="step-title aw-result-title" style="margin:0;">初稿文案</div>
+              <div class="page-muted aw-result-desc">初稿满意后，点击确认保存，或者根据优化建议，补充材料后重新生成</div>
+            </div>
+            <div class="aw-result-box aw-result-box--article" id="awArticleBox"></div>
+          </div>
+          <div class="aw-result-section">
+            <div class="aw-result-head">
+              <div class="step-title aw-result-title" style="margin:0;">优化建议</div>
+              <div class="page-muted aw-result-desc">根据建议补充材料生成的文案更优质，更容易与 AI 读懂、引用</div>
+            </div>
+            <div class="aw-result-box" id="awSuggestBox"></div>
+          </div>
         </div>
-        <div class="aw-suggest-box aw-suggest-box--single" id="awSuggestBox"></div>
-        <div class="aw-suggest-bottom">
+        <div class="aw-suggest-bottom aw-suggest-bottom--single">
           <button class="btn-solid" id="awCopyReoptBtn" disabled>重新优化</button>
           <button class="btn-primary" id="awCopyConfirmBtn" disabled>确定</button>
         </div>
@@ -364,12 +375,23 @@
       </div>
 
       <div class="aw-brand-suggest-wrap" id="awBrandSuggestWrap" style="display:none;">
-        <div class="card aw-suggest-card" data-idx="0">
-          <div class="aw-suggest-head">
-            <div class="step-title" style="margin:0;">文案优化建议</div>
-            <button class="btn-solid aw-brand-view-btn" data-idx="0" disabled>文案显示</button>
+        <div class="card aw-suggest-card aw-result-card" data-idx="0">
+          <div class="aw-result-layout">
+            <div class="aw-result-section">
+              <div class="aw-result-head">
+                <div class="step-title aw-result-title" style="margin:0;">初稿文案</div>
+                <div class="page-muted aw-result-desc">品牌创作第 1 版，显示区域内支持滚轮查看全文</div>
+              </div>
+              <div class="aw-result-box aw-result-box--article" id="awBrandArticleBox0"></div>
+            </div>
+            <div class="aw-result-section">
+              <div class="aw-result-head">
+                <div class="step-title aw-result-title" style="margin:0;">优化建议</div>
+                <div class="page-muted aw-result-desc">结合当前文案内容，给出可执行的优化方向</div>
+              </div>
+              <div class="aw-result-box" id="awBrandSuggestBox0"></div>
+            </div>
           </div>
-          <div class="aw-suggest-box" id="awBrandSuggestBox0"></div>
           <div class="aw-suggest-bottom">
             <button class="btn-solid aw-brand-reopt-btn" disabled>重新优化</button>
             <button class="btn-primary aw-brand-confirm-btn" data-idx="0" disabled>确定</button>
@@ -377,12 +399,23 @@
           <div class="page-muted aw-brand-suggest-hint" style="margin-top:10px;"></div>
         </div>
 
-        <div class="card aw-suggest-card" data-idx="1">
-          <div class="aw-suggest-head">
-            <div class="step-title" style="margin:0;">文案优化建议</div>
-            <button class="btn-solid aw-brand-view-btn" data-idx="1" disabled>文案显示</button>
+        <div class="card aw-suggest-card aw-result-card" data-idx="1">
+          <div class="aw-result-layout">
+            <div class="aw-result-section">
+              <div class="aw-result-head">
+                <div class="step-title aw-result-title" style="margin:0;">初稿文案</div>
+                <div class="page-muted aw-result-desc">品牌创作第 2 版，显示区域内支持滚轮查看全文</div>
+              </div>
+              <div class="aw-result-box aw-result-box--article" id="awBrandArticleBox1"></div>
+            </div>
+            <div class="aw-result-section">
+              <div class="aw-result-head">
+                <div class="step-title aw-result-title" style="margin:0;">优化建议</div>
+                <div class="page-muted aw-result-desc">结合当前文案内容，给出可执行的优化方向</div>
+              </div>
+              <div class="aw-result-box" id="awBrandSuggestBox1"></div>
+            </div>
           </div>
-          <div class="aw-suggest-box" id="awBrandSuggestBox1"></div>
           <div class="aw-suggest-bottom">
             <button class="btn-solid aw-brand-reopt-btn" disabled>重新优化</button>
             <button class="btn-primary aw-brand-confirm-btn" data-idx="1" disabled>确定</button>
@@ -390,12 +423,23 @@
           <div class="page-muted aw-brand-suggest-hint" style="margin-top:10px;"></div>
         </div>
 
-        <div class="card aw-suggest-card" data-idx="2">
-          <div class="aw-suggest-head">
-            <div class="step-title" style="margin:0;">文案优化建议</div>
-            <button class="btn-solid aw-brand-view-btn" data-idx="2" disabled>文案显示</button>
+        <div class="card aw-suggest-card aw-result-card" data-idx="2">
+          <div class="aw-result-layout">
+            <div class="aw-result-section">
+              <div class="aw-result-head">
+                <div class="step-title aw-result-title" style="margin:0;">初稿文案</div>
+                <div class="page-muted aw-result-desc">品牌创作第 3 版，显示区域内支持滚轮查看全文</div>
+              </div>
+              <div class="aw-result-box aw-result-box--article" id="awBrandArticleBox2"></div>
+            </div>
+            <div class="aw-result-section">
+              <div class="aw-result-head">
+                <div class="step-title aw-result-title" style="margin:0;">优化建议</div>
+                <div class="page-muted aw-result-desc">结合当前文案内容，给出可执行的优化方向</div>
+              </div>
+              <div class="aw-result-box" id="awBrandSuggestBox2"></div>
+            </div>
           </div>
-          <div class="aw-suggest-box" id="awBrandSuggestBox2"></div>
           <div class="aw-suggest-bottom">
             <button class="btn-solid aw-brand-reopt-btn" disabled>重新优化</button>
             <button class="btn-primary aw-brand-confirm-btn" data-idx="2" disabled>确定</button>
@@ -428,22 +472,6 @@
     <div class="modal-actions">
       <button class="btn-primary" id="awImgInsertBtn">插入</button>
       <button class="btn-solid" id="awImgCancel">取消</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal" id="awArticleModal">
-  <div class="modal-card" style="width: min(920px, calc(100vw - 32px));">
-    <div class="modal-head">
-      <div id="awArticleModalTitle">文案预览</div>
-      <button class="op" id="awArticleClose" style="color:#fff;">关闭</button>
-    </div>
-    <div class="modal-body">
-      <pre id="awArticleModalBody" style="margin:0; white-space: pre-wrap; word-break: break-word;"></pre>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-primary" id="awArticleConfirmBtn" style="display:none;">确定</button>
-      <button class="btn-solid" id="awArticleCancel">取消</button>
     </div>
   </div>
 </div>
@@ -596,22 +624,70 @@
 .aw-suggest-card {
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.aw-suggest-box {
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 12px;
+.aw-result-card {
+  min-height: 0;
+}
+
+.aw-result-layout {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  flex: 1;
+  min-height: 0;
+}
+
+.aw-result-layout--single {
+  min-height: 0;
+}
+
+.aw-result-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.aw-result-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 10px;
+  min-height: 26px;
+}
+
+.aw-result-title {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.aw-result-desc {
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.aw-result-box {
+  border: 1px solid #2f6bd8;
+  border-radius: 2px;
   background: #fff;
   flex: 1;
-  min-height: 220px;
+  min-height: 0;
   padding: 14px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;
+  line-height: 1.7;
 }
 
-.aw-suggest-box--single {
-  min-height: 520px;
+.aw-result-box--article:empty::before,
+.aw-result-box:empty::before {
+  content: "暂无内容，请先点击“开启创作”。";
+  color: #9ca3af;
 }
 
 .aw-suggest-bottom {
@@ -621,24 +697,25 @@
   gap: 12px;
 }
 
+.aw-suggest-bottom--single {
+  margin-top: 16px;
+}
+
 .aw-brand-suggest-wrap {
   display: flex;
   flex-direction: column;
   gap: 14px;
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .aw-brand-suggest-wrap > .card {
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
+  height: 520px;
 }
-
-.aw-brand-suggest-wrap .aw-suggest-box {
-  flex: 1;
-  min-height: 220px;
-}
-
 
 .aw-filter-row {
   display: flex;
@@ -894,6 +971,7 @@
 @media (max-width: 1100px) {
   .creator-grid {
     grid-template-columns: 1fr;
+    min-height: auto;
   }
   .check-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -907,11 +985,22 @@
   .aw-radio-list {
     grid-template-columns: 1fr;
   }
+  .right-col {
+    min-height: 900px;
+  }
 }
 
 @media (max-width: 720px) {
   .aw-form-row {
     grid-template-columns: 1fr;
+  }
+  .aw-result-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .aw-brand-suggest-wrap > .card {
+    height: 560px;
   }
 }
 </style>
