@@ -43,6 +43,44 @@ python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --workers 4
 
 启动时自动执行 migrations/ 下 22 个 SQL 迁移脚本。
 
+### MySQL 授权示例
+
+如果你的环境同时包含以下连接方式：
+
+- 服务器本机通过 `localhost` 连接
+- 服务器本机通过公网 IP `YOUR_DB_HOST` 连接自己
+- 本地电脑通过公网 IP `YOUR_PUBLIC_IP` 远程连接
+
+可以参考以下授权方式：
+
+```sql
+ALTER USER 'root'@'localhost' IDENTIFIED BY 'your_root_password';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION;
+
+ALTER USER 'root'@'%' IDENTIFIED BY 'your_root_password';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+
+CREATE USER IF NOT EXISTS 'root'@'YOUR_DB_HOST' IDENTIFIED BY 'your_root_password';
+ALTER USER 'root'@'YOUR_DB_HOST' IDENTIFIED BY 'your_root_password';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'YOUR_DB_HOST' WITH GRANT OPTION;
+
+CREATE USER IF NOT EXISTS 'root'@'YOUR_PUBLIC_IP' IDENTIFIED BY 'your_root_password';
+ALTER USER 'root'@'YOUR_PUBLIC_IP' IDENTIFIED BY 'your_root_password';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'YOUR_PUBLIC_IP' WITH GRANT OPTION;
+
+FLUSH PRIVILEGES;
+```
+
+若应用只需要访问业务库，也可以改为：
+
+```sql
+CREATE USER 'geo_user'@'localhost' IDENTIFIED BY 'strong_password_here';
+GRANT ALL PRIVILEGES ON geo.* TO 'geo_user'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+当后端进程通过公网 IP 或固定出口 IP 连接数据库时，请将 `localhost` 替换为实际来源 IP，或额外增加对应授权记录。
+
 ## 统一响应格式
 
 所有接口均返回 JSON：
