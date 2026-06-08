@@ -53,19 +53,23 @@ const Page = {
     const brandBrandPositioningEl = document.getElementById('brand_brand_positioning');
     const brandForbiddenContentEl = document.getElementById('brand_forbidden_content');
     const brandCopyTypeRoot = document.getElementById('brandCopyType');
+    const articleBox = document.getElementById('awArticleBox');
     const suggestBox = document.getElementById('awSuggestBox');
     const copyConfirmBtn = document.getElementById('awCopyConfirmBtn');
     const copyReoptBtn = document.getElementById('awCopyReoptBtn');
     const suggestHint = document.getElementById('awSuggestHint');
-    const viewArticleBtn = document.getElementById('awViewArticleBtn');
     const suggestSingle = document.getElementById('awSuggestSingle');
     const brandSuggestWrap = document.getElementById('awBrandSuggestWrap');
+    const brandArticleBoxes = [
+      document.getElementById('awBrandArticleBox0'),
+      document.getElementById('awBrandArticleBox1'),
+      document.getElementById('awBrandArticleBox2'),
+    ];
     const brandSuggestBoxes = [
       document.getElementById('awBrandSuggestBox0'),
       document.getElementById('awBrandSuggestBox1'),
       document.getElementById('awBrandSuggestBox2'),
     ];
-    const brandViewBtns = Array.from(root.querySelectorAll('.aw-brand-view-btn'));
     const brandReoptBtns = Array.from(root.querySelectorAll('.aw-brand-reopt-btn'));
     const brandConfirmBtns = Array.from(root.querySelectorAll('.aw-brand-confirm-btn'));
     const brandSuggestHints = Array.from(root.querySelectorAll('.aw-brand-suggest-hint'));
@@ -74,13 +78,6 @@ const Page = {
       brand: root.querySelector('.aw-start-create[data-tab="brand"]'),
       activity: root.querySelector('.aw-start-create[data-tab="activity"]'),
     };
-    const awArticleModal = document.getElementById('awArticleModal');
-    const awArticleModalTitle = document.getElementById('awArticleModalTitle');
-    const awArticleModalBody = document.getElementById('awArticleModalBody');
-    const awArticleClose = document.getElementById('awArticleClose');
-    const awArticleCancel = document.getElementById('awArticleCancel');
-    const awArticleConfirmBtn = document.getElementById('awArticleConfirmBtn');
-
     const state = {
       activeTab: 'product',
       lexicons: [],
@@ -279,6 +276,24 @@ const Page = {
       suggestBox.textContent = text || '暂无优化建议，请先点击“开启创作”。';
     };
 
+    const renderArticleBox = () => {
+      if (!articleBox) return;
+      const tab = String(state.activeTab || 'product');
+      if (tab === 'brand') return;
+      const list = getArticleListForTab(tab);
+      const body = buildCombinedBody(list);
+      articleBox.textContent = body || '暂无初稿文案，请先点击“开启创作”。';
+    };
+
+    const renderBrandArticleBoxes = () => {
+      const list = getArticleListForTab('brand');
+      brandArticleBoxes.forEach((el, idx) => {
+        if (!(el instanceof HTMLElement)) return;
+        const t = String(list[idx]?.content || '').trim();
+        el.textContent = t || '暂无初稿文案，请先点击“开启创作”。';
+      });
+    };
+
     const renderBrandSuggestBoxes = () => {
       const texts = state.suggestionsByTab?.brand;
       const list = Array.isArray(texts) ? texts : ['', '', ''];
@@ -287,19 +302,6 @@ const Page = {
         const t = String(list[idx] || '').trim();
         el.textContent = t || '暂无优化建议，请先点击“开启创作”。';
       });
-    };
-
-    const closeArticleModal = () => {
-      if (awArticleModal) awArticleModal.style.display = 'none';
-      if (awArticleModalBody) awArticleModalBody.textContent = '';
-      if (awArticleConfirmBtn) awArticleConfirmBtn.style.display = 'none';
-    };
-
-    const openArticleModal = (title, body, allowConfirm) => {
-      if (awArticleModalTitle) awArticleModalTitle.textContent = String(title || '文案预览');
-      if (awArticleModalBody) awArticleModalBody.textContent = String(body || '').trim();
-      if (awArticleConfirmBtn) awArticleConfirmBtn.style.display = allowConfirm ? '' : 'none';
-      if (awArticleModal) awArticleModal.style.display = 'flex';
     };
 
     const buildCombinedBody = (items) => {
@@ -316,23 +318,6 @@ const Page = {
         .trim();
     };
 
-    const openArticleByIndex = (idx) => {
-      const tab = String(state.activeTab || 'product');
-      const list = getArticleListForTab(tab);
-      const it = list[idx] || null;
-      if (!it) return;
-      const canConfirm = Boolean(state.pendingRewrite && state.pendingRewrite.tab === tab);
-      openArticleModal(it.title || '文案预览', it.content || '', canConfirm);
-    };
-
-    const openCombinedArticles = () => {
-      const tab = String(state.activeTab || 'product');
-      const list = getArticleListForTab(tab);
-      if (!list.length) return;
-      const canConfirm = Boolean(state.pendingRewrite && state.pendingRewrite.tab === tab);
-      openArticleModal('文案预览', buildCombinedBody(list), canConfirm);
-    };
-
     function syncSuggestUi() {
       const tab = String(state.activeTab || 'product');
       const list = getArticleListForTab(tab);
@@ -347,12 +332,7 @@ const Page = {
       }
 
       if (tab !== 'brand') {
-        if (viewArticleBtn instanceof HTMLElement) viewArticleBtn.disabled = list.length < 1;
       } else {
-        brandViewBtns.forEach((btn) => {
-          const idx = parseInt(String(btn.getAttribute('data-idx') || ''), 10);
-          btn.disabled = !(Number.isFinite(idx) && list.length > idx);
-        });
         brandReoptBtns.forEach((btn) => (btn.disabled = !(hasBase && !state.generating)));
         brandConfirmBtns.forEach((btn) => (btn.disabled = !(hasPendingRewrite && !state.generating)));
         brandSuggestHints.forEach((el) => {
@@ -363,21 +343,12 @@ const Page = {
 
       setRewriteEnabled(hasBase && !state.generating);
       setConfirmEnabled(hasPendingRewrite && !state.generating);
+      renderArticleBox();
       renderSuggestBox();
+      renderBrandArticleBoxes();
       renderBrandSuggestBoxes();
       if (suggestHint) suggestHint.textContent = tab === 'brand' ? '' : (hasPendingRewrite ? '已生成改稿版本，请点击“确定”写入文章管理。' : '');
     }
-
-    viewArticleBtn?.addEventListener('click', () => {
-      openCombinedArticles();
-    });
-    brandViewBtns.forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(String(btn.getAttribute('data-idx') || ''), 10);
-        if (!Number.isFinite(idx)) return;
-        openArticleByIndex(idx);
-      });
-    });
 
     brandReoptBtns.forEach((btn) => {
       btn.addEventListener('click', () => startRewriteForActiveTab());
@@ -387,12 +358,6 @@ const Page = {
         const idx = parseInt(String(btn.getAttribute('data-idx') || ''), 10);
         confirmRewriteSave(Number.isFinite(idx) ? idx : undefined);
       });
-    });
-
-    awArticleClose?.addEventListener('click', closeArticleModal);
-    awArticleCancel?.addEventListener('click', closeArticleModal);
-    awArticleModal?.addEventListener('click', (e) => {
-      if (e.target === awArticleModal) closeArticleModal();
     });
 
     const renderBrandTitleSelect = () => {
@@ -1034,12 +999,10 @@ const Page = {
       });
       state.pendingRewrite = null;
       setConfirmEnabled(false);
-      closeArticleModal();
       runNextSave();
     }
 
     copyConfirmBtn?.addEventListener('click', () => confirmRewriteSave());
-    awArticleConfirmBtn?.addEventListener('click', () => confirmRewriteSave());
 
     copyReoptBtn?.addEventListener('click', () => startRewriteForActiveTab());
 
@@ -1538,7 +1501,6 @@ const Page = {
           state.pendingRewrite = { tab, contents: results };
           requestSuggestionsForTab(tab, results);
           syncSuggestUi();
-          if (tab !== 'brand') openCombinedArticles();
         } else {
           syncSuggestUi();
         }
