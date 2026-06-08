@@ -336,6 +336,106 @@ def build_article_product_optimize_prompt(
     })
 
 
+def build_article_writing_suggestions_prompt(
+    enterprise: dict,
+    lexicon: dict,
+    task: dict,
+    kb_base: Optional[dict] = None,
+    kb_docs: Optional[dict] = None,
+    article_text: str = "",
+) -> str:
+    tpl = _read_template("article_writing_suggestions_prompt.txt")
+    if not tpl:
+        tpl = _read_template("article_product_optimize_prompt.txt")
+
+    def _safe_json(v):
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return v
+        try:
+            return json.dumps(v, ensure_ascii=False)
+        except Exception:
+            return str(v)
+
+    tab = task.get("tab", "product")
+    task_platforms = task.get("platforms") if isinstance(task.get("platforms"), list) else []
+    prod = task.get("product") if isinstance(task.get("product"), dict) else {}
+    products = task.get("products") if isinstance(task.get("products"), list) else []
+    images = task.get("images") if isinstance(task.get("images"), list) else []
+
+    return render_prompt(tpl, {
+        "kb_base_json": _safe_json(kb_base),
+        "kb_docs_json": _safe_json(kb_docs),
+        "task_tab": tab,
+        "task_question_text": str(task.get("question_text") or "").strip(),
+        "task_platforms": "、".join([str(x).strip() for x in task_platforms if str(x).strip()]),
+        "task_user_input": str(task.get("user_input") or "").strip(),
+        "task_product_json": _safe_json(prod),
+        "task_products_json": _safe_json(products),
+        "task_images_json": _safe_json(images),
+        "article_text": str(article_text or "").strip(),
+    })
+
+
+def build_article_writing_rewrite_prompt(
+    enterprise: dict,
+    lexicon: dict,
+    task: dict,
+    kb_base: Optional[dict] = None,
+    kb_docs: Optional[dict] = None,
+    article_text: str = "",
+) -> str:
+    tpl = _read_template("article_writing_rewrite_prompt.txt")
+    if not tpl:
+        tpl = _read_template("article_product_optimize_prompt.txt")
+
+    geo_general_rules = _read_template("geo_general_rules.txt")
+
+    def _safe_json(v):
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return v
+        try:
+            return json.dumps(v, ensure_ascii=False)
+        except Exception:
+            return str(v)
+
+    tab = task.get("tab", "product")
+
+    def _task_corpus() -> str:
+        parts = []
+        parts.append(f"创作入口：{tab}")
+        qt = str(task.get("question_text") or "").strip()
+        if qt:
+            parts.append(f"选中问题词：{qt}")
+        platforms = task.get("platforms") if isinstance(task.get("platforms"), list) else []
+        if platforms:
+            parts.append("主要平台：" + "、".join([str(x).strip() for x in platforms if str(x).strip()]))
+        at = str(task.get("article_type") or "").strip()
+        if at:
+            parts.append(f"文章类型：{at}")
+        style = str(task.get("style") or "").strip()
+        if style:
+            parts.append(f"文章风格：{style}")
+        tone = str(task.get("tone") or "").strip()
+        if tone:
+            parts.append(f"文章语调：{tone}")
+        ui = str(task.get("user_input") or "").strip()
+        if ui:
+            parts.append("用户输入内容：\n" + ui)
+        return "\n".join([p for p in parts if p]).strip()
+
+    return render_prompt(tpl, {
+        "geo_general_rules": geo_general_rules,
+        "kb_base_json": _safe_json(kb_base),
+        "kb_docs_json": _safe_json(kb_docs),
+        "task_corpus": _task_corpus(),
+        "article_text": str(article_text or "").strip(),
+    })
+
+
 def build_article_writing_init_chat_prompt(
     enterprise: dict,
     lexicon: dict,

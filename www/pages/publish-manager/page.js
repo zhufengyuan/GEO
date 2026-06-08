@@ -48,8 +48,8 @@ const Page = {
     const stripTypePrefix = (title) => {
       const s = String(title || '').trim();
       return s
-        .replace(/^【\s*(产品宣传|企业品牌|活动关键词)\s*】\s*/g, '')
-        .replace(/^(产品宣传|企业品牌|活动关键词)[——\-：]+\s*/g, '');
+        .replace(/^【\s*(产品宣传|企业品牌|主题活动创作)\s*】\s*/g, '')
+        .replace(/^(产品宣传|企业品牌|主题活动创作)[——\-：]+\s*/g, '');
     };
 
     const normalizeUrl = (u) => {
@@ -175,7 +175,7 @@ const Page = {
             <td>${toDate(it.created_at)}</td>
             <td>${it.article_type || '-'}</td>
             <td>${statusHtml}</td>
-            <td><button class="btn-primary pm-go" type="button" data-id="${aid.replaceAll('"', '&quot;')}">去官网发布</button></td>
+            <td><button class="btn-primary pm-go" type="button" data-id="${aid.replaceAll('"', '&quot;')}">去官媒发布</button></td>
           </tr>`;
         })
         .join('');

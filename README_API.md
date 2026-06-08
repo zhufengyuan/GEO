@@ -10,7 +10,7 @@
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | DEBUG | bool | True | 调试模式：开启日志中间件、CORS 放开为 * |
-| DB_HOST | str | "YOUR_SERVER_IP" | MySQL 地址 |
+| DB_HOST | str | "YOUR_DB_HOST" | MySQL 地址 |
 | DB_USER | str | "root" | MySQL 用户 |
 | DB_PASSWORD | str | "YOUR_DB_PASSWORD" | MySQL 密码 |
 | DB_NAME | str | "geo" | 数据库名 |
@@ -22,12 +22,12 @@
 | JWT_REFRESH_EXPIRE_DAYS | int | 30 | Refresh Token 有效期 |
 | AUTH_DISABLED | bool | True | 跳过认证开关（生产环境设为 False） |
 | DEV_USER_ID | int | 1 | 开发模式默认用户 ID |
-| LLM_URL | str | "http://YOUR_SERVER_IP:5200/wenxinqianfan" | 大模型服务地址 |
+| LLM_URL | str | "http://YOUR_LLM_HOST:5200/wenxinqianfan" | 大模型服务地址 |
 | WENXIN_API_KEY | str | "YOUR_WENXIN_API_KEY" | 文心千帆 Key |
 | WENXIN_SECRET_KEY | str | "YOUR_WENXIN_SECRET_KEY" | 文心千帆 Secret |
 | OFFICIAL_MEDIA_EXCEL | str | 自动指向 data/.xls | 媒体报价 Excel 文件路径 |
-| OFFICIAL_PUBLISH_PARTNER_URL | str | "" | （可选）官网发布渠道对接地址（用于 `/official-publish/submit` 转发） |
-| OFFICIAL_PUBLISH_PARTNER_TOKEN | str | "" | （可选）官网发布渠道鉴权 Token（Bearer） |
+| OFFICIAL_PUBLISH_PARTNER_URL | str | "" | （可选）官媒发布渠道对接地址（用于 `/official-publish/submit` 转发） |
+| OFFICIAL_PUBLISH_PARTNER_TOKEN | str | "" | （可选）官媒发布渠道鉴权 Token（Bearer） |
 | CORS_ORIGINS | List[str] | [localhost:4510, localhost:8000] | CORS 白名单 |
 
 ## 启动方式
@@ -440,7 +440,7 @@ Content-Type: application/json
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| tab | string | 是 | 文章类型：product（产品宣传）/ brand（企业品牌）/ activity（主题活动创建） |
+| tab | string | 是 | 文章类型：product（产品宣传）/ brand（企业品牌）/ activity（主题活动创作） |
 | lexicon_id | int | 是 | 关联的词库 ID |
 | question_text | string | 是 | 问题词 |
 | platforms | string[] | 是 | 目标发布平台列表 |
@@ -1035,10 +1035,10 @@ Content-Type: application/json
 | 优化建议方案 | /api/v1/ai/execute (task=optimization_plan) |
 | 创建问题词库 (question-bank) | POST /api/v1/question-words |
 | 问题词库管理 (question-bank-manager) | GET /api/v1/question-words、DELETE /api/v1/question-words |
-| 文章创作 (article-writing) | GET /api/v1/question-words/suggest、POST/GET /api/v1/geo-ui-saves、GET /api/v1/products、GET /api/v1/enterprise-images、POST /api/v1/article-writing/init-chat、POST /api/v1/article-writing/chat、POST /api/v1/article-writing/generate、POST /api/v1/article-writing/optimize |
+| 文章创作 (article-writing) | POST /api/v1/articles（生成并入库）、POST /api/v1/article-writing/suggestions（生成优化建议）、POST /api/v1/article-writing/rewrite（重新优化/改稿） |
 | 文章管理 (article-manager) | GET/PUT/DELETE /api/v1/articles |
 | 自媒体发布 (media-publish) | POST /api/v1/publish-records |
-| 官网发布 (official-publish) | GET /api/v1/official-media/* |
+| 官媒发布 (official-publish) | GET /api/v1/official-media/* |
 | 发布管理 (publish-manager) | GET /api/v1/publish-records |
 | 数据统计 (data-statistics) | /api/v1/articles (count)、/api/v1/publish-records (count) |
 | 消耗明细 (config) | GET /api/v1/billing/transactions |
@@ -1048,6 +1048,14 @@ Content-Type: application/json
 | 联系我们 (contact) | 无 API 调用（静态页面） |
 
 ---
+
+## 文章创作（article-writing）补充说明
+
+- 模块范围：产品宣传 / 企业品牌 / 主题活动创作三个入口共用同一套 API。
+- 优化建议：`POST /api/v1/article-writing/suggestions`，入参 `content` 为已生成文案正文；服务端基于“输入信息完整性 + 文案完整性”输出一段可直接展示的建议文本。
+- 重新优化（改稿）：`POST /api/v1/article-writing/rewrite`，入参 `content` 为原文案正文；返回重写后的新文案。
+- 入库规则：文章生成与“确定”入库均使用 `POST /api/v1/articles`（写入 articles 表）。
+- 企业品牌创作（3 篇）：前端一次生成 3 篇；改稿后可在 3 篇中任选 1 篇点击“确定”入库。入库标题前缀为【改稿1】/【改稿2】/【改稿3】。
 
 ## Pydantic 数据模型参考
 
@@ -1102,4 +1110,4 @@ async def _startup():
 
 ---
 
-*文档版本：1.0.0 | 最后更新：2026-06-06*
+*文档版本：1.0.0 | 最后更新：2026-06-08*

@@ -16,7 +16,7 @@ const PAGES = {
   'article-writing': { title: '文章创作', file: 'pages/article-writing/page.html', script: 'pages/article-writing/page.js' },
   'article-manager': { title: '文章管理', file: 'pages/article-manager/page.html', script: 'pages/article-manager/page.js' },
   'media-publish': { title: '自媒体发布', file: 'pages/media-publish/page.html', script: 'pages/media-publish/page.js' },
-  'official-publish': { title: '官网发布', file: 'pages/official-publish/page.html', script: 'pages/official-publish/page.js' },
+  'official-publish': { title: '官媒发布', file: 'pages/official-publish/page.html', script: 'pages/official-publish/page.js' },
   'publish-manager': { title: '发布管理', file: 'pages/publish-manager/page.html', script: 'pages/publish-manager/page.js' },
   'data-statistics': { title: '数据统计', file: 'pages/data-statistics/page.html', script: 'pages/data-statistics/page.js' },
   'data-query': { title: '查询', file: 'pages/data-query/page.html', script: 'pages/data-query/page.js' },
@@ -729,6 +729,48 @@ window.geoArticleWritingOptimize = function(payload) {
       return;
     }
     if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'geo_article_writing_optimize', payload }, '*');
+  } catch {
+  }
+};
+
+window.geoArticleWritingSuggestions = function(payload) {
+  try {
+    const base = getGeoApiBaseUrl();
+    if (base) {
+      const body = payload && typeof payload === 'object' ? { ...payload } : {};
+      geoApiRequest('/article-writing/suggestions', { method: 'POST', body: JSON.stringify(body) }).then((r) => {
+        dispatchGeoMessage('geo_article_writing_suggestions_result', {
+          req_id: payload?.req_id,
+          ok: Boolean(r?.data),
+          api_base: base,
+          error: r?.data ? '' : (geoLastApiError?.message || '请求失败'),
+          text: String(r?.data?.text || '')
+        });
+      });
+      return;
+    }
+    if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'geo_article_writing_suggestions', payload }, '*');
+  } catch {
+  }
+};
+
+window.geoArticleWritingRewrite = function(payload) {
+  try {
+    const base = getGeoApiBaseUrl();
+    if (base) {
+      const body = payload && typeof payload === 'object' ? { ...payload } : {};
+      geoApiRequest('/article-writing/rewrite', { method: 'POST', body: JSON.stringify(body) }).then((r) => {
+        dispatchGeoMessage('geo_article_writing_rewrite_result', {
+          req_id: payload?.req_id,
+          ok: Boolean(r?.data),
+          api_base: base,
+          error: r?.data ? '' : (geoLastApiError?.message || '请求失败'),
+          text: String(r?.data?.text || '')
+        });
+      });
+      return;
+    }
+    if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'geo_article_writing_rewrite', payload }, '*');
   } catch {
   }
 };

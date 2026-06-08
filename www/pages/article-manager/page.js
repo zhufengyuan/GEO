@@ -28,14 +28,14 @@ const Page = {
     const stripTypePrefix = (title) => {
       const s = String(title || '').trim();
       return s
-        .replace(/^【\s*(产品宣传|企业品牌|活动关键词)\s*】\s*/g, '')
-        .replace(/^(产品宣传|企业品牌|活动关键词)[——\-：]+\s*/g, '');
+        .replace(/^【\s*(产品宣传|企业品牌|主题活动创作)\s*】\s*/g, '')
+        .replace(/^(产品宣传|企业品牌|主题活动创作)[——\-：]+\s*/g, '');
     };
     const typeByCreation = (creationType) => {
       const t = String(creationType || '').trim();
       if (t === 'product') return '产品宣传';
       if (t === 'brand') return '企业品牌';
-      if (t === 'activity') return '活动关键词';
+      if (t === 'activity') return '主题活动创作';
       return '';
     };
     let loadMoreObserver = null;
@@ -81,7 +81,7 @@ const Page = {
         .map((it, idx) => {
           const defaultType = typeByCreation(it.creation_type);
           const currentType = defaultType || String(it.article_type || '').trim();
-          const options = ['产品宣传', '企业品牌', '活动关键词']
+          const options = ['产品宣传', '企业品牌', '主题活动创作']
             .map((t) => `<option ${t === currentType ? 'selected' : ''}>${t}</option>`)
             .join('');
           const reviewed = Number(it.review_status || 0) === 1;

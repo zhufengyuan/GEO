@@ -1069,7 +1069,7 @@ shiny::observeEvent(session$input$geo_article_generate, {
   default_type <- ""
   if (identical(task$tab, "product")) default_type <- "产品宣传"
   if (identical(task$tab, "brand")) default_type <- "企业品牌"
-  if (identical(task$tab, "activity")) default_type <- "活动关键词"
+  if (identical(task$tab, "activity")) default_type <- "主题活动创作"
   if (!nzchar(trimws(as.character(task$article_type %||% "")))) task$article_type <- default_type
 
   prompt <- build_article_prompt(geo_root, enterprise, lexicon, task)
@@ -1091,7 +1091,7 @@ shiny::observeEvent(session$input$geo_article_generate, {
     if (nchar(title) > 120) title <- substr(title, 1, 120)
   }
 
-  title <- gsub("^(产品宣传|企业品牌|活动关键词)[——\\-：]+\\s*", "", title)
+  title <- gsub("^(产品宣传|企业品牌|主题活动创作)[——\\-：]+\\s*", "", title)
 
   activity_image <- as.character(params$activity_image %||% "")
   if (identical(task$tab, "activity") && nzchar(activity_image)) {

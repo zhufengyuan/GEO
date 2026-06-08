@@ -3,7 +3,7 @@ import { initPublicOpinion } from '../public-opinion/app.js';
 
 const Page = {
   async init() {
-    initTemplate('官网发布');
+    initTemplate('官媒发布');
 
     const articleTable = document.getElementById('opPickArticleTable');
     const articlePreview = document.getElementById('opArticlePreview');

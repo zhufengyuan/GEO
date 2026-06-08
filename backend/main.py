@@ -295,7 +295,7 @@ async def articles_create(req: ArticleCreateRequest, user=Depends(get_current_us
         if not title:
             title = (lexicon.get("company", "") + " " + lexicon.get("industry_keyword", "")).strip()[:120]
 
-    article_type = req.article_type or {"product": "产品宣传", "brand": "企业品牌", "activity": "活动关键词"}.get(req.tab, "")
+    article_type = req.article_type or {"product": "产品宣传", "brand": "企业品牌", "activity": "主题活动创作"}.get(req.tab, "")
     aid = insert(
         """INSERT INTO articles (title, content, article_type, creation_type, style, tone, brand_embed, review_status, enterprise_id)
            VALUES (%s, %s, %s, %s, %s, %s, %s, 0, %s)""",
@@ -1225,6 +1225,116 @@ async def article_writing_optimize(body: dict, user=Depends(get_current_user)):
         optimized = raw.strip()
 
     return ok({"suggestions": suggestions, "text": optimized})
+
+
+@app.post("/api/v1/article-writing/suggestions")
+async def article_writing_suggestions(body: dict, user=Depends(get_current_user)):
+    from backend.services.llm_service import async_call_llm
+    from backend.services.prompt_service import build_article_writing_suggestions_prompt
+
+    payload = dict(body or {})
+    tab = str(payload.get("tab") or "product").strip() or "product"
+    lexicon_id = int(payload.get("lexicon_id") or payload.get("lexiconId") or 0)
+    question_text = str(payload.get("question_text") or payload.get("questionText") or "").strip()
+    platforms = payload.get("platforms") if isinstance(payload.get("platforms"), list) else []
+    article_type = str(payload.get("article_type") or payload.get("articleType") or "").strip()
+    style = str(payload.get("style") or "").strip()
+    tone = str(payload.get("tone") or "").strip()
+    brand_embed = bool(payload.get("brand_embed") or payload.get("brandEmbed") or False)
+    user_input = str(payload.get("user_input") or payload.get("userInput") or "").strip()
+    product = payload.get("product") if isinstance(payload.get("product"), dict) else {}
+    products = payload.get("products") if isinstance(payload.get("products"), list) else []
+    images = payload.get("images") if isinstance(payload.get("images"), list) else []
+    article_text = str(payload.get("content") or payload.get("article_text") or payload.get("text") or "").strip()
+    if not article_text:
+        return fail("INVALID_PARAM", "content 不能为空")
+
+    full_kb = load_full_kb(user["id"], lexicon_id)
+    enterprise = full_kb["enterprise"]
+    lexicon = full_kb["lexicon"]
+    kb_base = full_kb["kb_base"]
+    kb_docs = full_kb["kb_docs"]
+
+    task = {
+        "tab": tab,
+        "question_text": question_text,
+        "platforms": platforms,
+        "article_type": article_type,
+        "style": style,
+        "tone": tone,
+        "brand_embed": brand_embed,
+        "user_input": user_input,
+        "product": product,
+        "products": products,
+        "images": images,
+    }
+    prompt = build_article_writing_suggestions_prompt(
+        enterprise,
+        lexicon,
+        task,
+        kb_base=kb_base,
+        kb_docs=kb_docs,
+        article_text=article_text,
+    )
+    text = str((await async_call_llm(prompt)) or "").strip()
+    if not text:
+        return fail("LLM_ERROR", "大模型服务无返回，请稍后重试")
+    return ok({"text": text})
+
+
+@app.post("/api/v1/article-writing/rewrite")
+async def article_writing_rewrite(body: dict, user=Depends(get_current_user)):
+    from backend.services.llm_service import async_call_llm
+    from backend.services.prompt_service import build_article_writing_rewrite_prompt
+
+    payload = dict(body or {})
+    tab = str(payload.get("tab") or "product").strip() or "product"
+    lexicon_id = int(payload.get("lexicon_id") or payload.get("lexiconId") or 0)
+    question_text = str(payload.get("question_text") or payload.get("questionText") or "").strip()
+    platforms = payload.get("platforms") if isinstance(payload.get("platforms"), list) else []
+    article_type = str(payload.get("article_type") or payload.get("articleType") or "").strip()
+    style = str(payload.get("style") or "").strip()
+    tone = str(payload.get("tone") or "").strip()
+    brand_embed = bool(payload.get("brand_embed") or payload.get("brandEmbed") or False)
+    user_input = str(payload.get("user_input") or payload.get("userInput") or "").strip()
+    product = payload.get("product") if isinstance(payload.get("product"), dict) else {}
+    products = payload.get("products") if isinstance(payload.get("products"), list) else []
+    images = payload.get("images") if isinstance(payload.get("images"), list) else []
+    article_text = str(payload.get("content") or payload.get("article_text") or payload.get("text") or "").strip()
+    if not article_text:
+        return fail("INVALID_PARAM", "content 不能为空")
+
+    full_kb = load_full_kb(user["id"], lexicon_id)
+    enterprise = full_kb["enterprise"]
+    lexicon = full_kb["lexicon"]
+    kb_base = full_kb["kb_base"]
+    kb_docs = full_kb["kb_docs"]
+
+    task = {
+        "tab": tab,
+        "question_text": question_text,
+        "platforms": platforms,
+        "article_type": article_type,
+        "style": style,
+        "tone": tone,
+        "brand_embed": brand_embed,
+        "user_input": user_input,
+        "product": product,
+        "products": products,
+        "images": images,
+    }
+    prompt = build_article_writing_rewrite_prompt(
+        enterprise,
+        lexicon,
+        task,
+        kb_base=kb_base,
+        kb_docs=kb_docs,
+        article_text=article_text,
+    )
+    text = str((await async_call_llm(prompt)) or "").strip()
+    if not text:
+        return fail("LLM_ERROR", "大模型服务无返回，请稍后重试")
+    return ok({"text": text})
 
 
 @app.get("/api/v1/ai/tasks/{tid}")

@@ -14,7 +14,6 @@ const Page = {
     const lexiconSearchBtn = document.getElementById('awLexiconSearchBtn');
     const lexiconDateSelect = document.getElementById('awLexiconDateSelect');
     const lexiconTbody = document.getElementById('awLexiconTbody');
-    const startBtn = document.getElementById('startCreateBtn');
     const questionListBox = document.getElementById('questionListBox');
     const pickProductBtn = document.getElementById('awPickProductBtn');
     const pickImagesBtn = document.getElementById('awPickImagesBtn');
@@ -22,7 +21,6 @@ const Page = {
     const imagesPreview = document.getElementById('awImagesPreview');
     const productPickerBar = document.getElementById('awProductPickerBar');
     const imagePickerBar = document.getElementById('awImagePickerBar');
-    const ruleStepTitle = document.getElementById('awRuleStepTitle');
     const brandTitleSelect = document.getElementById('brandTitleSelect');
     const brandUseSelectedBtn = document.getElementById('brandUseSelectedBtn');
     const brandTitleInput = document.getElementById('brandTitleInput');
@@ -55,13 +53,33 @@ const Page = {
     const brandBrandPositioningEl = document.getElementById('brand_brand_positioning');
     const brandForbiddenContentEl = document.getElementById('brand_forbidden_content');
     const brandCopyTypeRoot = document.getElementById('brandCopyType');
-    const chatCard = root.querySelector('.aw-chat-card');
-    const chatBox = document.getElementById('awChatBox');
-    const chatInput = document.getElementById('awChatInput');
-    const chatSendBtn = document.getElementById('awChatSendBtn');
+    const suggestBox = document.getElementById('awSuggestBox');
     const copyConfirmBtn = document.getElementById('awCopyConfirmBtn');
     const copyReoptBtn = document.getElementById('awCopyReoptBtn');
-    const chatHint = document.getElementById('awChatHint');
+    const suggestHint = document.getElementById('awSuggestHint');
+    const viewArticleBtn = document.getElementById('awViewArticleBtn');
+    const suggestSingle = document.getElementById('awSuggestSingle');
+    const brandSuggestWrap = document.getElementById('awBrandSuggestWrap');
+    const brandSuggestBoxes = [
+      document.getElementById('awBrandSuggestBox0'),
+      document.getElementById('awBrandSuggestBox1'),
+      document.getElementById('awBrandSuggestBox2'),
+    ];
+    const brandViewBtns = Array.from(root.querySelectorAll('.aw-brand-view-btn'));
+    const brandReoptBtns = Array.from(root.querySelectorAll('.aw-brand-reopt-btn'));
+    const brandConfirmBtns = Array.from(root.querySelectorAll('.aw-brand-confirm-btn'));
+    const brandSuggestHints = Array.from(root.querySelectorAll('.aw-brand-suggest-hint'));
+    const startBtns = {
+      product: root.querySelector('.aw-start-create[data-tab="product"]'),
+      brand: root.querySelector('.aw-start-create[data-tab="brand"]'),
+      activity: root.querySelector('.aw-start-create[data-tab="activity"]'),
+    };
+    const awArticleModal = document.getElementById('awArticleModal');
+    const awArticleModalTitle = document.getElementById('awArticleModalTitle');
+    const awArticleModalBody = document.getElementById('awArticleModalBody');
+    const awArticleClose = document.getElementById('awArticleClose');
+    const awArticleCancel = document.getElementById('awArticleCancel');
+    const awArticleConfirmBtn = document.getElementById('awArticleConfirmBtn');
 
     const state = {
       activeTab: 'product',
@@ -88,17 +106,33 @@ const Page = {
       activityImageDataUrl: '',
       brandImageDataUrl: '',
       imgModalTarget: '',
-      chatHistory: [],
-      chatViewFrom: 0,
-      chatContextKey: '',
-      chatInitReqId: '',
-      chatReqId: '',
-      chatSending: false,
-      draftGenerating: false,
-      draftReqId: '',
-      draftOptimizeReqId: '',
-      draftTitle: '',
-      draftContent: ''
+      articlesByTab: { product: [], brand: [], activity: [] },
+      suggestionsByTab: { product: '', brand: ['', '', ''], activity: '' },
+      lastTaskByTab: { product: null, brand: null, activity: null },
+      generateQueue: [],
+      generateMode: '',
+      pendingGenerateItem: null,
+      suggestReqId: '',
+      suggestTab: '',
+      suggestReqMap: {},
+      rewriteQueue: [],
+      pendingRewriteItem: null,
+      rewriteReqId: '',
+      rewriteTab: '',
+      rewriteResults: [],
+      pendingRewrite: null,
+      saveQueue: [],
+      pendingSaveItem: null,
+      saveMode: '',
+      saveNavAfter: false
+    };
+
+    const setStartBtnState = (tab, disabled, text) => {
+      const key = String(tab || '').trim();
+      const btn = startBtns?.[key];
+      if (!(btn instanceof HTMLButtonElement)) return;
+      btn.disabled = disabled === true;
+      if (typeof text === 'string' && text) btn.textContent = text;
     };
 
     const show = (key) => {
@@ -108,12 +142,7 @@ const Page = {
         const k = p.getAttribute('data-panel');
         p.classList.toggle('hidden', k !== key);
       });
-      if (ruleStepTitle) {
-        ruleStepTitle.textContent = key === 'activity' ? '第三步：文章规则设置' : '第四步：文章规则设置';
-      }
-      if (chatCard instanceof HTMLElement) {
-        chatCard.style.display = key === 'product' ? '' : 'none';
-      }
+      syncSuggestUi();
     };
 
     tabs.forEach((t) => {
@@ -121,7 +150,6 @@ const Page = {
         const key = t.getAttribute('data-tab');
         if (!key) return;
         show(key);
-        if (key === 'product') ensureChatReady();
       });
     });
 
@@ -163,50 +191,19 @@ const Page = {
     const mainArticleTypeByTab = (tab) => {
       if (tab === 'product') return '产品宣传';
       if (tab === 'brand') return '企业品牌';
-      if (tab === 'activity') return '主题活动';
+      if (tab === 'activity') return '主题活动创作';
       return '';
     };
 
-    const setChatDisabled = (disabled) => {
-      if (chatInput) chatInput.disabled = false;
-      if (chatSendBtn) chatSendBtn.disabled = disabled;
+    const setRewriteEnabled = (enabled) => {
+      if (copyReoptBtn) copyReoptBtn.disabled = !enabled;
     };
 
-    const setCopyActionsEnabled = (enabled) => {
-      const on = enabled === true;
-      if (copyConfirmBtn) copyConfirmBtn.disabled = !on;
-      if (copyReoptBtn) copyReoptBtn.disabled = !on;
+    const setConfirmEnabled = (enabled) => {
+      if (copyConfirmBtn) copyConfirmBtn.disabled = !enabled;
     };
 
-    const renderChat = () => {
-      if (!chatBox) return;
-      chatBox.innerHTML = '';
-      const all = Array.isArray(state.chatHistory) ? state.chatHistory : [];
-      const from = Number(state.chatViewFrom || 0);
-      const list = all.slice(Math.max(0, from));
-      if (!list.length) {
-        chatBox.textContent = from > 0 ? '' : '对话尚未开始。';
-        return;
-      }
-      list.forEach((m) => {
-        const role = String(m?.role || '').trim() === 'user' ? 'user' : 'ai';
-        const text = String(m?.text || '').trim();
-        if (!text) return;
-        const row = document.createElement('div');
-        row.className = `aw-chat-msg ${role}`;
-        const bubble = document.createElement('div');
-        bubble.className = 'aw-chat-bubble';
-        bubble.textContent = text;
-        row.appendChild(bubble);
-        chatBox.appendChild(row);
-      });
-      try {
-        chatBox.scrollTop = chatBox.scrollHeight;
-      } catch {
-      }
-    };
-
-    const getProductChatContext = () => {
+    const getProductContext = () => {
       const lexiconId = String(lexiconSelect?.value || '').trim();
       const questionText = String(state.selectedQuestion || state.questions?.[0] || '').trim();
       const products = Array.isArray(state.selectedProducts) ? state.selectedProducts.slice(0, 3) : [];
@@ -225,114 +222,10 @@ const Page = {
         products,
         images,
         prodName,
-        hint: ok ? '' : `请先选择${missing.join('、')}后再开始对话。`
+        hint: ok ? '' : `请先选择${missing.join('、')}后再开启创作。`
       };
     };
 
-    const resetChat = () => {
-      state.chatHistory = [];
-      state.chatViewFrom = 0;
-      renderChat();
-    };
-
-    const ensureChatReady = () => {
-      if (chatCard) chatCard.classList.toggle('hidden', state.activeTab !== 'product');
-      if (state.activeTab !== 'product') {
-        setChatDisabled(true);
-        setCopyActionsEnabled(false);
-        return;
-      }
-
-      const ctx = getProductChatContext();
-      if (chatHint) chatHint.textContent = ctx.hint || '';
-      if (!ctx.ok) {
-        setChatDisabled(false);
-        setCopyActionsEnabled(false);
-        if (!state.chatHistory.length) {
-          if (chatBox) chatBox.textContent = ctx.hint || '请先补齐必要信息后再开始对话。';
-        } else {
-          renderChat();
-        }
-        return;
-      }
-
-      setChatDisabled(false);
-      setCopyActionsEnabled(Boolean(String(state.draftContent || '').trim()));
-      const key = [ctx.lexiconId, ctx.questionText, ctx.prodName].join('|');
-      if (key && key !== String(state.chatContextKey || '')) {
-        state.chatContextKey = key;
-        resetChat();
-        state.draftTitle = '';
-        state.draftContent = '';
-        setCopyActionsEnabled(false);
-        if (chatHint) chatHint.textContent = '对话初始化中...';
-        const reqId = String(Date.now());
-        state.chatInitReqId = reqId;
-        invokeGeoAction(
-          'geoArticleWritingInitChat',
-          {
-            req_id: reqId,
-            lexicon_id: ctx.lexiconId,
-            question_text: ctx.questionText,
-            products: ctx.products,
-            images: ctx.images,
-            ts: Date.now()
-          },
-          '对话初始化接口尚未就绪，请刷新页面后重试。'
-        );
-      } else if (!state.chatHistory.length) {
-        renderChat();
-      }
-    };
-
-    show('product');
-    ensureChatReady();
-
-    const pushChatMessage = (role, text) => {
-      const r = role === 'user' ? 'user' : 'ai';
-      const t = String(text || '').trim();
-      if (!t) return;
-      const list = Array.isArray(state.chatHistory) ? state.chatHistory : [];
-      state.chatHistory = list.concat([{ role: r, text: t }]).slice(-120);
-    };
-
-    const sendChatMessage = (text) => {
-      const msg = String(text || '').trim();
-      if (!msg) return;
-      if (state.chatSending) return;
-      const ctx = getProductChatContext();
-      if (!ctx.ok) {
-        alert(ctx.hint || '请先补齐必要信息后再开始对话。');
-        return;
-      }
-      state.chatSending = true;
-      setChatDisabled(true);
-      pushChatMessage('user', msg);
-      renderChat();
-      if (chatInput) chatInput.value = '';
-      const reqId = String(Date.now());
-      state.chatReqId = reqId;
-      invokeGeoAction(
-        'geoArticleWritingChat',
-        {
-          req_id: reqId,
-          lexicon_id: ctx.lexiconId,
-          question_text: ctx.questionText,
-          products: ctx.products,
-          images: ctx.images,
-          history: state.chatHistory,
-          message: msg,
-          ts: Date.now()
-        },
-        '对话接口尚未就绪，请刷新页面后重试。'
-      );
-    };
-
-    const ruleGroups = Array.from(root.querySelectorAll('.right-col .rule-group'));
-    const platformGroup = ruleGroups[0] || null;
-    const typeGroup = ruleGroups[1] || null;
-    const styleGroup = ruleGroups[2] || null;
-    const toneGroup = ruleGroups[3] || null;
     const invokeGeoAction = (name, payload, message) => {
       const fn = window[name];
       if (typeof fn !== 'function') {
@@ -355,9 +248,152 @@ const Page = {
         });
       });
     };
-    bindSingleChoice(typeGroup);
-    bindSingleChoice(styleGroup);
-    bindSingleChoice(toneGroup);
+
+    const getRuleGroupsForTab = (tab) => {
+      const key = String(tab || '').trim();
+      if (!key) return [];
+      const safeKey = (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') ? CSS.escape(key) : key;
+      return Array.from(root.querySelectorAll(`.card[data-panel="${safeKey}"] .aw-rules .rule-group`));
+    };
+
+    ['product', 'brand', 'activity'].forEach((tab) => {
+      const groups = getRuleGroupsForTab(tab);
+      bindSingleChoice(groups[1] || null);
+      bindSingleChoice(groups[2] || null);
+      bindSingleChoice(groups[3] || null);
+    });
+
+    const getArticleListForTab = (tab) => {
+      if (state.pendingRewrite && state.pendingRewrite.tab === tab) {
+        return Array.isArray(state.pendingRewrite.contents) ? state.pendingRewrite.contents : [];
+      }
+      const v = state.articlesByTab?.[tab];
+      return Array.isArray(v) ? v : [];
+    };
+
+    const renderSuggestBox = () => {
+      if (!suggestBox) return;
+      const tab = String(state.activeTab || 'product');
+      if (tab === 'brand') return;
+      const text = String(state.suggestionsByTab?.[tab] || '').trim();
+      suggestBox.textContent = text || '暂无优化建议，请先点击“开启创作”。';
+    };
+
+    const renderBrandSuggestBoxes = () => {
+      const texts = state.suggestionsByTab?.brand;
+      const list = Array.isArray(texts) ? texts : ['', '', ''];
+      brandSuggestBoxes.forEach((el, idx) => {
+        if (!(el instanceof HTMLElement)) return;
+        const t = String(list[idx] || '').trim();
+        el.textContent = t || '暂无优化建议，请先点击“开启创作”。';
+      });
+    };
+
+    const closeArticleModal = () => {
+      if (awArticleModal) awArticleModal.style.display = 'none';
+      if (awArticleModalBody) awArticleModalBody.textContent = '';
+      if (awArticleConfirmBtn) awArticleConfirmBtn.style.display = 'none';
+    };
+
+    const openArticleModal = (title, body, allowConfirm) => {
+      if (awArticleModalTitle) awArticleModalTitle.textContent = String(title || '文案预览');
+      if (awArticleModalBody) awArticleModalBody.textContent = String(body || '').trim();
+      if (awArticleConfirmBtn) awArticleConfirmBtn.style.display = allowConfirm ? '' : 'none';
+      if (awArticleModal) awArticleModal.style.display = 'flex';
+    };
+
+    const buildCombinedBody = (items) => {
+      const list = Array.isArray(items) ? items : [];
+      if (!list.length) return '';
+      if (list.length === 1) return String(list[0]?.content || '').trim();
+      return list
+        .map((it, idx) => {
+          const t = String(it?.title || `文案${idx + 1}`).trim();
+          const c = String(it?.content || '').trim();
+          return `【${idx + 1}】${t}\n\n${c}`;
+        })
+        .join('\n\n------------------------------\n\n')
+        .trim();
+    };
+
+    const openArticleByIndex = (idx) => {
+      const tab = String(state.activeTab || 'product');
+      const list = getArticleListForTab(tab);
+      const it = list[idx] || null;
+      if (!it) return;
+      const canConfirm = Boolean(state.pendingRewrite && state.pendingRewrite.tab === tab);
+      openArticleModal(it.title || '文案预览', it.content || '', canConfirm);
+    };
+
+    const openCombinedArticles = () => {
+      const tab = String(state.activeTab || 'product');
+      const list = getArticleListForTab(tab);
+      if (!list.length) return;
+      const canConfirm = Boolean(state.pendingRewrite && state.pendingRewrite.tab === tab);
+      openArticleModal('文案预览', buildCombinedBody(list), canConfirm);
+    };
+
+    function syncSuggestUi() {
+      const tab = String(state.activeTab || 'product');
+      const list = getArticleListForTab(tab);
+      const hasBase = Array.isArray(state.articlesByTab?.[tab]) && state.articlesByTab[tab].length > 0;
+      const hasPendingRewrite = Boolean(state.pendingRewrite && state.pendingRewrite.tab === tab);
+
+      if (suggestSingle instanceof HTMLElement) {
+        suggestSingle.style.display = tab === 'brand' ? 'none' : '';
+      }
+      if (brandSuggestWrap instanceof HTMLElement) {
+        brandSuggestWrap.style.display = tab === 'brand' ? '' : 'none';
+      }
+
+      if (tab !== 'brand') {
+        if (viewArticleBtn instanceof HTMLElement) viewArticleBtn.disabled = list.length < 1;
+      } else {
+        brandViewBtns.forEach((btn) => {
+          const idx = parseInt(String(btn.getAttribute('data-idx') || ''), 10);
+          btn.disabled = !(Number.isFinite(idx) && list.length > idx);
+        });
+        brandReoptBtns.forEach((btn) => (btn.disabled = !(hasBase && !state.generating)));
+        brandConfirmBtns.forEach((btn) => (btn.disabled = !(hasPendingRewrite && !state.generating)));
+        brandSuggestHints.forEach((el) => {
+          if (!(el instanceof HTMLElement)) return;
+          el.textContent = hasPendingRewrite ? '已生成改稿版本，请点击“确定”写入文章管理。' : '';
+        });
+      }
+
+      setRewriteEnabled(hasBase && !state.generating);
+      setConfirmEnabled(hasPendingRewrite && !state.generating);
+      renderSuggestBox();
+      renderBrandSuggestBoxes();
+      if (suggestHint) suggestHint.textContent = tab === 'brand' ? '' : (hasPendingRewrite ? '已生成改稿版本，请点击“确定”写入文章管理。' : '');
+    }
+
+    viewArticleBtn?.addEventListener('click', () => {
+      openCombinedArticles();
+    });
+    brandViewBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(String(btn.getAttribute('data-idx') || ''), 10);
+        if (!Number.isFinite(idx)) return;
+        openArticleByIndex(idx);
+      });
+    });
+
+    brandReoptBtns.forEach((btn) => {
+      btn.addEventListener('click', () => startRewriteForActiveTab());
+    });
+    brandConfirmBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(String(btn.getAttribute('data-idx') || ''), 10);
+        confirmRewriteSave(Number.isFinite(idx) ? idx : undefined);
+      });
+    });
+
+    awArticleClose?.addEventListener('click', closeArticleModal);
+    awArticleCancel?.addEventListener('click', closeArticleModal);
+    awArticleModal?.addEventListener('click', (e) => {
+      if (e.target === awArticleModal) closeArticleModal();
+    });
 
     const renderBrandTitleSelect = () => {
       if (!brandTitleSelect) return;
@@ -798,7 +834,7 @@ const Page = {
         const qs = qsGen.length ? qsGen : qsFromDb;
         state.questions = qs;
         renderQuestionsList(qs);
-        if (state.activeTab === 'product') ensureChatReady();
+        syncSuggestUi();
         return;
       }
       if (d.type === 'geo_knowledge_base_data') {
@@ -831,101 +867,97 @@ const Page = {
           return;
         }
       }
-      if (d.type === 'geo_article_writing_init_chat_result') {
+      if (d.type === 'geo_article_writing_suggestions_result') {
         const payload = d.payload || {};
         const reqId = String(payload.req_id || '');
-        if (reqId && reqId !== String(state.chatInitReqId || '')) return;
-        const ok = payload && payload.ok === true;
-        const text = String(payload.text || '').trim();
-        state.chatSending = false;
-        setChatDisabled(false);
-        if (chatHint) chatHint.textContent = ok ? '' : (payload?.error || '对话初始化失败');
-        if (text) {
-          resetChat();
-          pushChatMessage('ai', text);
-          renderChat();
-        }
-        return;
-      }
-      if (d.type === 'geo_article_writing_chat_result') {
-        const payload = d.payload || {};
-        const reqId = String(payload.req_id || '');
-        if (reqId && reqId !== String(state.chatReqId || '')) return;
-        const ok = payload && payload.ok === true;
-        const text = String(payload.text || '').trim();
-        state.chatSending = false;
-        setChatDisabled(false);
-        if (chatHint) chatHint.textContent = ok ? '' : (payload?.error || '对话失败');
-        if (text) {
-          pushChatMessage('ai', text);
-          renderChat();
-        }
-        return;
-      }
-      if (d.type === 'geo_article_writing_generate_result') {
-        const payload = d.payload || {};
-        const reqId = String(payload.req_id || '');
-        if (reqId && reqId !== String(state.draftReqId || '')) return;
-        state.draftGenerating = false;
-        if (startBtn) {
-          startBtn.disabled = false;
-          startBtn.textContent = '开启创作';
-        }
+        const meta = reqId ? (state.suggestReqMap?.[reqId] || null) : null;
+        if (reqId && !meta && reqId !== String(state.suggestReqId || '')) return;
+        const tab = String((meta?.tab) || state.suggestTab || state.activeTab || 'product');
+        const idx = typeof meta?.idx === 'number' ? meta.idx : null;
+        if (reqId && meta && state.suggestReqMap) delete state.suggestReqMap[reqId];
         const ok = payload && payload.ok === true;
         const text = String(payload.text || '').trim();
         if (!ok || !text) {
-          if (chatHint) chatHint.textContent = payload?.error || '文案生成失败';
+          if (tab === 'brand') {
+            brandSuggestHints.forEach((el) => {
+              if (!(el instanceof HTMLElement)) return;
+              el.textContent = payload?.error || '优化建议生成失败';
+            });
+          } else if (suggestHint) {
+            suggestHint.textContent = payload?.error || '优化建议生成失败';
+          }
           return;
         }
-        state.draftContent = text;
-        const firstLine = text.split(/\r?\n/g)[0] || '';
-        const maybeTitle = firstLine.replace('标题：', '').replace('标题:', '').trim().slice(0, 120);
-        state.draftTitle = maybeTitle;
-        pushChatMessage('ai', `【生成文案】\n${text}`);
-        renderChat();
-        if (chatHint) chatHint.textContent = '如需保存到文章管理，请点击“确定”；如需改写提升，请点“重新优化”。';
-        setCopyActionsEnabled(true);
+        if (tab === 'brand') {
+          const arr = Array.isArray(state.suggestionsByTab.brand) ? state.suggestionsByTab.brand.slice(0, 3) : ['', '', ''];
+          if (typeof idx === 'number' && idx >= 0 && idx < 3) arr[idx] = text;
+          state.suggestionsByTab.brand = arr;
+          renderBrandSuggestBoxes();
+          brandSuggestHints.forEach((el) => {
+            if (!(el instanceof HTMLElement)) return;
+            el.textContent = '';
+          });
+        } else {
+          state.suggestionsByTab[tab] = text;
+          if (tab === state.activeTab) renderSuggestBox();
+          if (suggestHint) suggestHint.textContent = '';
+        }
         return;
       }
-      if (d.type === 'geo_article_writing_optimize_result') {
+      if (d.type === 'geo_article_writing_rewrite_result') {
         const payload = d.payload || {};
         const reqId = String(payload.req_id || '');
-        if (reqId && reqId !== String(state.draftOptimizeReqId || '')) return;
-        state.draftGenerating = false;
+        const item = state.pendingRewriteItem;
+        if (!item || (reqId && reqId !== String(item.reqId || ''))) return;
         const ok = payload && payload.ok === true;
         const text = String(payload.text || '').trim();
-        const suggestions = String(payload.suggestions || '').trim();
         if (!ok || !text) {
-          if (chatHint) chatHint.textContent = payload?.error || '重新优化失败';
-          setCopyActionsEnabled(Boolean(String(state.draftContent || '').trim()));
+          state.generating = false;
+          state.rewriteQueue = [];
+          state.pendingRewriteItem = null;
+          state.rewriteResults = [];
+          setStartBtnState(state.rewriteTab || state.activeTab, false, '开启创作');
+          if (copyReoptBtn) copyReoptBtn.disabled = false;
+          if (suggestHint) suggestHint.textContent = payload?.error || '重新优化失败';
           return;
         }
-        state.draftContent = text;
-        const firstLine = text.split(/\r?\n/g)[0] || '';
-        const maybeTitle = firstLine.replace('标题：', '').replace('标题:', '').trim().slice(0, 120);
-        state.draftTitle = maybeTitle;
-        const block = suggestions ? `【重新优化建议】\n${suggestions}\n\n【优化后文案】\n${text}` : `【优化后文案】\n${text}`;
-        pushChatMessage('ai', block);
-        renderChat();
-        if (chatHint) chatHint.textContent = '如已满意，请点击“确定”保存到文章管理；否则可继续“重新优化”。';
-        setCopyActionsEnabled(true);
+        state.rewriteResults = (Array.isArray(state.rewriteResults) ? state.rewriteResults : []).concat([{
+          title: item.title || '',
+          content: text
+        }]);
+        state.pendingRewriteItem = null;
+        runNextRewrite();
         return;
       }
       if (d.type === 'geo_article_generate_result') {
         const payload = d.payload || {};
-        state.generating = false;
-        if (startBtn) {
-          startBtn.disabled = false;
-          startBtn.textContent = '开启创作';
-        }
-        if (copyConfirmBtn) copyConfirmBtn.disabled = false;
-        if (copyReoptBtn) copyReoptBtn.disabled = !Boolean(String(state.draftContent || '').trim());
         const ok = payload && payload.ok === true;
-        if (ok) {
-          alert('文章已生成并写入文章管理。');
-          window.navigateTo?.('article-manager');
-        } else {
+        const item = state.pendingGenerateItem || state.pendingSaveItem;
+        if (!item) return;
+        if (!ok) {
+          state.generating = false;
+          state.generateQueue = [];
+          state.saveQueue = [];
+          state.pendingGenerateItem = null;
+          state.pendingSaveItem = null;
+          setStartBtnState(item.tab || state.activeTab, false, '开启创作');
           alert(payload?.error || '生成失败，请稍后重试。');
+          syncSuggestUi();
+          return;
+        }
+        const tab = String(item.tab || state.activeTab || 'product');
+        const title = String(payload.title || item.title || '').trim();
+        const content = String(payload.content || '').trim();
+        const articleId = payload.article_id;
+        if (state.pendingGenerateItem) {
+          const list = Array.isArray(state.articlesByTab[tab]) ? state.articlesByTab[tab] : [];
+          state.articlesByTab[tab] = list.concat([{ article_id: articleId, title, content }]);
+          state.pendingGenerateItem = null;
+          syncSuggestUi();
+          runNextGenerate();
+        } else {
+          state.pendingSaveItem = null;
+          runNextSave();
         }
         return;
       }
@@ -964,87 +996,52 @@ const Page = {
     requestLexicons();
     refreshLexiconsBtn?.addEventListener('click', requestLexicons);
     lexiconSelect?.addEventListener('change', requestQuestions);
+    show('product');
 
-    chatSendBtn?.addEventListener('click', () => {
-      sendChatMessage(String(chatInput?.value || '').trim());
-    });
-    chatInput?.addEventListener('keydown', (e) => {
-      if (e.key !== 'Enter') return;
-      e.preventDefault();
-      sendChatMessage(String(chatInput?.value || '').trim());
-    });
-
-    copyConfirmBtn?.addEventListener('click', () => {
-      const content = String(state.draftContent || '').trim();
-      if (!content) {
-        alert('请先点击“开启创作”生成文案草稿，再点击确定保存。');
+    function confirmRewriteSave(onlyIdx) {
+      const tab = String(state.activeTab || 'product');
+      const pending = state.pendingRewrite;
+      if (!pending || pending.tab !== tab || !Array.isArray(pending.contents) || !pending.contents.length) {
+        alert('请先点击“重新优化”生成改稿版本，再点击确定。');
         return;
       }
-      const tab = 'product';
-      const lexiconId = String(lexiconSelect?.value || '').trim();
-      const questionText = String(state.selectedQuestion || state.questions?.[0] || '').trim();
-      const selectedProducts = Array.isArray(state.selectedProducts) ? state.selectedProducts.slice(0, 3) : [];
-      const selectedImages = Array.isArray(state.selectedImages) ? state.selectedImages.slice(0, 3) : [];
-
-      const payload = {
-        tab,
-        lexicon_id: lexiconId,
-        question_text: questionText,
-        title: String(state.draftTitle || '').trim(),
-        content,
-        user_input: buildCreateUserInputFromChat(state.chatHistory),
-        product: selectedProducts[0] || null,
-        products: selectedProducts,
-        images: selectedImages,
-        platforms: getCheckedTexts(platformGroup),
-        article_type: firstCheckedText(typeGroup) || mainArticleTypeByTab(tab),
-        style: firstCheckedText(styleGroup),
-        tone: firstCheckedText(toneGroup),
-        ts: Date.now()
-      };
-      window.geoConsume?.({ event_type: 'ai_generate', page: 'article-writing', action: 'copy_confirm_save', units: 1, amount: 0 });
-      state.generating = true;
-      if (copyConfirmBtn) copyConfirmBtn.disabled = true;
-      if (copyReoptBtn) copyReoptBtn.disabled = true;
-      invokeGeoAction('geoArticleGenerate', payload, '文章保存接口尚未就绪，请刷新页面后重试。');
-    });
-
-    copyReoptBtn?.addEventListener('click', () => {
-      const content = String(state.draftContent || '').trim();
-      if (!content) {
-        alert('请先点击“开启创作”生成文案草稿，再点击重新优化。');
+      const baseTask = state.lastTaskByTab?.[tab];
+      if (!baseTask) {
+        alert('缺少创作上下文，请先点击“开启创作”。');
         return;
       }
-      if (state.draftGenerating) return;
-      const ctx = getProductChatContext();
-      if (!ctx.ok) {
-        alert(ctx.hint || '请先补齐必要信息后再重新优化。');
-        return;
-      }
-      state.chatHistory = [];
-      state.chatViewFrom = 0;
-      if (chatBox) chatBox.innerHTML = '';
-      const reqId = String(Date.now());
-      state.draftOptimizeReqId = reqId;
-      state.draftGenerating = true;
-      if (copyConfirmBtn) copyConfirmBtn.disabled = true;
-      if (copyReoptBtn) copyReoptBtn.disabled = true;
-      if (chatHint) chatHint.textContent = '重新优化中...';
-      invokeGeoAction(
-        'geoArticleWritingOptimize',
-        {
-          req_id: reqId,
-          lexicon_id: ctx.lexiconId,
-          question_text: ctx.questionText,
-          products: ctx.products,
-          images: ctx.images,
-          user_input: buildCreateUserInputFromChat(state.chatHistory),
-          draft: content,
-          ts: Date.now()
-        },
-        '重新优化接口尚未就绪，请刷新页面后重试。'
-      );
-    });
+      state.saveMode = 'rewrite_save';
+      state.saveNavAfter = true;
+      const picked = (tab === 'brand' && Number.isFinite(onlyIdx))
+        ? [pending.contents[onlyIdx]]
+        : pending.contents;
+      state.saveQueue = picked
+        .filter((x) => x && typeof x === 'object')
+        .map((it, idx) => {
+        const originalIdx = (tab === 'brand' && Number.isFinite(onlyIdx)) ? Number(onlyIdx) : idx;
+        const t = String(it?.title || '').trim();
+        const c = String(it?.content || '').trim();
+        const prefix = tab === 'brand' ? `【改稿${originalIdx + 1}】` : '【改稿】';
+        return {
+          tab,
+          payload: {
+            ...baseTask,
+            title: `${prefix}${t || (baseTask.title || '')}`.slice(0, 120),
+            content: c,
+            ts: Date.now()
+          }
+        };
+      });
+      state.pendingRewrite = null;
+      setConfirmEnabled(false);
+      closeArticleModal();
+      runNextSave();
+    }
+
+    copyConfirmBtn?.addEventListener('click', () => confirmRewriteSave());
+    awArticleConfirmBtn?.addEventListener('click', () => confirmRewriteSave());
+
+    copyReoptBtn?.addEventListener('click', () => startRewriteForActiveTab());
 
     lexiconSearchBtn?.addEventListener('click', () => {
       state.lexiconKeyword = String(lexiconKeywordEl?.value || '').trim();
@@ -1077,7 +1074,7 @@ const Page = {
       if (!(t instanceof HTMLInputElement)) return;
       if (t.type !== 'radio') return;
       state.selectedQuestion = String(t.value || '').trim();
-      if (state.activeTab === 'product') ensureChatReady();
+      syncSuggestUi();
     });
 
     brandUseSelectedBtn?.addEventListener('click', () => {
@@ -1243,7 +1240,7 @@ const Page = {
     hydrateSelections();
     updateProductPickerBar();
     updateImagePickerBar();
-    if (state.activeTab === 'product') ensureChatReady();
+    syncSuggestUi();
 
     pickProductBtn?.addEventListener('click', () => {
       if (!productPreview) return;
@@ -1308,7 +1305,7 @@ const Page = {
         state.selectedProducts = list.filter((p, i) => productKey(p, i) !== key);
       }
       updateProductPickerBar();
-      if (state.activeTab === 'product') ensureChatReady();
+      syncSuggestUi();
     });
 
     productPickerBar?.addEventListener('click', (e) => {
@@ -1324,7 +1321,7 @@ const Page = {
         productPreview?.classList.remove('aw-picker-open');
         updateProductPickerBar();
         renderProductPreview();
-        if (state.activeTab === 'product') ensureChatReady();
+        syncSuggestUi();
         return;
       }
       if (action === 'aw-product-done') {
@@ -1337,7 +1334,7 @@ const Page = {
         productPreview?.classList.remove('aw-picker-open');
         updateProductPickerBar();
         renderProductPreview();
-        if (state.activeTab === 'product') ensureChatReady();
+        syncSuggestUi();
       }
     });
 
@@ -1379,7 +1376,7 @@ const Page = {
         imagesPreview?.classList.remove('aw-picker-open');
         updateImagePickerBar();
         renderImagesPreview();
-        if (state.activeTab === 'product') ensureChatReady();
+        syncSuggestUi();
         return;
       }
       if (action === 'aw-image-done') {
@@ -1392,208 +1389,283 @@ const Page = {
         imagesPreview?.classList.remove('aw-picker-open');
         updateImagePickerBar();
         renderImagesPreview();
-        if (state.activeTab === 'product') ensureChatReady();
+        syncSuggestUi();
       }
     });
 
-    const chatNoise = (s) => {
-      const t = String(s || '').trim();
-      if (!t) return true;
-      if (t.length <= 2) return true;
-      if (/^(你好|您好|在吗|谢谢|谢了|好的|ok|OK|嗯|嗯嗯|哈|哈哈|收到)$/.test(t)) return true;
-      if (/^[\s\.\!\?\-_,，。！？；;:：]+$/.test(t)) return true;
-      return false;
-    };
-
-    const chatRelevantKeywords = [
-      '行业', '所属行业', '行业类型',
-      '产品', '服务', '产品/服务', '产品类型', '服务类型',
-      '用户', '人群', '客户', '目标用户', '目标人群', '用户群体', 'B端', 'C端', 'B2B', 'B2C', 'B+C',
-      '卖点', '优势', '特点', '参数', '材质', '技术', '能力', '场景', '痛点', '案例',
-      '价格', '预算', '交付', '售后', '质保',
-      '平台', '风格', '语调', '长度', '字数', '标题'
-    ];
-
-    const shouldKeepChatMessage = (role, text) => {
-      const t = String(text || '').trim();
-      if (
-        t.startsWith('【生成文案】') ||
-        t.startsWith('【优化后文案】') ||
-        t.startsWith('【重新优化建议】') ||
-        t.includes('【生成文案】') ||
-        t.includes('【优化后文案】') ||
-        t.includes('【重新优化建议】')
-      ) {
-        return false;
+    const buildBrandUserInput = (copyTypeText, variantNo) => {
+      const rows = [
+        ['企业名称', brandCompanyNameEl],
+        ['所属行业', brandIndustryEl],
+        ['主营产品/服务', brandMainProductsEl],
+        ['客户模式', brandCustomerModeEl],
+        ['核心能力', brandCoreCapabilityEl],
+        ['企业优势', brandEnterpriseAdvantageEl],
+        ['服务流程', brandServiceProcessEl],
+        ['资质认证', brandCertificationsEl],
+        ['成功案例', brandSuccessCasesEl],
+        ['目标市场', brandTargetMarketEl],
+        ['品牌定位', brandBrandPositioningEl],
+        ['禁止出现的内容', brandForbiddenContentEl],
+        ['文案类型', { value: copyTypeText }],
+      ];
+      let out = rows
+        .map(([k, el]) => {
+          const v = String(el?.value || '').trim();
+          return v ? `- ${k}：${v}` : '';
+        })
+        .filter(Boolean)
+        .join('\n');
+      if (state.brandImageDataUrl) out = `${out}\n\n- 已插入图片：1张`;
+      if (variantNo) {
+        out = `${out}\n\n- 版本要求：输出第${variantNo}个版本，与其他版本标题/角度/表达尽量不同，但事实保持一致。`;
       }
-      if (chatNoise(t)) return false;
-      if (chatRelevantKeywords.some((k) => t.includes(k))) return true;
-      if (role === 'user') return t.length >= 8;
-      if (role === 'ai' && (t.includes('【提问】') || t.includes('？') || t.includes('?'))) return true;
-      return false;
+      return out.trim();
     };
 
-    const buildCreateUserInputFromChat = (history) => {
-      const items = Array.isArray(history) ? history : [];
-      const parts = [];
-      for (const m of items.slice(0, 120)) {
-        const role = String(m?.role || '').trim() === 'user' ? 'user' : 'ai';
-        const text = String(m?.text || '').trim();
-        if (!shouldKeepChatMessage(role, text)) continue;
-        parts.push(`${role === 'user' ? '用户' : 'AI'}：${text}`);
-        if (parts.length >= 80) break;
+    const buildBaseTaskPayload = (tab) => {
+      const groups = getRuleGroupsForTab(tab);
+      const platforms = getCheckedTexts(groups[0] || null);
+      const articleType = firstCheckedText(groups[1] || null) || mainArticleTypeByTab(tab);
+      const style = firstCheckedText(groups[2] || null);
+      const tone = firstCheckedText(groups[3] || null);
+      return { platforms, article_type: articleType, style, tone };
+    };
+
+    function requestSuggestionsForTab(tab, overrideContents) {
+      const baseTask = state.lastTaskByTab?.[tab];
+      if (!baseTask) return;
+      const items = Array.isArray(overrideContents) ? overrideContents : (Array.isArray(state.articlesByTab?.[tab]) ? state.articlesByTab[tab] : []);
+      if (!items.length) return;
+
+      const requestOne = (idx, content) => {
+        const reqId = String(Date.now() + (idx || 0));
+        state.suggestReqMap[reqId] = { tab, idx: typeof idx === 'number' ? idx : null };
+        if (tab !== 'brand') {
+          state.suggestReqId = reqId;
+          state.suggestTab = tab;
+        }
+        invokeGeoAction(
+          'geoArticleWritingSuggestions',
+          { ...baseTask, req_id: reqId, content, ts: Date.now() },
+          '优化建议接口尚未就绪，请刷新页面后重试。'
+        );
+      };
+
+      if (tab === 'brand') {
+        state.suggestionsByTab.brand = ['', '', ''];
+        if (brandSuggestHints.length) {
+          brandSuggestHints.forEach((el) => {
+            if (!(el instanceof HTMLElement)) return;
+            el.textContent = '优化建议生成中...';
+          });
+        }
+        items.slice(0, 3).forEach((it, idx) => {
+          const content = String(it?.content || '').trim();
+          if (!content) return;
+          requestOne(idx, content);
+        });
+        renderBrandSuggestBoxes();
+        return;
       }
-      return parts.join('\n').trim();
-    };
 
-    const extractIndustryInfoFromChat = (history) => {
-      const items = Array.isArray(history) ? history : [];
-      const userText = items.filter((m) => String(m?.role || '') === 'user').map((m) => String(m?.text || '')).join('\n');
-      const allText = items.map((m) => String(m?.text || '')).join('\n');
-      const info = { product_type: '', target_audience: '', industry: '' };
-      const pick = (re, text) => {
-        const m = String(text || '').match(re);
-        return m && m[1] ? String(m[1]).trim() : '';
-      };
-      info.product_type = pick(/(?:产品\/服务类型|产品类型|服务类型)[:：]\s*([^\n。；;]{2,80})/i, userText);
-      info.target_audience = pick(/(?:用户群体类型|目标用户|目标人群|客户群体|用户人群)[:：]\s*([^\n。；;]{2,80})/i, userText);
-      info.industry = pick(/(?:行业类型|所属行业)[:：]\s*([^\n。；;]{2,80})/i, userText);
+      state.suggestionsByTab[tab] = '';
+      if (tab === state.activeTab) renderSuggestBox();
+      if (suggestHint) suggestHint.textContent = '优化建议生成中...';
+      requestOne(null, buildCombinedBody(items));
+    }
 
-      const patterns = {
-        industry: /(教育|医疗|金融|电商|零售|餐饮|旅游|科技|互联网|游戏|健康|美容|时尚|汽车|房地产|建筑|农业|食品|母婴|宠物|家居|家电|3C|数码|服装|运动|健身|法律|咨询|人力资源|物流|供应链|SaaS|AI|人工智能|直播|短视频|社交|政务|公益|环保|能源|化工|制造)/,
-        target_audience: /(学生|白领|宝妈|老年人|年轻人|00后|90后|80后|女性|男性|创业者|企业主|中小企业|大企业|个人用户|B端|C端|政府|医生|律师|程序员|设计师|摄影师|运动爱好者|家长)/,
-        product_type: /(App|软件|平台|课程|服务|商品|产品|工具|系统|方案|食品|饮料|化妆品|护肤品|服装|鞋包|数码|家电|保险|贷款|投资|理财|药品|健康品|教材|书籍|设备|机器)/i
-      };
-      if (!info.industry) info.industry = pick(patterns.industry, allText);
-      if (!info.target_audience) info.target_audience = pick(patterns.target_audience, allText);
-      if (!info.product_type) info.product_type = pick(patterns.product_type, allText);
+    function runNextGenerate() {
+      if (state.pendingGenerateItem) return;
+      const item = Array.isArray(state.generateQueue) && state.generateQueue.length ? state.generateQueue.shift() : null;
+      if (!item) {
+        state.generating = false;
+        const tab = String(state.generateMode || state.activeTab || 'product');
+        state.generateMode = '';
+        setStartBtnState(tab, false, '开启创作');
+        syncSuggestUi();
+        requestSuggestionsForTab(tab);
+        return;
+      }
+      state.pendingGenerateItem = item;
+      state.generating = true;
+      setStartBtnState(state.generateMode || item.tab, true, '生成中...');
+      invokeGeoAction('geoArticleGenerate', item.payload, '文章生成接口尚未就绪，请刷新页面后重试。');
+    }
 
-      return info;
-    };
-
-    startBtn?.addEventListener('click', () => {
+    function startRewriteForActiveTab() {
       if (state.generating) return;
       const tab = String(state.activeTab || 'product');
-      const lexiconId =
-        tab === 'product'
-          ? String(lexiconSelect?.value || '').trim()
-          : '';
+      const baseTask = state.lastTaskByTab?.[tab];
+      const baseArticles = Array.isArray(state.articlesByTab?.[tab]) ? state.articlesByTab[tab] : [];
+      if (!baseTask || !baseArticles.length) {
+        alert('请先点击“开启创作”生成文章后再重新优化。');
+        return;
+      }
+      state.pendingRewrite = null;
+      state.rewriteResults = [];
+      state.rewriteQueue = baseArticles.map((it, idx) => {
+        const reqId = String(Date.now() + idx);
+        const title = String(it?.title || `文案${idx + 1}`).trim();
+        const content = String(it?.content || '').trim();
+        const userInput = String(baseTask.user_input || '').trim();
+        const enhancedUserInput = userInput
+          ? `${userInput}\n\n- 改稿要求：输出第${idx + 1}个改稿版本，与原文差异明显，但事实保持一致。`
+          : `- 改稿要求：输出第${idx + 1}个改稿版本，与原文差异明显，但事实保持一致。`;
+        return {
+          reqId,
+          tab,
+          title,
+          payload: { ...baseTask, req_id: reqId, content, user_input: enhancedUserInput, ts: Date.now() }
+        };
+      });
+      state.rewriteTab = tab;
+      state.generating = true;
+      if (copyReoptBtn) copyReoptBtn.disabled = true;
+      if (suggestHint) suggestHint.textContent = '重新优化中...';
+      runNextRewrite();
+    }
 
-      let userInput = '';
-      let title = '';
-      let questionText = '';
-      let activityImage = '';
+    function runNextRewrite() {
+      if (state.pendingRewriteItem) return;
+      const item = Array.isArray(state.rewriteQueue) && state.rewriteQueue.length ? state.rewriteQueue.shift() : null;
+      if (!item) {
+        state.generating = false;
+        if (copyReoptBtn) copyReoptBtn.disabled = false;
+        const tab = String(state.rewriteTab || state.activeTab || 'product');
+        const results = Array.isArray(state.rewriteResults) ? state.rewriteResults : [];
+        if (results.length) {
+          state.pendingRewrite = { tab, contents: results };
+          requestSuggestionsForTab(tab, results);
+          syncSuggestUi();
+          if (tab !== 'brand') openCombinedArticles();
+        } else {
+          syncSuggestUi();
+        }
+        return;
+      }
+      state.pendingRewriteItem = item;
+      invokeGeoAction('geoArticleWritingRewrite', item.payload, '重新优化接口尚未就绪，请刷新页面后重试。');
+    }
+
+    function runNextSave() {
+      if (state.pendingSaveItem) return;
+      const item = Array.isArray(state.saveQueue) && state.saveQueue.length ? state.saveQueue.shift() : null;
+      if (!item) {
+        state.generating = false;
+        setStartBtnState(state.activeTab, false, '开启创作');
+        syncSuggestUi();
+        alert('已写入文章管理。');
+        if (state.saveNavAfter) window.navigateTo?.('article-manager');
+        state.saveNavAfter = false;
+        state.saveMode = '';
+        return;
+      }
+      state.pendingSaveItem = item;
+      state.generating = true;
+      setStartBtnState(item.tab || state.activeTab, true, '生成中...');
+      invokeGeoAction('geoArticleGenerate', item.payload, '文章保存接口尚未就绪，请刷新页面后重试。');
+    }
+
+    const startCreateForTab = (tab) => {
+      if (state.generating) return;
+      tab = String(tab || state.activeTab || 'product');
+      const base = buildBaseTaskPayload(tab);
 
       if (tab === 'product') {
-        if (!lexiconId) {
-          alert('请先选择已创建的问题词库。');
+        const ctx = getProductContext();
+        if (!ctx.ok) {
+          alert(ctx.hint || '请先补齐必要信息后再开启创作。');
           return;
         }
-        questionText = String(state.selectedQuestion || state.questions?.[0] || '').trim();
-        if (!questionText) {
-          alert('请先从问题词列表选择一条问题词。');
-          return;
-        }
-        const prods = Array.isArray(state.selectedProducts) ? state.selectedProducts.slice(0, 3) : [];
-        if (!prods.length) {
-          alert('请先在“第二步：选择产品”中至少选择1个产品。');
-          return;
-        }
-        const createUserInput = buildCreateUserInputFromChat(state.chatHistory);
-        if (!createUserInput) {
-          alert('请先在“文案优化建议”区域补充与创作相关的信息，再开始创作。');
-          return;
-        }
-        const industryInfo = extractIndustryInfoFromChat(state.chatHistory);
-        const missing = [];
-        if (!industryInfo.product_type) missing.push('产品/服务类型');
-        if (!industryInfo.target_audience) missing.push('用户群体类型');
-        if (!industryInfo.industry) missing.push('行业类型');
-        if (missing.length) {
-          alert(`请先在对话中确认：${missing.join('、')}。\n\n禁止强行猜测行业，确认后再开始生成文案。`);
-          return;
-        }
-        userInput = createUserInput;
-      } else if (tab === 'brand') {
+        state.articlesByTab.product = [];
+        state.suggestionsByTab.product = '';
+        state.pendingRewrite = null;
+        const payload = {
+          tab,
+          lexicon_id: ctx.lexiconId,
+          question_text: ctx.questionText,
+          user_input: '',
+          activity_image: '',
+          product: ctx.products[0] || null,
+          products: ctx.products,
+          images: ctx.images,
+          ...base,
+          ts: Date.now()
+        };
+        state.lastTaskByTab.product = { ...payload, content: '', title: '' };
+        state.generateMode = tab;
+        state.generateQueue = [{ tab, payload }];
+        window.geoConsume?.({ event_type: 'ai_generate', page: 'article-writing', action: 'start_create_product', units: 1, amount: 0 });
+        runNextGenerate();
+        return;
+      }
+
+      if (tab === 'brand') {
         const picked = brandCopyTypeRoot?.querySelector?.('input[type="radio"]:checked');
-        questionText = normalizeLabel(picked?.value || '');
-        if (!questionText) {
+        const copyTypeText = normalizeLabel(picked?.value || '');
+        if (!copyTypeText) {
           alert('请先在第二步选择文案类型（单选）。');
           return;
         }
-        activityImage = state.brandImageDataUrl;
-        const rows = [
-          ['企业名称', brandCompanyNameEl],
-          ['所属行业', brandIndustryEl],
-          ['主营产品/服务', brandMainProductsEl],
-          ['客户模式', brandCustomerModeEl],
-          ['核心能力', brandCoreCapabilityEl],
-          ['企业优势', brandEnterpriseAdvantageEl],
-          ['服务流程', brandServiceProcessEl],
-          ['资质认证', brandCertificationsEl],
-          ['成功案例', brandSuccessCasesEl],
-          ['目标市场', brandTargetMarketEl],
-          ['品牌定位', brandBrandPositioningEl],
-          ['禁止出现的内容', brandForbiddenContentEl],
-          ['文案类型', { value: questionText }],
-        ];
-        userInput = rows
-          .map(([k, el]) => {
-            const v = String(el?.value || '').trim();
-            return v ? `- ${k}：${v}` : '';
-          })
-          .filter(Boolean)
-          .join('\n');
-        if (state.brandImageDataUrl) userInput = `${userInput}\n\n- 已插入图片：1张`;
-      } else if (tab === 'activity') {
-        userInput = valueOrPlaceholder(activityDesc);
-        activityImage = state.activityImageDataUrl;
-        questionText = '';
-      }
-
-      const selectedProducts = tab === 'product' && Array.isArray(state.selectedProducts)
-        ? state.selectedProducts.slice(0, 3)
-        : [];
-      const selectedImages = tab === 'product' && Array.isArray(state.selectedImages)
-        ? state.selectedImages.slice(0, 3)
-        : [];
-
-      const payload = {
-        tab,
-        lexicon_id: lexiconId,
-        question_text: questionText,
-        title,
-        user_input: userInput,
-        activity_image: activityImage,
-        product: tab === 'product' ? (selectedProducts[0] || null) : null,
-        products: selectedProducts,
-        images: selectedImages,
-        platforms: getCheckedTexts(platformGroup),
-        article_type: firstCheckedText(typeGroup) || mainArticleTypeByTab(tab),
-        style: firstCheckedText(styleGroup),
-        tone: firstCheckedText(toneGroup),
-        ts: Date.now()
-      };
-      window.geoConsume?.({ event_type: 'ai_generate', page: 'article-writing', action: 'start_create', units: 1, amount: 0 });
-      if (startBtn) {
-        startBtn.disabled = true;
-        startBtn.textContent = '生成中...';
-      }
-      if (tab === 'product') {
-        if (state.draftGenerating) return;
-        const reqId = String(Date.now());
-        state.draftReqId = reqId;
-        state.draftGenerating = true;
-        setCopyActionsEnabled(false);
-        invokeGeoAction(
-          'geoArticleWritingGenerate',
-          { ...payload, req_id: reqId, history: state.chatHistory },
-          '文案生成接口尚未就绪，请刷新页面后重试。'
-        );
+        state.articlesByTab.brand = [];
+        state.suggestionsByTab.brand = ['', '', ''];
+        state.pendingRewrite = null;
+        const basePayload = {
+          tab,
+          lexicon_id: '',
+          question_text: copyTypeText,
+          user_input: buildBrandUserInput(copyTypeText, ''),
+          activity_image: state.brandImageDataUrl,
+          product: null,
+          products: [],
+          images: [],
+          ...base,
+          ts: Date.now()
+        };
+        state.lastTaskByTab.brand = { ...basePayload, content: '', title: '' };
+        state.generateMode = tab;
+        state.generateQueue = [1, 2, 3].map((n) => ({
+          tab,
+          payload: { ...basePayload, user_input: buildBrandUserInput(copyTypeText, n), ts: Date.now() + n }
+        }));
+        window.geoConsume?.({ event_type: 'ai_generate', page: 'article-writing', action: 'start_create_brand_3', units: 3, amount: 0 });
+        runNextGenerate();
         return;
       }
-      state.generating = true;
-      invokeGeoAction('geoArticleGenerate', payload, '文章生成接口尚未就绪，请刷新页面后重试。');
+
+      if (tab === 'activity') {
+        const desc = String(activityDesc?.value || '').trim() || valueOrPlaceholder(activityDesc);
+        if (!desc) {
+          alert('请先补充主题活动描述。');
+          return;
+        }
+        state.articlesByTab.activity = [];
+        state.suggestionsByTab.activity = '';
+        state.pendingRewrite = null;
+        const payload = {
+          tab,
+          lexicon_id: '',
+          question_text: '',
+          user_input: desc,
+          activity_image: state.activityImageDataUrl,
+          product: null,
+          products: [],
+          images: [],
+          ...base,
+          ts: Date.now()
+        };
+        state.lastTaskByTab.activity = { ...payload, content: '', title: '' };
+        state.generateMode = tab;
+        state.generateQueue = [{ tab, payload }];
+        window.geoConsume?.({ event_type: 'ai_generate', page: 'article-writing', action: 'start_create_activity', units: 1, amount: 0 });
+        runNextGenerate();
+      }
+    };
+
+    Object.entries(startBtns).forEach(([tab, btn]) => {
+      if (!(btn instanceof HTMLButtonElement)) return;
+      btn.addEventListener('click', () => startCreateForTab(tab));
     });
   },
   destroy() {
