@@ -696,7 +696,7 @@ async def question_words_items(lexicon_id: int, user=Depends(get_current_user)):
 async def question_words_create(req: LexiconCreateRequest, user=Depends(get_current_user)):
     from backend.database import insert, execute
     from backend.services.llm_service import async_call_llm
-    from backend.services.prompt_service import build_expand_words_prompt
+    from backend.services.prompt_service import build_expand_words_prompt, build_question_words_prompt
     words_obj = req.words or {}
     lid = insert(
         """INSERT INTO lexicons (user_id, name, company, industry_keyword, decision_stage, words, question_keyword)
@@ -733,7 +733,46 @@ async def question_words_create(req: LexiconCreateRequest, user=Depends(get_curr
             continue
         seen.add(kk)
         keywords2.append(kk)
-    for i, w in enumerate(keywords2, 1):
+    questions = []
+    try:
+        prompt = build_question_words_prompt(
+            company=str(req.company or "").strip(),
+            industry_keyword=str(req.industry_keyword or "").strip(),
+            question_keyword=str(req.question_keyword or req.industry_keyword or "").strip(),
+            decision_stage=str(req.decision_stage or "").strip(),
+            words=words_obj,
+            enterprise_library_content="",
+            seed_keywords=keywords2,
+        )
+        raw = await async_call_llm(prompt, timeout=120)
+        lines = str(raw or "").splitlines()
+        for line in lines:
+            s = str(line or "").strip()
+            if not s:
+                continue
+            s = re.sub(r"^\s*[\-\*]\s*", "", s)
+            s = re.sub(r"^\s*\d+\s*[\.\、\)\:]?\s*", "", s)
+            s = s.strip()
+            if not s:
+                continue
+            questions.append(s)
+    except Exception as e:
+        print(f"[question_words] 生成失败：{e}")
+        questions = []
+
+    seen_q = set()
+    questions2 = []
+    for q in questions:
+        qq = str(q or "").strip()
+        if not qq or qq in seen_q:
+            continue
+        seen_q.add(qq)
+        questions2.append(qq)
+
+    if not questions2:
+        questions2 = keywords2
+
+    for i, w in enumerate(questions2, 1):
         insert(
             "INSERT INTO question_words (lexicon_id, enterprise_id, seq_no, question_text, gen_date) VALUES (%s, %s, %s, %s, CURDATE())",
             [lid, None, i, w],
@@ -747,7 +786,7 @@ async def question_words_create(req: LexiconCreateRequest, user=Depends(get_curr
                 execute("UPDATE lexicons SET expand_words=%s WHERE id=%s", [expand[:500], lid])
         except Exception as e:
             print(f"[expand] 生成失败：{e}")
-    return ok({"id": lid, "question_count": len(keywords2)})
+    return ok({"id": lid, "question_count": len(questions2)})
 
 
 @app.delete("/api/v1/question-words")
@@ -1940,6 +1979,10 @@ if _data_dir.exists():
 _uploads_dir = (_data_dir / "uploads").resolve()
 if _uploads_dir.exists():
     app.mount("/uploads", StaticFiles(directory=str(_uploads_dir)), name="uploads")
+
+_llm_svg_dir = (Path(_PROJECT_ROOT) / "svg").resolve()
+if _llm_svg_dir.exists():
+    app.mount("/llm-svg", StaticFiles(directory=str(_llm_svg_dir)), name="llm-svg")
 
 _www_dir = (Path(_PROJECT_ROOT) / "www").resolve()
 if _www_dir.exists():

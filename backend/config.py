@@ -44,7 +44,7 @@ class Settings:
     AUTH_DISABLED: bool = True
     DEV_USER_ID: int = 1
 
-    LLM_URL: str = _R_CFG.get("llm_url") or os.getenv("LLM_URL", "http://YOUR_DB_HOST:5200/wenxinqianfan")
+    LLM_URL: str = _R_CFG.get("llm_url") or os.getenv("LLM_URL", "http://YOUR_LLM_HOST:5200/wenxinqianfan")
     WENXIN_API_KEY: str = os.getenv("WENXIN_API_KEY", "YOUR_WENXIN_API_KEY")
     WENXIN_SECRET_KEY: str = os.getenv("WENXIN_SECRET_KEY", "YOUR_WENXIN_SECRET_KEY")
     OFFICIAL_MEDIA_EXCEL: str = (Path(__file__).resolve().parents[1] / "data" / "2026年网站媒体及官方自媒体报价-Q2.xls").as_posix()
