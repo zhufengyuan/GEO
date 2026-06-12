@@ -197,7 +197,35 @@ async function geoApiUpload(path, formData) {
 function applyLlmSvgIcons(root) {
   const doc = root || document;
   const files = Array.isArray(llmSvgManifest.files) ? llmSvgManifest.files : [];
-  const baseUrl = llmSvgManifest.baseUrl || 'llm-svg';
+  const rawBaseUrl = llmSvgManifest.baseUrl || 'llm-svg';
+  const iconAliasMap = {
+    doubao: ['豆包.svg', 'doubao.svg'],
+    qwen: ['千问.svg', 'qwen.svg'],
+    yuanbao: ['元宝.svg', 'yuanbao.svg'],
+    deepseek: ['deepseek.svg'],
+    wenxin: ['文心一言.svg', 'wenxin.svg'],
+    nami360: ['纳米.svg', '纳米360.svg', 'nami360.svg'],
+    kimi: ['kimi.svg', 'KIMI.svg'],
+    zhipu: ['智谱.svg', 'zhipu.svg']
+  };
+  const resolveSvgBaseUrl = () => {
+    const base = String(rawBaseUrl || '').trim() || 'llm-svg';
+    if (/^https?:\/\//i.test(base)) return base.replace(/\/+$/g, '');
+    if (base.startsWith('/')) return base.replace(/\/+$/g, '');
+    const apiBase = String(getGeoApiBaseUrl() || '').trim().replace(/\/+$/g, '');
+    if (apiBase) {
+      const originBase = apiBase.replace(/\/api\/v1$/i, '');
+      if (originBase) return `${originBase}/${base}`.replace(/\/+$/g, '');
+    }
+    try {
+      if (window.location?.origin && /^https?:/i.test(String(window.location.origin))) {
+        return `${String(window.location.origin).replace(/\/+$/g, '')}/${base}`.replace(/\/+$/g, '');
+      }
+    } catch {
+    }
+    return base;
+  };
+  const baseUrl = resolveSvgBaseUrl();
 
   doc.querySelectorAll('img[data-llm-key]').forEach((img) => {
     const key = String(img.getAttribute('data-llm-key') || '').trim().toLowerCase();
@@ -208,8 +236,16 @@ function applyLlmSvgIcons(root) {
       return;
     }
 
-    const match = files.find((f) => String(f).toLowerCase().includes(key));
-    const src = match ? `${baseUrl}/${encodeURIComponent(match)}` : `${baseUrl}/${encodeURIComponent(key)}-color.svg`;
+    const aliases = Array.isArray(iconAliasMap[key]) ? iconAliasMap[key] : [];
+    const match = files.find((f) => {
+      const name = String(f || '').trim();
+      if (!name) return false;
+      const lower = name.toLowerCase();
+      if (aliases.some((alias) => lower === String(alias).toLowerCase())) return true;
+      return lower.includes(key);
+    });
+    const srcName = match || aliases[0] || `${key}.svg`;
+    const src = `${baseUrl}/${encodeURIComponent(srcName)}`;
 
     img.onerror = () => {
       img.style.display = 'none';

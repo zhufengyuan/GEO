@@ -59,7 +59,7 @@ STEP 1  创建问题词库  →  STEP 2  文章创作  →  STEP 3  媒体发布
 
 | 步骤 | 模块 | 前端路由 | 功能说明 |
 |------|------|----------|----------|
-| STEP 1 | 问题词库 | question-bank | 输入企业名、行业/产品关键词（问题关键词）、区域词、功能词、场景词、使用人群等；点击"马上生成"后会把关键词拆分为多行记录，并在"问题词库管理"中可筛选、导出、批量删除 |
+| STEP 1 | 问题词库 | question-bank | 输入企业名、行业/产品关键词（问题关键词）、区域词、功能词、场景词、使用人群等；点击生成后由 LLM 按决策阶段自动产出问题列表（认知触发阶段不少于 50 条，其余阶段不少于 30 条），并在“问题词库管理”中可筛选、导出、批量删除 |
 | STEP 2 | 文章创作 | article-writing | 基于问题词，按产品宣传 / 企业品牌 / 主题活动创作三种类型，配置平台、风格、品牌嵌入规则，AI 批量生成内容 |
 | STEP 3 | 媒体发布 | media-publish / official-publish | 从媒体资源库筛选全国网站媒体和官方自媒体（含报价、平台、地区、粉丝数、认证等），一键投放文章 |
 | STEP 4 | 发布管理 | publish-manager | 统一管理所有发布记录，追踪收录状态与引用次数 |
@@ -118,7 +118,7 @@ STEP 1  创建问题词库  →  STEP 2  文章创作  →  STEP 3  媒体发布
 │    │                                                                 │
 │    ├── config.py ─── Settings 配置类                                 │
 │    ├── schemas.py ─── Pydantic v2 请求/响应模型                       │
-│    └── prompts/ ─── 20 个提示词 .txt 模板文件                         │
+│    └── prompts/ ─── 26 个提示词/规则 .txt 模板文件                    │
 │                                                                      │
 └──────────────────────┬──────────────────────────────────────────────┘
                        │ HTTP REST API（/api/v1/*）
@@ -190,7 +190,7 @@ GEO/
 ├── geo.Rmd                               # 可选：R Shiny 宿主页面（iframe 模式）
 ├── config.R                              # R 配置（路径/API BaseUrl/DB/LLM）
 ├── geo_config.R                          # R 配置（备用/同上）
-└── svg/                                  # SVG 图标资源
+└── svg/                                  # 大模型 SVG 图标资源（FastAPI 挂载为 /llm-svg）
 ```
 
 ---
@@ -249,6 +249,13 @@ CREATE DATABASE IF NOT EXISTS geo CHARACTER SET utf8mb4 COLLATE utf8mb4_general_
 - `LLM_URL`（也可通过环境变量 `LLM_URL` 或根目录 `config.R` 的 `llm_url` 注入）
 - 生产环境务必更换 `JWT_SECRET`，并设置 `AUTH_DISABLED=False`
 
+当前仓库内默认值（已写入配置文件）：
+
+- `DB_HOST=YOUR_DB_HOST`
+- `DB_PASSWORD=YOUR_DB_PASSWORD`
+- `LLM_URL=http://YOUR_LLM_HOST:5200/wenxinqianfan`
+- `WENXIN_API_KEY`、`WENXIN_SECRET_KEY` 请通过环境变量配置
+
 4) 启动
 
 ```bash
@@ -259,6 +266,7 @@ python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 访问：
 
 - http://localhost:8000 （前端 SPA）
+- http://localhost:8000/llm-svg/豆包.svg （SVG 图标静态资源示例）
 - http://localhost:8000/api/v1/health （健康检查）
 - http://localhost:8000/api/v1/docs （Swagger）
 

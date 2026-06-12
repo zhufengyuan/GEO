@@ -45,6 +45,45 @@ def build_expand_words_prompt(keyword: str) -> str:
     tpl = _read_template("expand_words_prompt.txt")
     return render_prompt(tpl, {"keyword": keyword})
 
+def build_question_words_prompt(
+    company: str,
+    industry_keyword: str,
+    question_keyword: str,
+    decision_stage: str,
+    words: Optional[dict] = None,
+    enterprise_library_content: str = "",
+    seed_keywords: Optional[list] = None,
+) -> str:
+    tpl = _read_template("question_words_prompt.txt")
+    w = words if isinstance(words, dict) else {}
+    seeds = seed_keywords if isinstance(seed_keywords, list) else []
+    try:
+        seeds_json = json.dumps(seeds, ensure_ascii=False)
+    except Exception:
+        seeds_json = str(seeds)
+    lib = str(enterprise_library_content or "").strip()
+    if not lib:
+        try:
+            lib = json.dumps(w, ensure_ascii=False)
+        except Exception:
+            lib = str(w)
+    return render_prompt(tpl, {
+        "company": company or "",
+        "industry_keyword": industry_keyword or "",
+        "question_keyword": question_keyword or "",
+        "decision_stage": decision_stage or "",
+        "region": str(w.get("region") or "").strip(),
+        "feature": str(w.get("feature") or "").strip(),
+        "attribute": str(w.get("attribute") or "").strip(),
+        "scene": str(w.get("scene") or "").strip(),
+        "people": str(w.get("people") or "").strip(),
+        "pain": str(w.get("pain") or "").strip(),
+        "price": str(w.get("price") or "").strip(),
+        "other": str(w.get("other") or "").strip(),
+        "enterprise_library_content": lib,
+        "seed_keywords": seeds_json,
+    })
+
 
 def build_title_prompt(
     enterprise: dict, lexicon: dict,

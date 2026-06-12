@@ -43,12 +43,19 @@ python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --workers 4
 
 启动时自动执行 migrations/ 下 22 个 SQL 迁移脚本。
 
+静态资源说明：
+
+- 前端 SPA：`/`
+- 上传文件：`/uploads/*`
+- 数据文件：`/data/*`
+- 大模型 SVG 图标：`/llm-svg/*`
+
 ### MySQL 授权示例
 
 如果你的环境同时包含以下连接方式：
 
 - 服务器本机通过 `localhost` 连接
-- 服务器本机通过公网 IP `YOUR_DB_HOST` 连接自己
+- 服务器本机通过公网 IP `YOUR_PUBLIC_IP` 连接自己
 - 本地电脑通过公网 IP `YOUR_PUBLIC_IP` 远程连接
 
 可以参考以下授权方式：
@@ -60,9 +67,9 @@ GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION;
 ALTER USER 'root'@'%' IDENTIFIED BY 'your_root_password';
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
 
-CREATE USER IF NOT EXISTS 'root'@'YOUR_DB_HOST' IDENTIFIED BY 'your_root_password';
-ALTER USER 'root'@'YOUR_DB_HOST' IDENTIFIED BY 'your_root_password';
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'YOUR_DB_HOST' WITH GRANT OPTION;
+CREATE USER IF NOT EXISTS 'root'@'YOUR_PUBLIC_IP' IDENTIFIED BY 'your_root_password';
+ALTER USER 'root'@'YOUR_PUBLIC_IP' IDENTIFIED BY 'your_root_password';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'YOUR_PUBLIC_IP' WITH GRANT OPTION;
 
 CREATE USER IF NOT EXISTS 'root'@'YOUR_PUBLIC_IP' IDENTIFIED BY 'your_root_password';
 ALTER USER 'root'@'YOUR_PUBLIC_IP' IDENTIFIED BY 'your_root_password';
@@ -299,7 +306,7 @@ POST /api/v1/tenants/1/switch
 | GET | `/by-lexicon` | 是 | 某词库下的问题词列表 |
 | GET | `/items` | 是 | 同 by-lexicon（别名） |
 | GET | `/suggest` | 是 | 问题词联想（?q=关键词） |
-| POST | `/` | 是 | 创建词库（自动拆分关键词 + 异步生成拓展词） |
+| POST | `/` | 是 | 创建词库（自动收集关键词 + 调用 LLM 生成问题列表 + 生成拓展词） |
 | DELETE | `/` | 是 | 批量删除词库（同时删除关联 question_words） |
 
 ### 3.1 词库列表
@@ -334,7 +341,7 @@ GET /api/v1/question-words?page=1&page_size=20
         "words": {"region": "华东", "feature": "NB-IoT", "scene": "智慧城市", "people": "物业"},
         "question_keyword": "智能水表",
         "first_question": "智能水表",
-        "question_count": 5,
+        "question_count": 30,
         "created_at": "2026-05-31 12:00:00"
       }
     ]
@@ -365,7 +372,8 @@ Content-Type: application/json
 ```
 
 > keywords 为空时，自动从 words 对象中提取 region/feature/scene/people + industry_keyword 拼接。
-> 创建成功后异步调用 LLM 生成拓展词（近义词/相关词），存入 lexicons.expand_words。
+> 创建成功后先调用 `question_words_prompt.txt` 生成问题列表并写入 `question_words` 表；若生成失败，则回退为保存种子关键词。
+> 同时调用 `expand_words_prompt.txt` 生成拓展词（近义词/相关词），存入 `lexicons.expand_words`。
 
 ### 3.3 批量删除词库
 
