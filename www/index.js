@@ -320,6 +320,25 @@ window.geoQueryKnowledgeBase = function(payload) {
   }
 };
 
+window.geoGenerateKnowledgeGraph = function(payload) {
+  try {
+    const base = getGeoApiBaseUrl();
+    if (base) {
+      return geoApiRequest('/knowledge-base/graph', { method: 'POST', body: JSON.stringify(payload || {}) }).then((r) => {
+        if (r?.data) {
+          dispatchGeoMessage('geo_knowledge_graph_result', { ok: true, ...(r.data || {}) });
+          return r;
+        }
+        dispatchGeoMessage('geo_knowledge_graph_result', { ok: false, error: geoLastApiError?.message || '请求失败' });
+        return null;
+      });
+    }
+  } catch {
+  }
+  dispatchGeoMessage('geo_knowledge_graph_result', { ok: false, error: '当前环境暂不支持知识图谱接口' });
+  return null;
+};
+
 window.geoConsume = function(payload) {
   try {
     const base = getGeoApiBaseUrl();
@@ -1183,7 +1202,12 @@ async function loadPage(page) {
   if (!contentBody) return;
 
   try {
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    const main = document.querySelector('.main');
+    if (main) {
+      main.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    } else {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }
   } catch {
   }
 

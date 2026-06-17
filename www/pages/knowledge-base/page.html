@@ -1,13 +1,16 @@
 <div class="page-center">
   <div class="page-title" id="pageTitle" style="margin:0 0 12px; text-align:center;"></div>
-  <div class="kb-tabs">
-    <div class="kb-tab active" data-tab="base">企业基础信息</div>
-    <div class="kb-tab" data-tab="positioning">企业定位</div>
-    <div class="kb-tab" data-tab="docs">企业介绍</div>
-    <div class="kb-tab" data-tab="products">产品库</div>
-    <div class="kb-tab" data-tab="images">企业图片库</div>
-    <div class="kb-tab" data-tab="website">导入网址</div>
-    <div class="kb-tab" data-tab="files">导入文件</div>
+  <div class="kb-tabs-bar">
+    <div class="kb-tabs">
+      <div class="kb-tab active" data-tab="base">企业基础信息</div>
+      <div class="kb-tab" data-tab="positioning">企业定位</div>
+      <div class="kb-tab" data-tab="docs">企业介绍</div>
+      <div class="kb-tab" data-tab="products">产品库</div>
+      <div class="kb-tab" data-tab="images">企业图片库</div>
+      <div class="kb-tab" data-tab="website">导入网址</div>
+      <div class="kb-tab" data-tab="files">导入文件</div>
+    </div>
+    <button class="btn-primary kb-graph-trigger" id="openKbGraphBtn" type="button">企业知识图谱</button>
   </div>
 
   <div class="kb-panel" data-panel="base">
@@ -629,6 +632,42 @@
       </div>
     </div>
   </div>
+  <div class="modal" id="kbGraphModal">
+    <div class="modal-card kb-graph-modal-card">
+      <div class="modal-head">
+        <div>企业知识图谱</div>
+        <button class="btn-icon" id="kbGraphClose" style="background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.18); color:#fff;">✕</button>
+      </div>
+      <div class="modal-body kb-graph-modal-body">
+        <div class="kb-graph-toolbar">
+          <div class="kb-graph-summary" id="kbGraphSummary">根据当前企业知识库输入信息生成图谱，信息缺失时仅展示已填写部分。</div>
+        </div>
+        <div class="kb-graph-shell">
+          <div class="kb-graph-stage" tabindex="0">
+            <svg id="kbGraphSvg" class="kb-graph-svg" viewBox="0 0 980 620" preserveAspectRatio="xMidYMid meet"></svg>
+            <div class="kb-graph-empty hidden" id="kbGraphEmpty">暂无足够数据，请先完善企业基础信息后再生成图谱。</div>
+          </div>
+          <div class="kb-graph-side">
+            <div class="kb-graph-side-title">节点说明</div>
+            <div class="kb-graph-side-body" id="kbGraphDetail">点击图谱节点后，这里会展示该节点的详细信息。</div>
+            <div class="kb-graph-side-title" style="margin-top:14px;">图谱说明</div>
+            <div class="kb-graph-side-body" id="kbGraphMeta">图谱按企业信息的重要次序、相关性和因果关系自动组织。</div>
+            <div class="kb-graph-legend">
+              <div><span class="kb-graph-dot company"></span>企业主体</div>
+              <div><span class="kb-graph-dot section"></span>核心模块</div>
+              <div><span class="kb-graph-dot field"></span>字段节点</div>
+            </div>
+            <div class="kb-graph-actions kb-graph-actions-side">
+              <button class="btn-primary" id="zoomOutKbGraphBtn" type="button">缩小</button>
+              <button class="btn-primary" id="resetKbGraphBtn" type="button">重置</button>
+              <button class="btn-primary" id="zoomInKbGraphBtn" type="button">放大</button>
+              <button class="btn-solid" id="refreshKbGraphBtn" type="button">刷新图谱</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="modal" id="importModal">
     <div class="modal-card" style="width: 460px; max-height: 280px;">
       <div class="modal-head">
@@ -650,12 +689,29 @@
 </div>
 
 <style>
+.kb-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 10px;
+}
+
 .kb-tabs {
   display: flex;
   align-items: center;
   gap: 22px;
   padding: 10px 2px;
-  margin-bottom: 10px;
+  margin-bottom: 0;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.kb-graph-trigger {
+  min-width: 118px;
+  height: 34px;
+  padding: 0 18px;
+  white-space: nowrap;
+  margin-left: auto;
 }
 
 .kb-tab {
@@ -695,6 +751,16 @@
 .kb-table-wrap {
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.kb-panel .table-wrap {
+  max-height: none;
+  overflow-y: visible;
+}
+
+.kb-panel[data-panel="products"] .table-wrap {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
 }
 
 .kb-table {
@@ -887,5 +953,171 @@
   justify-content: flex-end;
   gap: 10px;
   margin: 16px 0 8px;
+}
+
+.kb-graph-modal-card {
+  width: min(1180px, calc(100vw - 80px));
+  max-height: calc(100vh - 70px);
+}
+
+.kb-graph-modal-body {
+  padding: 18px 18px 20px;
+}
+
+.kb-graph-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+  min-height: 28px;
+}
+
+.kb-graph-summary {
+  flex: 1;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.7;
+  margin-top: 8px;
+}
+
+.kb-graph-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  min-height: 40px;
+}
+
+.kb-graph-actions .btn-primary,
+.kb-graph-actions .btn-solid {
+  min-height: 36px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kb-graph-actions-side {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.kb-graph-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 16px;
+  min-height: 620px;
+}
+
+.kb-graph-stage {
+  position: relative;
+  background: linear-gradient(180deg, #fcfffe 0%, #f4fbf8 100%);
+  border: 1px solid rgba(20, 184, 166, 0.16);
+  border-radius: 18px;
+  overflow: hidden;
+  min-height: 620px;
+  overscroll-behavior: contain;
+  touch-action: none;
+}
+
+.kb-graph-stage:focus {
+  outline: 2px solid rgba(37, 183, 168, 0.35);
+  outline-offset: 0;
+}
+
+.kb-graph-svg {
+  width: 100%;
+  height: 620px;
+  display: block;
+  cursor: zoom-in;
+  user-select: none;
+}
+
+.kb-graph-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  text-align: center;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.kb-graph-empty.hidden {
+  display: none;
+}
+
+.kb-graph-side {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 620px;
+}
+
+.kb-graph-side-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.kb-graph-side-body {
+  font-size: 12px;
+  color: #4b5563;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.kb-graph-legend {
+  margin-top: 18px;
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.kb-graph-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.kb-graph-dot.company {
+  background: #14b8a6;
+}
+
+.kb-graph-dot.section {
+  background: #34d399;
+}
+
+.kb-graph-dot.field {
+  background: #d1fae5;
+  border: 1px solid rgba(20, 184, 166, 0.3);
+}
+
+@media (max-width: 980px) {
+  .kb-tabs-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .kb-graph-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .kb-graph-side {
+    min-height: auto;
+  }
 }
 </style>

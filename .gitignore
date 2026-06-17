@@ -38,5 +38,14 @@ desktop.ini
 # Runtime uploads (user-generated files at runtime)
 data/uploads/
 
+# Business data files (contain confidential pricing/data)
+data/*.xls
+data/*.xlsx
+
+# Word temp files
+~$*.docx
+~$*.xlsx
+~$*.pptx
+
 # Debug
 .dbg/

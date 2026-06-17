@@ -63,10 +63,23 @@ const Page = {
     const imgFileInput = document.getElementById('imgFileInput');
     const ocrHintModal = document.getElementById('ocrHintModal');
     const importModal = document.getElementById('importModal');
+    const kbGraphModal = document.getElementById('kbGraphModal');
+    const kbGraphSvg = document.getElementById('kbGraphSvg');
+    const kbGraphStage = root.querySelector('.kb-graph-stage');
+    const kbGraphModalBody = kbGraphModal?.querySelector('.kb-graph-modal-body');
+    const kbGraphSummary = document.getElementById('kbGraphSummary');
+    const kbGraphDetail = document.getElementById('kbGraphDetail');
+    const kbGraphMeta = document.getElementById('kbGraphMeta');
+    const kbGraphEmpty = document.getElementById('kbGraphEmpty');
+    const zoomInKbGraphBtn = document.getElementById('zoomInKbGraphBtn');
+    const zoomOutKbGraphBtn = document.getElementById('zoomOutKbGraphBtn');
+    const resetKbGraphBtn = document.getElementById('resetKbGraphBtn');
     const openImportModal = () => importModal?.classList.add('show');
     const closeImportModal = () => importModal?.classList.remove('show');
     const openOcrHint = () => ocrHintModal?.classList.add('show');
     const closeOcrHint = () => ocrHintModal?.classList.remove('show');
+    const openKbGraphModal = () => kbGraphModal?.classList.add('show');
+    const closeKbGraphModal = () => kbGraphModal?.classList.remove('show');
     const withOcrHint = () => {
       return new Promise((resolve) => {
         const okBtn = document.getElementById('ocrHintOk');
@@ -331,6 +344,429 @@ const Page = {
       };
     };
 
+    const collectTimelineRows = () => {
+      const rows = [];
+      document.querySelectorAll('#timelineTable tr').forEach((tr) => {
+        const tds = tr.querySelectorAll('td');
+        const t = tds[0]?.querySelector('input')?.value || '';
+        const e = tds[1]?.querySelector('input')?.value || '';
+        if (t || e) rows.push({ time: t, event: e });
+      });
+      return rows;
+    };
+
+    const collectDocsPayload = () => {
+      return {
+        company_profile: document.getElementById('companyProfile')?.value || '',
+        enterprise_library: document.getElementById('enterpriseLibrary')?.value || '',
+        timeline_rows: collectTimelineRows()
+      };
+    };
+
+    const collectPositioningPayload = () => {
+      return {
+        main_positioning: document.getElementById('mainPositioning')?.value || '',
+        sub_positioning: document.getElementById('subPositioning')?.value || ''
+      };
+    };
+
+    const svgNs = 'http://www.w3.org/2000/svg';
+    let kbGraphData = null;
+    const kbGraphViewState = {
+      scale: 1,
+      tx: 0,
+      ty: 0,
+      width: 980,
+      height: 620
+    };
+
+    const relationLabelMap = {
+      HAS_PROFILE: '基础信息',
+      HAS_BUSINESS: '核心业务',
+      SERVES_MARKET: '客户与市场',
+      HAS_ADVANTAGE: '核心优势',
+      HAS_CAPACITY: '产能与规模',
+      HAS_TEAM: '团队实力',
+      HAS_BRAND: '品牌理念',
+      HAS_QUALITY: '品质服务',
+      HAS_DIFFERENTIATOR: '差异亮点',
+      HAS_OTHER: '其他补充',
+      HAS_DOCUMENT: '企业文档',
+      INCLUDES: '包含',
+      SERVES: '服务',
+      APPLIES_TO: '适配',
+      SEGMENTS: '细分',
+      DIFFERENTIATES: '形成',
+      ENABLES: '支撑',
+      SUPPORTS: '支持',
+      ENSURES: '保障',
+      BUILDS_TRUST: '增强信任',
+      GUIDES: '指引',
+      REFINES: '细化',
+      DESCRIBES: '描述',
+      EXPANDS: '展开',
+      POSITIONS: '定位',
+      MILESTONE: '里程碑'
+    };
+
+    const createSvgEl = (tag, attrs = {}) => {
+      const el = document.createElementNS(svgNs, tag);
+      Object.entries(attrs).forEach(([key, value]) => {
+        if (value != null) el.setAttribute(key, String(value));
+      });
+      return el;
+    };
+
+    const wrapLabel = (text, limit = 6) => {
+      const raw = String(text || '').trim();
+      if (!raw) return [''];
+      const out = [];
+      for (let i = 0; i < raw.length; i += limit) out.push(raw.slice(i, i + limit));
+      return out.slice(0, 2);
+    };
+
+    const setGraphDetailText = (text) => {
+      if (kbGraphDetail) kbGraphDetail.textContent = String(text || '');
+    };
+
+    const setGraphMetaText = (text) => {
+      if (kbGraphMeta) kbGraphMeta.textContent = String(text || '');
+    };
+
+    const applyGraphTransform = () => {
+      const viewport = kbGraphSvg?.querySelector('[data-graph-viewport="true"]');
+      if (!viewport) return;
+      const transformValue = `matrix(${kbGraphViewState.scale} 0 0 ${kbGraphViewState.scale} ${kbGraphViewState.tx} ${kbGraphViewState.ty})`;
+      viewport.setAttribute('transform', transformValue);
+    };
+
+    const zoomGraphAt = (factor, centerX, centerY, tag = 'zoom') => {
+      const prevScale = kbGraphViewState.scale;
+      const nextScale = Math.max(0.55, Math.min(2.8, prevScale * factor));
+      if (Math.abs(nextScale - prevScale) < 0.0001) return;
+      const viewX = typeof centerX === 'number' ? centerX : (kbGraphViewState.width / 2);
+      const viewY = typeof centerY === 'number' ? centerY : (kbGraphViewState.height / 2);
+      const ratio = nextScale / prevScale;
+      kbGraphViewState.tx = viewX - ((viewX - kbGraphViewState.tx) * ratio);
+      kbGraphViewState.ty = viewY - ((viewY - kbGraphViewState.ty) * ratio);
+      kbGraphViewState.scale = nextScale;
+      applyGraphTransform();
+    };
+
+    const resetGraphZoom = () => {
+      kbGraphViewState.scale = 1;
+      kbGraphViewState.tx = 0;
+      kbGraphViewState.ty = 0;
+      applyGraphTransform();
+    };
+
+    const showGraphLoading = () => {
+      kbGraphData = null;
+      if (kbGraphSummary) kbGraphSummary.textContent = '图谱生成中，请稍候...';
+      setGraphDetailText('点击图谱节点后，这里会展示该节点的详细信息。');
+      setGraphMetaText('系统会按照企业信息的重要次序、相关性和因果关系生成节点与连线。');
+      if (kbGraphEmpty) {
+        kbGraphEmpty.classList.remove('hidden');
+        kbGraphEmpty.textContent = '图谱生成中，请稍候...';
+      }
+      if (kbGraphSvg) kbGraphSvg.innerHTML = '';
+    };
+
+    const formatNodeDetail = (node) => {
+      if (!node || typeof node !== 'object') return '点击图谱节点后，这里会展示该节点的详细信息。';
+      const parts = [];
+      const typeMap = {
+        company: '企业主体',
+        section: '核心模块',
+        field: '信息节点'
+      };
+      parts.push(`节点名称：${String(node.label || '未命名节点')}`);
+      parts.push(`节点类型：${typeMap[String(node.type || '')] || '信息节点'}`);
+      const props = node.properties && typeof node.properties === 'object' ? node.properties : {};
+      Object.entries(props).forEach(([key, value]) => {
+        const text = String(value ?? '').trim();
+        if (!text) return;
+        if (key === 'name') return;
+        parts.push(`${key}：${text}`);
+      });
+      return parts.join('\n');
+    };
+
+    const drawKnowledgeGraph = (payload) => {
+      if (!kbGraphSvg) return;
+      kbGraphSvg.innerHTML = '';
+      const graph = payload?.graph || {};
+      const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
+      const relationships = Array.isArray(graph.relationships) ? graph.relationships : [];
+      if (!nodes.length) {
+        if (kbGraphEmpty) {
+          kbGraphEmpty.classList.remove('hidden');
+          kbGraphEmpty.textContent = '暂无足够数据，请先完善企业基础信息后再生成图谱。';
+        }
+        return;
+      }
+      if (kbGraphEmpty) kbGraphEmpty.classList.add('hidden');
+
+      const stageWidth = kbGraphSvg.parentElement?.clientWidth || 980;
+      const width = Math.max(880, Math.round(stageWidth - 4));
+      const height = 620;
+      kbGraphViewState.width = width;
+      kbGraphViewState.height = height;
+      kbGraphSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+
+      const defs = createSvgEl('defs');
+      const marker = createSvgEl('marker', {
+        id: 'kbGraphArrow',
+        markerWidth: 10,
+        markerHeight: 10,
+        refX: 9,
+        refY: 3,
+        orient: 'auto',
+        markerUnits: 'strokeWidth'
+      });
+      marker.appendChild(createSvgEl('path', { d: 'M0,0 L0,6 L9,3 z', fill: '#9ca3af' }));
+      defs.appendChild(marker);
+      kbGraphSvg.appendChild(defs);
+
+      const pos = new Map();
+      const nodeById = new Map(nodes.map((node) => [String(node.id), node]));
+      const companyNode = nodes.find((node) => node.type === 'company') || nodes[0];
+      const sectionNodes = nodes.filter((node) => node.type === 'section');
+      const fieldNodes = nodes.filter((node) => node.type !== 'company' && node.type !== 'section');
+      const childrenBySection = new Map();
+      relationships.forEach((rel) => {
+        const start = String(rel.startNode || '');
+        const end = String(rel.endNode || '');
+        const startNode = nodeById.get(start);
+        const endNode = nodeById.get(end);
+        if (!startNode || !endNode) return;
+        if (startNode.type === 'section' && endNode.type !== 'section') {
+          if (!childrenBySection.has(start)) childrenBySection.set(start, []);
+          childrenBySection.get(start).push(endNode);
+        }
+      });
+
+      const cx = width / 2;
+      const cy = height / 2 - 6;
+      pos.set(String(companyNode.id), { x: cx, y: cy });
+
+      const sectionRadiusX = Math.max(210, Math.min(290, width * 0.27));
+      const sectionRadiusY = 185;
+      const sectionAngles = new Map();
+      sectionNodes.forEach((node, idx) => {
+        const angle = (-Math.PI / 2) + ((Math.PI * 2) * idx / Math.max(sectionNodes.length, 1));
+        sectionAngles.set(String(node.id), angle);
+        pos.set(String(node.id), {
+          x: cx + Math.cos(angle) * sectionRadiusX,
+          y: cy + Math.sin(angle) * sectionRadiusY
+        });
+      });
+
+      sectionNodes.forEach((sectionNode) => {
+        const sid = String(sectionNode.id);
+        const sectionPos = pos.get(sid);
+        const items = childrenBySection.get(sid) || [];
+        const baseAngle = sectionAngles.get(sid) || 0;
+        const outerRadius = Math.min(210, 138 + items.length * 10);
+        const arcSpan = Math.min(2.2, Math.max(0.7, items.length * 0.34));
+        items.forEach((node, idx) => {
+          const angle = items.length === 1
+            ? baseAngle
+            : (baseAngle - arcSpan / 2) + ((arcSpan * idx) / Math.max(items.length - 1, 1));
+          pos.set(String(node.id), {
+            x: sectionPos.x + Math.cos(angle) * outerRadius,
+            y: sectionPos.y + Math.sin(angle) * (outerRadius - 20)
+          });
+        });
+      });
+
+      const unplaced = fieldNodes.filter((node) => !pos.has(String(node.id)));
+      unplaced.forEach((node, idx) => {
+        const angle = ((Math.PI * 2) * idx) / Math.max(unplaced.length, 1);
+        pos.set(String(node.id), {
+          x: cx + Math.cos(angle) * 120,
+          y: cy + Math.sin(angle) * 90
+        });
+      });
+
+      const viewportLayer = createSvgEl('g', { 'data-graph-viewport': 'true' });
+      const edgeLayer = createSvgEl('g');
+      const nodeLayer = createSvgEl('g');
+      viewportLayer.appendChild(edgeLayer);
+      viewportLayer.appendChild(nodeLayer);
+      kbGraphSvg.appendChild(viewportLayer);
+
+      relationships.forEach((rel) => {
+        const from = pos.get(String(rel.startNode || ''));
+        const to = pos.get(String(rel.endNode || ''));
+        if (!from || !to) return;
+        const startNode = nodeById.get(String(rel.startNode || ''));
+        const endNode = nodeById.get(String(rel.endNode || ''));
+        const line = createSvgEl('line', {
+          x1: from.x,
+          y1: from.y,
+          x2: to.x,
+          y2: to.y,
+          stroke: startNode?.type === 'company' ? '#9ddad4' : '#cbd5e1',
+          'stroke-width': startNode?.type === 'company' ? 2.2 : 1.4,
+          'stroke-dasharray': rel.type === 'INCLUDES' ? '0' : '4 3',
+          'marker-end': 'url(#kbGraphArrow)'
+        });
+        edgeLayer.appendChild(line);
+
+        const showLabel = !String(rel.type || '').startsWith('HAS_') && rel.type !== 'INCLUDES';
+        if (showLabel) {
+          const label = createSvgEl('text', {
+            x: ((from.x + to.x) / 2),
+            y: ((from.y + to.y) / 2) - 4,
+            'text-anchor': 'middle',
+            'font-size': 10,
+            fill: '#64748b'
+          });
+          label.textContent = relationLabelMap[String(rel.type || '')] || String(rel.type || '');
+          edgeLayer.appendChild(label);
+        }
+      });
+
+      nodes.forEach((node) => {
+        const point = pos.get(String(node.id));
+        if (!point) return;
+        const group = createSvgEl('g', { class: 'kb-graph-node', tabindex: 0, role: 'button' });
+        const radius = Number(node.size || 20);
+        const circle = createSvgEl('circle', {
+          cx: point.x,
+          cy: point.y,
+          r: radius,
+          fill: node.color || '#d1fae5',
+          stroke: node.type === 'field' ? 'rgba(20,184,166,0.22)' : 'rgba(15,23,42,0.08)',
+          'stroke-width': node.type === 'company' ? 3 : 1.5
+        });
+        const title = createSvgEl('title');
+        const valueText = node?.properties?.value ? `\n${String(node.properties.value)}` : '';
+        title.textContent = `${String(node.label || '')}${valueText}`;
+        group.appendChild(title);
+        group.appendChild(circle);
+
+        const lines = wrapLabel(node.label, node.type === 'company' ? 7 : 5);
+        const text = createSvgEl('text', {
+          x: point.x,
+          y: point.y - (lines.length > 1 ? 6 : 0),
+          'text-anchor': 'middle',
+          'font-size': node.type === 'field' ? 11 : 12,
+          'font-weight': node.type === 'field' ? 600 : 700,
+          fill: '#0f172a'
+        });
+        lines.forEach((line, idx) => {
+          const tspan = createSvgEl('tspan', {
+            x: point.x,
+            dy: idx === 0 ? 0 : 14
+          });
+          tspan.textContent = line;
+          text.appendChild(tspan);
+        });
+        group.appendChild(text);
+
+        const onSelect = () => setGraphDetailText(formatNodeDetail(node));
+        group.addEventListener('click', onSelect);
+        group.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onSelect();
+          }
+        });
+        nodeLayer.appendChild(group);
+      });
+
+      setGraphDetailText(formatNodeDetail(companyNode));
+      applyGraphTransform();
+    };
+
+    const renderKnowledgeGraphPayload = (payload) => {
+      kbGraphData = payload || null;
+      const meta = payload?.meta || {};
+      if (kbGraphSummary) {
+        kbGraphSummary.textContent = `已生成 ${meta.node_count || 0} 个节点、${meta.relationship_count || 0} 条关系，信息完整度约 ${meta.completeness || 0}%。可使用顶部按钮或鼠标滚轮缩放图谱。`;
+      }
+      const summaryLines = Array.isArray(meta.summary_lines) ? meta.summary_lines : [];
+      const metaText = [
+        `企业主体：${String(meta.company_name || '未命名企业')}`,
+        `覆盖模块：${meta.section_count || 0}`,
+        `已填写字段：${meta.filled_fields || 0}`,
+        ...summaryLines
+      ].join('\n');
+      setGraphMetaText(metaText);
+      drawKnowledgeGraph(payload);
+    };
+
+    const requestKnowledgeGraph = () => {
+      showGraphLoading();
+      window.geoGenerateKnowledgeGraph?.({
+        base: collectBasePayload().data || {},
+        docs: collectDocsPayload(),
+        positioning: collectPositioningPayload()
+      });
+    };
+
+    const handleGraphWheel = (event) => {
+      if (!kbGraphData) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const rect = kbGraphSvg.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const viewX = ((event.clientX - rect.left) / rect.width) * kbGraphViewState.width;
+      const viewY = ((event.clientY - rect.top) / rect.height) * kbGraphViewState.height;
+      zoomGraphAt(event.deltaY < 0 ? 1.12 : 0.9, viewX, viewY, 'wheel-zoom');
+    };
+
+    const routeGraphWheel = (event) => {
+      if (!kbGraphData) return;
+      if (!kbGraphModal?.classList.contains('show')) return;
+      if (!kbGraphStage) return;
+      const rect = kbGraphStage.getBoundingClientRect();
+      const insideX = event.clientX >= rect.left && event.clientX <= rect.right;
+      const insideY = event.clientY >= rect.top && event.clientY <= rect.bottom;
+      if (!insideX || !insideY) return;
+      handleGraphWheel(event);
+    };
+
+    kbGraphStage?.addEventListener('wheel', handleGraphWheel, { passive: false });
+    kbGraphSvg?.addEventListener('wheel', handleGraphWheel, { passive: false });
+    kbGraphModalBody?.addEventListener('wheel', routeGraphWheel, { passive: false, capture: true });
+    kbGraphModal?.addEventListener('wheel', routeGraphWheel, { passive: false, capture: true });
+    kbGraphStage?.addEventListener('mouseenter', () => {
+      kbGraphStage.focus?.();
+    });
+    kbGraphStage?.addEventListener('click', () => {
+      kbGraphStage.focus?.();
+    });
+    kbGraphStage?.addEventListener('keydown', (event) => {
+      if (!kbGraphData) return;
+      if (event.key === '+' || event.key === '=') {
+        event.preventDefault();
+        zoomGraphAt(1.12, undefined, undefined, 'keyboard-zoom-in');
+      }
+      if (event.key === '-' || event.key === '_') {
+        event.preventDefault();
+        zoomGraphAt(0.9, undefined, undefined, 'keyboard-zoom-out');
+      }
+      if (event.key === '0') {
+        event.preventDefault();
+        resetGraphZoom();
+      }
+    });
+    zoomInKbGraphBtn?.addEventListener('click', () => {
+      if (!kbGraphData) return;
+      zoomGraphAt(1.12, undefined, undefined, 'button-zoom-in');
+    });
+    zoomOutKbGraphBtn?.addEventListener('click', () => {
+      if (!kbGraphData) return;
+      zoomGraphAt(0.9, undefined, undefined, 'button-zoom-out');
+    });
+    resetKbGraphBtn?.addEventListener('click', () => {
+      if (!kbGraphData) return;
+      resetGraphZoom();
+    });
+
     root.querySelectorAll('button.kb-save').forEach((btn) => {
       btn.addEventListener('click', () => {
         const payload = collectBasePayload();
@@ -351,6 +787,19 @@ const Page = {
       } catch {
       }
       window.geoSave?.(payload);
+    });
+
+    document.getElementById('openKbGraphBtn')?.addEventListener('click', () => {
+      openKbGraphModal();
+      kbGraphStage?.focus?.();
+      requestKnowledgeGraph();
+    });
+    document.getElementById('refreshKbGraphBtn')?.addEventListener('click', () => {
+      requestKnowledgeGraph();
+    });
+    document.getElementById('kbGraphClose')?.addEventListener('click', closeKbGraphModal);
+    kbGraphModal?.addEventListener('click', (event) => {
+      if (event.target === kbGraphModal) closeKbGraphModal();
     });
 
     const modal = document.getElementById('imgModal');
@@ -1421,6 +1870,32 @@ const Page = {
     };
     window.addEventListener('message', onAiMessage);
 
+    const onGraphMessage = (event) => {
+      const d = event?.data;
+      if (!d || typeof d !== 'object') return;
+      if (d.type !== 'geo_knowledge_graph_result') return;
+      const payload = d.payload || d;
+      if (!payload?.ok) {
+        if (kbGraphSummary) kbGraphSummary.textContent = String(payload?.error || '图谱生成失败');
+        setGraphMetaText(String(payload?.error || '图谱生成失败，请稍后重试。'));
+        if (kbGraphEmpty) {
+          kbGraphEmpty.classList.remove('hidden');
+          kbGraphEmpty.textContent = String(payload?.error || '图谱生成失败');
+        }
+        if (kbGraphSvg) kbGraphSvg.innerHTML = '';
+        return;
+      }
+      renderKnowledgeGraphPayload(payload);
+    };
+    window.addEventListener('message', onGraphMessage);
+
+    const onGraphResize = () => {
+      if (!kbGraphData) return;
+      if (!kbGraphModal?.classList.contains('show')) return;
+      renderKnowledgeGraphPayload(kbGraphData);
+    };
+    window.addEventListener('resize', onGraphResize);
+
     const onUploadMessage = (event) => {
       const d = event?.data;
       if (!d || typeof d !== 'object') return;
@@ -1465,7 +1940,11 @@ const Page = {
       }
       window.removeEventListener('message', onKbMessage);
       window.removeEventListener('message', onAiMessage);
+      window.removeEventListener('message', onGraphMessage);
       window.removeEventListener('message', onUploadMessage);
+      window.removeEventListener('resize', onGraphResize);
+      kbGraphModalBody?.removeEventListener('wheel', routeGraphWheel, true);
+      kbGraphModal?.removeEventListener('wheel', routeGraphWheel, true);
     };
 
     window.geoQueryKnowledgeBase?.({ section: '企业基础信息', ts: Date.now() });
