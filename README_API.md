@@ -815,6 +815,7 @@ Authorization: Bearer <accessToken>
 |------|------|------|------|
 | GET | `/` | 是 | 获取知识库分区数据 |
 | POST | `/save` | 是 | 保存知识库分区数据 |
+| POST | `/graph` | 是 | 生成企业知识图谱（返回节点、关系与统计信息） |
 | POST | `/products/import` | 是 | 导入产品 Excel |
 
 ### 8.1 获取知识库分区
@@ -864,7 +865,37 @@ Content-Type: application/json
 > 当 section 为"企业基础信息"时，自动同步写入 enterprise_base_info 表。
 > 使用 INSERT ... ON DUPLICATE KEY UPDATE（UNIQUE KEY: user_id + section）实现幂等保存。
 
-### 8.3 导入产品 Excel
+### 8.3 生成企业知识图谱
+
+```
+POST /api/v1/knowledge-base/graph
+Content-Type: application/json
+
+{
+  "base": {
+    "企业全称": "某某科技有限公司",
+    "企业简称": "某某科技",
+    "主营产品": "智能水表",
+    "目标客户": "物业公司"
+  },
+  "docs": {
+    "company_profile": "企业简介...",
+    "enterprise_library": "企业介绍..."
+  },
+  "positioning": {
+    "main_positioning": "主营定位",
+    "sub_positioning": "细分定位"
+  }
+}
+```
+
+说明：
+
+- 后端会合并已保存的知识库内容与本次请求体中的 `base / docs / positioning`。
+- 返回值包含 `graph.nodes`、`graph.relationships` 以及 `meta.company_name / node_count / relationship_count / completeness / summary_lines` 等统计信息。
+- 前端知识图谱弹窗据此渲染 SVG 图谱，并支持滚轮缩放与右侧按钮缩放。
+
+### 8.4 导入产品 Excel
 
 ```
 POST /api/v1/knowledge-base/products/import
@@ -1070,10 +1101,16 @@ Content-Type: application/json
 
 ## 前端路由与 API 调用关系
 
+补充说明：
+
+- `www/index.js` 在 iframe / Shiny 宿主场景下通过 `postMessage` 桥接文章列表、文章详情、发布记录与官媒查询结果，再分发为 `geo_articles_data`、`geo_article_detail` 等前端消息。
+- 桌面端 UI 使用固定左侧边栏、右侧独立滚动的后台布局；发布页的选文列表默认仅展示约 5 行，预览区超长内容在容器内滚动。
+- 企业知识图谱弹窗位于企业知识库页面，顶部保留统计说明，缩放与刷新按钮位于右侧说明栏底部。
+
 | 前端页面 | 主要调用的 API |
 |----------|----------------|
 | 工作台 (home) | /api/v1/health、/api/v1/billing/balance |
-| 企业知识库 (knowledge-base) | /api/v1/knowledge-base/*、/api/v1/files/*、/api/v1/products、/api/v1/enterprise-images |
+| 企业知识库 (knowledge-base) | /api/v1/knowledge-base/*（含 `/graph`）、/api/v1/files/*、/api/v1/products、/api/v1/enterprise-images |
 | 基础数据诊断 | /api/v1/ai/execute (task=data_diagnosis) |
 | 企业官网诊断 | /api/v1/ai/execute (task=website_diagnosis) |
 | 竞争对手分析 | /api/v1/ai/execute (task=competitor_analysis) |
@@ -1083,8 +1120,8 @@ Content-Type: application/json
 | 问题词库管理 (question-bank-manager) | GET /api/v1/question-words、DELETE /api/v1/question-words |
 | 文章创作 (article-writing) | POST /api/v1/articles（生成并入库）、POST /api/v1/article-writing/suggestions（生成优化建议）、POST /api/v1/article-writing/rewrite（重新优化/改稿） |
 | 文章管理 (article-manager) | GET/PUT/DELETE /api/v1/articles |
-| 自媒体发布 (media-publish) | POST /api/v1/publish-records |
-| 官媒发布 (official-publish) | GET /api/v1/official-media/* |
+| 自媒体发布 (media-publish) | GET /api/v1/articles、GET /api/v1/articles/{id}、POST /api/v1/publish-records |
+| 官媒发布 (official-publish) | GET /api/v1/articles、GET /api/v1/articles/{id}、GET /api/v1/official-media/*、POST /api/v1/official-publish/submit |
 | 发布管理 (publish-manager) | GET /api/v1/publish-records |
 | 数据统计 (data-statistics) | /api/v1/articles (count)、/api/v1/publish-records (count) |
 | 消耗明细 (config) | GET /api/v1/billing/transactions |

@@ -1542,6 +1542,39 @@ async def knowledge_base_save(body: dict, user=Depends(get_current_user)):
     return ok({"saved": True, "section": sec})
 
 
+@app.post("/api/v1/knowledge-base/graph")
+async def knowledge_base_graph(body: dict = Body(default={}), user=Depends(get_current_user)):
+    from backend.utils.kb_graph import build_knowledge_graph
+
+    saved_base = load_kb_section(user["id"], "企业基础信息")
+    saved_docs = load_kb_section(user["id"], "docs")
+    saved_positioning = load_kb_section(user["id"], "positioning")
+
+    req_base = body.get("base")
+    req_docs = body.get("docs")
+    req_positioning = body.get("positioning")
+
+    kb_base = {}
+    if isinstance(saved_base, dict):
+        kb_base.update(saved_base)
+    if isinstance(req_base, dict):
+        kb_base.update(req_base)
+
+    kb_docs = {}
+    if isinstance(saved_docs, dict):
+        kb_docs.update(saved_docs)
+    if isinstance(req_docs, dict):
+        kb_docs.update(req_docs)
+
+    kb_positioning = {}
+    if isinstance(saved_positioning, dict):
+        kb_positioning.update(saved_positioning)
+    if isinstance(req_positioning, dict):
+        kb_positioning.update(req_positioning)
+
+    return ok(build_knowledge_graph(kb_base=kb_base, kb_docs=kb_docs, kb_positioning=kb_positioning))
+
+
 @app.post("/api/v1/knowledge-base/products/import")
 async def knowledge_base_import_products(file: UploadFile = File(...), user=Depends(get_current_user)):
     import pandas as pd

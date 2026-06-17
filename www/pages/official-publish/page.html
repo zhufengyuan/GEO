@@ -1,39 +1,5 @@
 <div class="page-title" id="pageTitle" style="margin:0 0 12px;"></div>
 <div class="op-center">
-  <div class="card op-article-card" id="opArticleCard" style="margin:0 0 12px;">
-    <div class="op-step-title">第一步：选择文案</div>
-    <div class="toolbar" style="margin: 10px 0;">
-      <div class="toolbar-left">
-        <input class="input" id="opArticleKeyword" placeholder="请输入文章名称" />
-        <span class="page-muted">搜索</span>
-      </div>
-      <div class="toolbar-right">
-        <button class="btn-solid" id="opFilterByDateBtn" type="button">按日期筛选</button>
-      </div>
-    </div>
-
-    <div class="table-wrap square" style="margin-bottom: 12px; max-height: 420px; overflow: auto;">
-      <table>
-        <thead>
-          <tr>
-            <th style="width: 80px;">序号</th>
-            <th>文章名称</th>
-            <th style="width: 160px;">生成日期</th>
-            <th style="width: 120px;">选择</th>
-          </tr>
-        </thead>
-        <tbody id="opPickArticleTable">
-          <tr><td colspan="4" class="empty">加载中...</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="mp-preview">
-      <div class="mp-preview-title">文案预览</div>
-      <div class="mp-preview-body" id="opArticlePreview">请先在上方选择文章</div>
-    </div>
-  </div>
-
   <div class="filter-panel" id="po2Root">
     <div class="filter-row">
       <span class="row-label">平台：</span>
@@ -80,6 +46,40 @@
     <button class="btn-reset" id="po2ImportBtn" type="button">导入Excel</button>
   </div>
 
+  <div class="card op-article-card" id="opArticleCard" style="margin:12px 0;">
+    <div class="op-step-title">第一步：选择文案</div>
+    <div class="toolbar" style="margin: 10px 0;">
+      <div class="toolbar-left">
+        <input class="input" id="opArticleKeyword" placeholder="请输入文章名称" />
+        <span class="page-muted">搜索</span>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn-solid" id="opFilterByDateBtn" type="button">按日期筛选</button>
+      </div>
+    </div>
+
+    <div class="table-wrap square op-article-pick-wrap" style="margin-bottom: 12px;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 80px;">序号</th>
+            <th>文章名称</th>
+            <th style="width: 160px;">生成日期</th>
+            <th style="width: 120px;">选择</th>
+          </tr>
+        </thead>
+        <tbody id="opPickArticleTable">
+          <tr><td colspan="4" class="empty">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mp-preview">
+      <div class="mp-preview-title">文案预览</div>
+      <div class="mp-preview-body" id="opArticlePreview">请先在上方选择文章</div>
+    </div>
+  </div>
+
   <div class="tab-bar">
     <div class="tab-item active" id="tab-all">全部&nbsp;<span id="cnt-all">…</span></div>
     <div class="tab-item" id="tab-website">全国网站媒体&nbsp;<span id="cnt-website">…</span></div>
@@ -102,8 +102,9 @@
 .op-article-card{background:rgba(255,255,255,.92);border:1px solid rgba(15,23,42,.08);box-shadow:0 8px 18px rgba(15,23,42,.08)}
 
 .mp-preview{border:1px solid rgba(15,23,42,.12);border-radius:2px;background:rgba(255,255,255,.9);padding:12px 14px}
+.op-article-pick-wrap{max-height:262px;overflow-y:auto;overflow-x:auto}
 .mp-preview-title{font-size:13px;font-weight:800;color:#111827;margin-bottom:8px}
-.mp-preview-body{min-height:120px;font-size:12px;color:#6b7280;line-height:1.8;white-space:pre-wrap}
+.mp-preview-body{min-height:96px;max-height:220px;overflow-y:auto;overflow-x:hidden;font-size:12px;color:#6b7280;line-height:1.8;white-space:pre-wrap}
 
 .filter-panel{background:#fff;border-bottom:1px solid #eee;padding:14px 20px 10px;border-radius:10px;border:1px solid rgba(15,23,42,.08)}
 .filter-row{display:flex;align-items:flex-start;padding:6px 0;border-bottom:1px solid #f5f5f5;gap:8px}

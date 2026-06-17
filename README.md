@@ -61,7 +61,7 @@ STEP 1  创建问题词库  →  STEP 2  文章创作  →  STEP 3  媒体发布
 |------|------|----------|----------|
 | STEP 1 | 问题词库 | question-bank | 输入企业名、行业/产品关键词（问题关键词）、区域词、功能词、场景词、使用人群等；点击生成后由 LLM 按决策阶段自动产出问题列表（认知触发阶段不少于 50 条，其余阶段不少于 30 条），并在“问题词库管理”中可筛选、导出、批量删除 |
 | STEP 2 | 文章创作 | article-writing | 基于问题词，按产品宣传 / 企业品牌 / 主题活动创作三种类型，配置平台、风格、品牌嵌入规则，AI 批量生成内容 |
-| STEP 3 | 媒体发布 | media-publish / official-publish | 从媒体资源库筛选全国网站媒体和官方自媒体（含报价、平台、地区、粉丝数、认证等），一键投放文章 |
+| STEP 3 | 媒体发布 | media-publish / official-publish | 从媒体资源库筛选全国网站媒体和官方自媒体（含报价、平台、地区、粉丝数、认证等），支持先选文章再筛选媒体并记录发布 |
 | STEP 4 | 发布管理 | publish-manager | 统一管理所有发布记录，追踪收录状态与引用次数 |
 
 #### 文章创作（article-writing）补充说明
@@ -72,6 +72,12 @@ STEP 1  创建问题词库  →  STEP 2  文章创作  →  STEP 3  媒体发布
 - 企业品牌创作：每次“开启创作”生成 3 篇同类型不同版本；右侧提供 3 张结果卡片，每张卡片均直接显示对应的初稿文案和优化建议。
 - 重新优化：等同 rewrite，生成改稿版本；企业品牌创作可在 3 个优化区域中选择其中 1 篇点击“确定”写入文章管理，标题前缀为【改稿1】/【改稿2】/【改稿3】。
 - 滚动规则：页面不会因右侧内容撑高；长内容只在“初稿文案”和“优化建议”的各自显示区域内纵向滚动。
+
+#### 发布页面（media-publish / official-publish）补充说明
+
+- 自媒体发布、官媒发布的“选择文章”列表默认限制为约 5 行可视高度，超出后在列表内纵向滚动。
+- 两个页面的“文章展示区 / 文案预览”已收紧为固定预览高度，长文内容通过展示区内部滚动查看。
+- 官媒发布页面的筛选条件、筛选路径、关键词搜索栏已整体置顶，位于“第一步：选择文案”上方。
 
 ### 数据分析与监控
 
@@ -104,7 +110,7 @@ STEP 1  创建问题词库  →  STEP 2  文章创作  →  STEP 3  媒体发布
 │    ├── services/ ─── 服务层（业务逻辑）                                │
 │    │   ├── auth_service.py    用户认证（passlib bcrypt）               │
 │    │   ├── llm_service.py     大模型调用（httpx 异步 / requests 同步）│
-│    │   ├── prompt_service.py  提示词模板渲染（20 个 .txt 模板）       │
+│    │   ├── prompt_service.py  提示词模板渲染（26 个 .txt 模板）       │
 │    │   ├── excel_service.py   Excel 媒体报价读取                      │
 │    │   └── consume_service.py 消耗记录                               │
 │    │                                                                 │
@@ -127,7 +133,7 @@ STEP 1  创建问题词库  →  STEP 2  文章创作  →  STEP 3  媒体发布
 │                                                                      │
 │  index.html → 全局壳（header + sidebar + content 容器）               │
 │  index.js ─── 路由引擎（PAGES 映射表 → 动态加载 page.html + page.js）│
-│  styles/theme.css ── CSS Variables 主题（蓝紫色调，毛玻璃风格）        │
+│  styles/theme.css ── CSS Variables 主题（浅色后台 + 青绿色主色）       │
 │  pages/* ─── 23 个功能页目录，每页独立 HTML + JS                      │
 │  pages/_shared/ ── 公共页面模板                                       │
 │  pages/diag-common.js ── 诊断模块公共脚本                           │
@@ -254,7 +260,7 @@ CREATE DATABASE IF NOT EXISTS geo CHARACTER SET utf8mb4 COLLATE utf8mb4_general_
 - `DB_HOST=YOUR_DB_HOST`
 - `DB_PASSWORD=YOUR_DB_PASSWORD`
 - `LLM_URL=http://YOUR_LLM_HOST:5200/wenxinqianfan`
-- `WENXIN_API_KEY`、`WENXIN_SECRET_KEY` 请通过环境变量配置
+- `WENXIN_API_KEY / WENXIN_SECRET_KEY` 已写入配置文件
 
 4) 启动
 
@@ -676,6 +682,9 @@ plans 初始数据：
 
 前端通过 www/index.js 中的 PAGES 映射表实现路由。每个页面由 page.html（结构）和 page.js（逻辑）组成，通过 ES Module 动态加载。
 
+- 桌面端采用固定左侧边栏 + 右侧内容区独立滚动的后台布局。
+- 当前 UI 主题已统一为浅色后台、白色卡片、青绿色主色按钮与圆角侧边栏高亮风格。
+
 | 路由键 | 页面标题 | 文件路径 | 侧边栏分组 |
 |--------|----------|----------|------------|
 | home | 工作台 | pages/home/ | —（顶级） |
@@ -777,7 +786,7 @@ Refresh Token（有效期 30 天）：
 
 ## 提示词模板系统
 
-系统使用 20 个 .txt 模板文件驱动 AI 内容生成，通过 prompt_service.py 的 render_prompt() 函数替换 {{key}} 占位符。
+系统使用 26 个 .txt 模板文件驱动 AI 内容生成，通过 prompt_service.py 的 render_prompt() 函数替换 {{key}} 占位符。
 
 ### 模板文件清单
 
