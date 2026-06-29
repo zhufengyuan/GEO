@@ -15,6 +15,7 @@ const Page = {
     const MODELS = [
       { id: 'doubao', name: '豆包' },
       { id: 'yuanbao', name: '元宝' },
+      { id: 'deepseek', name: 'deepseek' },
       { id: 'qianwen', name: '千问' },
       { id: 'wenxin', name: '文心' }
     ];
@@ -233,7 +234,7 @@ const Page = {
       }
       const combined = parts.join('\n');
       if (!combined.trim()) {
-        alert('请先生成四个模型的分析结果');
+        alert('请先生成各模型的分析结果');
         setBusy(false);
         return;
       }
@@ -242,7 +243,7 @@ const Page = {
 
       const req_id = `odd_summary_${Date.now()}_${Math.random().toString(16).slice(2)}`;
       const prompt =
-        "请把下面四个大模型的诊断分析内容综合起来，去重汇总，生成一篇新的文章（结构清晰，可直接发布）。\n" +
+        "请把下面多个大模型的诊断分析内容综合起来，去重汇总，生成一篇新的文章（结构清晰，可直接发布）。\n" +
         "要求：标题+正文；要点分段；尽量引用具体结论；避免重复。\n\n" +
         combined;
       window.geoAiExecute?.({ task: TASK, req_id, manual: prompt, page_context });

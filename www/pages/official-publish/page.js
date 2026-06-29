@@ -9,6 +9,8 @@ const Page = {
     const articlePreview = document.getElementById('opArticlePreview');
     const articleKeyword = document.getElementById('opArticleKeyword');
     const filterByDateBtn = document.getElementById('opFilterByDateBtn');
+    const publishBtn = document.getElementById('opPublishBtn');
+    const selectedMediaHint = document.getElementById('opSelectedMediaHint');
 
     const cleanups = [];
     const on = (el, evt, fn, options) => {
@@ -22,6 +24,7 @@ const Page = {
       details: {},
       selectedId: '',
       previewId: '',
+      selectedMedia: null,
       keyword: '',
       dateStart: '',
       dateEnd: ''
@@ -104,6 +107,24 @@ const Page = {
       return { id, detail, text: `${title}\n\n${content}`.trim() };
     };
 
+    const renderSelectedMedia = () => {
+      if (!selectedMediaHint) return;
+      const media = state.selectedMedia;
+      if (!media) {
+        selectedMediaHint.textContent = '请先在上方选择一个官媒';
+        return;
+      }
+      const name = String(media.name || '').trim() || '未命名媒体';
+      const platform = String(media.platform || media.region || '').trim();
+      const price = String(media.price || '').trim();
+      const note = String(media.note || media.rate || media.speed || '').trim();
+      const parts = [`已选择官媒：${name}`];
+      if (platform) parts.push(`平台/地区：${platform}`);
+      if (price) parts.push(`价格：${price}`);
+      if (note) parts.push(`说明：${note}`);
+      selectedMediaHint.textContent = parts.join('｜');
+    };
+
     const requestList = () => {
       window.geoQueryArticles?.({ limit: 200, keyword: state.keyword, ts: Date.now() });
     };
@@ -181,7 +202,6 @@ const Page = {
       keyword: document.getElementById('po2Keyword'),
       searchBtn: document.getElementById('po2SearchBtn'),
       resetBtn: document.getElementById('po2ResetBtn'),
-      importBtn: document.getElementById('po2ImportBtn'),
       crumbResetBtn: document.getElementById('po2CrumbResetBtn'),
       tabAll: document.getElementById('tab-all'),
       tabWebsite: document.getElementById('tab-website'),
@@ -197,30 +217,54 @@ const Page = {
 
     const poCleanup = initPublicOpinion(els, {
       dataSource: 'official_media_api',
-      actionMode: 'publish',
-      onPublish: async (payload) => {
-        const sel = ensureSelected();
-        if (!sel) {
-          alert('请先选择要发布的文案（文章）');
-          return;
-        }
-
-        const platform = String(payload?.platform || '').trim();
-        const mediaName = String(payload?.media || '').trim();
-        const platformCode = String(platform || mediaName || 'official_media').trim().slice(0, 50);
-
-        const r = await window.geoSubmitOfficialPublish?.({
-          article_id: sel.id,
-          platform_code: platformCode,
-          platform,
-          media_name: mediaName,
-          copy: sel.text,
-          ts: Date.now()
-        });
-        if (!r) return;
-        alert('已提交渠道审核，请稍后到“发布管理”查看发布链接。');
-        window.geoConsume?.({ event_type: 'publish', page: 'official-publish', action: 'submit', units: 1, amount: 0 });
+      renderMode: 'select_table',
+      pageSize: 10,
+      onSelectItem: (item) => {
+        state.selectedMedia = item || null;
+        renderSelectedMedia();
       }
+    });
+
+    on(publishBtn, 'click', async () => {
+      const sel = ensureSelected();
+      if (!state.selectedMedia) {
+        alert('请先选择要发布的官媒');
+        return;
+      }
+      if (!sel) {
+        alert('请先选择要发布的文案（文章）');
+        return;
+      }
+
+      const platform = String(state.selectedMedia.platform || state.selectedMedia.region || '').trim();
+      const mediaName = String(state.selectedMedia.name || '').trim();
+      const platformCode = String(platform || mediaName || 'official_media').trim().slice(0, 50);
+
+      const saveResult = await window.geoSaveOfficialPublishDraft?.({
+        article_id: sel.id,
+        article_title: String(sel.detail?.title || '').trim(),
+        content: sel.text,
+        platform,
+        media_name: mediaName,
+        price: String(state.selectedMedia.price || '').trim(),
+        note: String(state.selectedMedia.note || state.selectedMedia.rate || state.selectedMedia.speed || '').trim(),
+        ts: Date.now()
+      });
+      if (!saveResult) return;
+
+      const submitResult = await window.geoSubmitOfficialPublish?.({
+        article_id: sel.id,
+        platform_code: platformCode,
+        platform,
+        media_name: mediaName,
+        copy: sel.text,
+        ts: Date.now()
+      });
+      if (!submitResult) return;
+
+      const savedPath = String(saveResult?.data?.url || saveResult?.data?.path || '').trim();
+      alert(savedPath ? `已保存到 upload 文件夹：${savedPath}` : '已保存到后台 upload 文件夹');
+      window.geoConsume?.({ event_type: 'publish', page: 'official-publish', action: 'submit', units: 1, amount: 0 });
     });
 
     if (typeof poCleanup === 'function') cleanups.push(poCleanup);
@@ -236,6 +280,7 @@ const Page = {
     renderArticles();
     requestList();
     setPreviewById('');
+    renderSelectedMedia();
     return;
   },
   destroy() {

@@ -406,10 +406,23 @@ export function initPublicOpinion(els, options = {}) {
   let keyword = '';
   let currentTab = 'all';
   let currentPage = 1;
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = Math.max(1, Number(options?.pageSize || 20) || 20);
+  const renderMode = String(options?.renderMode || '').trim();
   let allData = [];
   let filteredData = [];
   let isLoading = false;
+  let selectedItemKey = '';
+
+  const makeItemKey = (item) => {
+    if (!item || typeof item !== 'object') return '';
+    return [
+      toText(item.type),
+      toText(item.name),
+      toText(item.platform),
+      toText(item.price),
+      toText(item.url)
+    ].join('||');
+  };
 
   const loadXlsxLib = async () => {
     if (window.XLSX) return true;
@@ -653,6 +666,43 @@ export function initPublicOpinion(els, options = {}) {
     if (total === 0) {
       els.list.innerHTML = '<div class="empty-state">暂无匹配结果</div>';
       if (els.pagination) els.pagination.innerHTML = '';
+      return;
+    }
+
+    if (renderMode === 'select_table') {
+      const rows = pageData
+        .map((d, idx) => {
+          const absoluteIndex = start + idx;
+          const intro = d.note || d.rate || d.speed || '—';
+          const metaA = d.type === 'media' ? (d.platform || '—') : (d.region || '—');
+          const metaB = d.industry || d.fans || '—';
+          const checked = makeItemKey(d) === selectedItemKey ? 'checked' : '';
+          return `<tr>
+            <td>${absoluteIndex + 1}</td>
+            <td class="po-media-name-cell">${escapeHtml(d.name || '—')}</td>
+            <td class="po-media-intro-cell">${escapeHtml(intro)}</td>
+            <td>${escapeHtml(metaA)}</td>
+            <td>${escapeHtml(metaB)}</td>
+            <td>${escapeHtml(d.price || '—')}</td>
+            <td><input type="radio" name="poMediaPick" class="po-media-check" data-index="${absoluteIndex}" ${checked} /></td>
+          </tr>`;
+        })
+        .join('');
+      els.list.innerHTML = `<div class="po-pick-table-wrap"><table class="po-pick-table">
+        <thead>
+          <tr>
+            <th style="width:72px;">序号</th>
+            <th style="min-width:180px;">媒体名称</th>
+            <th style="min-width:320px;">介绍</th>
+            <th style="min-width:120px;">平台/地区</th>
+            <th style="min-width:120px;">行业/粉丝</th>
+            <th style="width:120px;">价格</th>
+            <th style="width:96px;">选择</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+      renderPagination(total, Math.max(1, totalPages));
       return;
     }
 
@@ -924,6 +974,19 @@ export function initPublicOpinion(els, options = {}) {
     alert('已复制');
   });
 
+  on(els.list, 'change', (e) => {
+    const target = e.target instanceof HTMLInputElement ? e.target : null;
+    if (!target || !target.classList.contains('po-media-check')) return;
+    const index = parseInt(target.getAttribute('data-index') || '-1', 10);
+    if (!Number.isFinite(index) || index < 0) return;
+    const item = filteredData[index] || null;
+    selectedItemKey = makeItemKey(item);
+    if (typeof options?.onSelectItem === 'function') {
+      options.onSelectItem(item);
+    }
+    renderList();
+  });
+
   const applyPublicOpinionConfig = (cfg) => {
     if (!cfg || typeof cfg !== 'object') return;
     window.__geoPublicOpinionConfig = cfg;
@@ -1117,7 +1180,10 @@ export function initPublicOpinion(els, options = {}) {
         setLoading(false);
         const msg = String(e?.message || e || '请求失败');
         if (els.list) {
-          els.list.innerHTML = `<div class="empty-state">自动加载失败：${escapeHtml(msg)}<div class="page-muted" style="margin-top:8px;">请点击“导入Excel”手动导入。</div></div>`;
+          const retryText = dataSource === 'official_media_api'
+            ? '请刷新页面或检查官方媒体接口。'
+            : '请点击“导入Excel”手动导入。';
+          els.list.innerHTML = `<div class="empty-state">自动加载失败：${escapeHtml(msg)}<div class="page-muted" style="margin-top:8px;">${retryText}</div></div>`;
         }
       }
     };

@@ -17,7 +17,7 @@
       </div>
     </div>
 
-    <div class="table-wrap square">
+    <div class="table-wrap square pm-records-wrap">
       <table class="pm-table" style="min-width: 1180px; table-layout: auto;">
         <thead>
           <tr>
@@ -28,9 +28,9 @@
             <th style="width: 140px;">发布时间</th>
             <th style="min-width: 240px;">已发布平台</th>
             <th style="min-width: 320px;">链接</th>
-            <th style="width: 140px;">平台发布次数</th>
-            <th style="width: 120px;">收录情况</th>
-            <th style="width: 120px;">引用次数</th>
+            <th style="width: 140px;"><span class="pm-head-wrap">平台发布次数</span></th>
+            <th style="width: 120px;"><span class="pm-head-wrap">收录情况</span></th>
+            <th style="width: 120px;"><span class="pm-head-wrap">引用次数</span></th>
           </tr>
         </thead>
         <tbody id="publishTable">
@@ -115,5 +115,28 @@
   color: #b45309;
   font-size: 12px;
   font-weight: 700;
+}
+
+.pm-records-wrap {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.pm-table th:nth-child(8),
+.pm-table th:nth-child(9),
+.pm-table th:nth-child(10) {
+  white-space: normal;
+  writing-mode: horizontal-tb;
+  line-height: 1.4;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.pm-head-wrap {
+  display: inline-block;
+  max-width: 72px;
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.35;
 }
 </style>
