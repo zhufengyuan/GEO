@@ -77,14 +77,16 @@ STEP 1  创建问题词库  →  STEP 2  文章创作  →  STEP 3  媒体发布
 
 - 自媒体发布、官媒发布的“选择文章”列表默认限制为约 5 行可视高度，超出后在列表内纵向滚动。
 - 两个页面的“文章展示区 / 文案预览”已收紧为固定预览高度，长文内容通过展示区内部滚动查看。
-- 官媒发布页面的筛选条件、筛选路径、关键词搜索栏已整体置顶，位于“第一步：选择文案”上方。
+- 官媒发布页面的筛选条件、筛选路径、关键词搜索栏已整体置顶；搜索栏与选择文案之间新增“官媒单选列表”，默认每页显示 10 条媒体，先选媒体再选文案。
+- 官媒发布页已移除手动“导入 Excel”按钮，媒体数据默认通过官方媒体接口获取。
+- 官媒发布页的文案预览下方新增“发布到后台”按钮，点击后会先把媒体和文案保存到 `data/uploads`，再提交官媒发布记录。
+- 发布管理页最后三列“平台发布次数 / 收录情况 / 引用次数”改为横向文字并允许换行显示；表格过宽时继续使用横向滚动查看。
 
 ### 数据分析与监控
 
 | 模块 | 前端路由 | 说明 |
 |------|----------|------|
 | 数据统计 | data-statistics | 可视化展示文章数、收录数、引用数等核心 KPI 及趋势图 |
-| 查询 | data-query | 数据查询工具 |
 | 舆情监控 | public-opinion | 按关键词抓取今日头条、知乎、微博、小红书等平台内容，支持情感分析（正面 / 负面） |
 | 消耗明细 | config | 记录并查询平台使用成本与积分消耗 |
 | AI 工具箱 | ai-toolbox | 通用 AI 工具快捷入口 |
@@ -257,9 +259,9 @@ CREATE DATABASE IF NOT EXISTS geo CHARACTER SET utf8mb4 COLLATE utf8mb4_general_
 
 当前仓库内默认值（已写入配置文件）：
 
-- `DB_HOST=YOUR_DB_HOST`
-- `DB_PASSWORD=YOUR_DB_PASSWORD`
-- `LLM_URL=http://YOUR_LLM_HOST:5200/wenxinqianfan`
+- `DB_HOST=1.117.188.4`
+- `DB_PASSWORD=3POKJzGCs3JNdhum`
+- `LLM_URL=http://1.117.188.4:5200/wenxinqianfan`
 - `WENXIN_API_KEY / WENXIN_SECRET_KEY` 已写入配置文件
 
 4) 启动
@@ -702,7 +704,6 @@ plans 初始数据：
 | official-publish | 官媒发布 | pages/official-publish/ | GEO优化 |
 | publish-manager | 发布管理 | pages/publish-manager/ | GEO优化 |
 | data-statistics | 数据统计 | pages/data-statistics/ | 数据分析 |
-| data-query | 查询 | pages/data-query/ | 数据分析-统计 |
 | config | 消耗明细 | pages/config/ | 数据分析 |
 | public-opinion | 舆情监控 | pages/public-opinion/ | 数据分析（顶级） |
 | ai-toolbox | AI工具箱 | pages/ai-toolbox/ | 数据分析（顶级） |
@@ -850,7 +851,7 @@ prompt_service.py 的 build_* 函数：
         ┌────────┴────────┐
         ▼                 ▼
   ┌───────────┐    ┌───────────┐
-  │  媒体发布  │    │  官媒发布  │  Excel 媒体资源库 → 筛选 → 投放
+  │  媒体发布  │    │  官媒发布  │  官方媒体接口 → 单选媒体 → 选择文案 → 保存/投放
   └─────┬─────┘    └─────┬─────┘
         └────────┬────────┘
                  │

@@ -360,8 +360,7 @@ const Page = {
       const buttons = [
         { key: 'dashboard', label: '数据看板' },
         { key: 'summary', label: '总览' },
-        { key: 'columns', label: '字段统计' },
-        { key: 'raw', label: '原始数据' }
+        { key: 'columns', label: '字段统计' }
       ];
       els.viewBtns.innerHTML = buttons
         .map((b) => {

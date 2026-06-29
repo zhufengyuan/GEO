@@ -10,9 +10,9 @@
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | DEBUG | bool | True | 调试模式：开启日志中间件、CORS 放开为 * |
-| DB_HOST | str | "YOUR_DB_HOST" | MySQL 地址 |
+| DB_HOST | str | "1.117.188.4" | MySQL 地址 |
 | DB_USER | str | "root" | MySQL 用户 |
-| DB_PASSWORD | str | "YOUR_DB_PASSWORD" | MySQL 密码 |
+| DB_PASSWORD | str | "3POKJzGCs3JNdhum" | MySQL 密码 |
 | DB_NAME | str | "geo" | 数据库名 |
 | DB_PORT | int | 3306 | MySQL 端口 |
 | DB_CHARSET | str | "utf8mb4" | 字符集 |
@@ -22,9 +22,9 @@
 | JWT_REFRESH_EXPIRE_DAYS | int | 30 | Refresh Token 有效期 |
 | AUTH_DISABLED | bool | True | 跳过认证开关（生产环境设为 False） |
 | DEV_USER_ID | int | 1 | 开发模式默认用户 ID |
-| LLM_URL | str | "http://YOUR_LLM_HOST:5200/wenxinqianfan" | 大模型服务地址 |
-| WENXIN_API_KEY | str | "YOUR_WENXIN_API_KEY" | 文心千帆 Key |
-| WENXIN_SECRET_KEY | str | "YOUR_WENXIN_SECRET_KEY" | 文心千帆 Secret |
+| LLM_URL | str | "http://1.117.188.4:5200/wenxinqianfan" | 大模型服务地址 |
+| WENXIN_API_KEY | str | "z9LQiF34PzazRt3Bhenu0ey9" | 文心千帆 Key |
+| WENXIN_SECRET_KEY | str | "n9FLmBesVrDy9V8qlStA8b0VkgujXoZl" | 文心千帆 Secret |
 | OFFICIAL_MEDIA_EXCEL | str | 自动指向 data/.xls | 媒体报价 Excel 文件路径 |
 | OFFICIAL_PUBLISH_PARTNER_URL | str | "" | （可选）官媒发布渠道对接地址（用于 `/official-publish/submit` 转发） |
 | OFFICIAL_PUBLISH_PARTNER_TOKEN | str | "" | （可选）官媒发布渠道鉴权 Token（Bearer） |
@@ -1105,7 +1105,10 @@ Content-Type: application/json
 
 - `www/index.js` 在 iframe / Shiny 宿主场景下通过 `postMessage` 桥接文章列表、文章详情、发布记录与官媒查询结果，再分发为 `geo_articles_data`、`geo_article_detail` 等前端消息。
 - 桌面端 UI 使用固定左侧边栏、右侧独立滚动的后台布局；发布页的选文列表默认仅展示约 5 行，预览区超长内容在容器内滚动。
+- 基础数据诊断、竞争对手分析、企业诊断报告页的前端多模型切换已补充 `deepseek` 按钮；这 3 个页面的“汇总分析”按钮居中显示，并使用草绿色实心样式。
 - 企业知识图谱弹窗位于企业知识库页面，顶部保留统计说明，缩放与刷新按钮位于右侧说明栏底部。
+- 官媒发布页默认通过 `/api/v1/official-media` 加载媒体数据，前端不再提供手动导入 Excel 按钮；预览下方“发布到后台”会先调用 `/api/v1/official-publish/save` 写入 `data/uploads`，再调用 `/api/v1/official-publish/submit`；该保存链路已做过实际接口联调验证。
+- 发布管理页的最后三列“平台发布次数 / 收录情况 / 引用次数”在前端表头中采用横向换行显示；当整表过宽时，页面保留横向滚动查看能力。
 
 | 前端页面 | 主要调用的 API |
 |----------|----------------|
@@ -1121,7 +1124,7 @@ Content-Type: application/json
 | 文章创作 (article-writing) | POST /api/v1/articles（生成并入库）、POST /api/v1/article-writing/suggestions（生成优化建议）、POST /api/v1/article-writing/rewrite（重新优化/改稿） |
 | 文章管理 (article-manager) | GET/PUT/DELETE /api/v1/articles |
 | 自媒体发布 (media-publish) | GET /api/v1/articles、GET /api/v1/articles/{id}、POST /api/v1/publish-records |
-| 官媒发布 (official-publish) | GET /api/v1/articles、GET /api/v1/articles/{id}、GET /api/v1/official-media/*、POST /api/v1/official-publish/submit |
+| 官媒发布 (official-publish) | GET /api/v1/articles、GET /api/v1/articles/{id}、GET /api/v1/official-media/*、POST /api/v1/official-publish/save、POST /api/v1/official-publish/submit |
 | 发布管理 (publish-manager) | GET /api/v1/publish-records |
 | 数据统计 (data-statistics) | /api/v1/articles (count)、/api/v1/publish-records (count) |
 | 消耗明细 (config) | GET /api/v1/billing/transactions |
@@ -1193,4 +1196,4 @@ async def _startup():
 
 ---
 
-*文档版本：1.0.0 | 最后更新：2026-06-08*
+*文档版本：1.0.0 | 最后更新：2026-06-29*

@@ -19,7 +19,6 @@ const PAGES = {
   'official-publish': { title: '官媒发布', file: 'pages/official-publish/page.html', script: 'pages/official-publish/page.js' },
   'publish-manager': { title: '发布管理', file: 'pages/publish-manager/page.html', script: 'pages/publish-manager/page.js' },
   'data-statistics': { title: '数据统计', file: 'pages/data-statistics/page.html', script: 'pages/data-statistics/page.js' },
-  'data-query': { title: '查询', file: 'pages/data-query/page.html', script: 'pages/data-query/page.js' },
   'public-opinion': { title: '舆情监控', file: 'pages/public-opinion/page.html', script: 'pages/public-opinion/page.js' },
   'public-opinion-report': { title: '舆情雷达分析报告', file: 'pages/public-opinion-report/page.html', script: 'pages/public-opinion-report/page.js' },
   config: { title: '消耗明细', file: 'pages/config/page.html', script: 'pages/config/page.js' },
@@ -373,6 +372,21 @@ window.geoSubmitOfficialPublish = function(payload) {
       });
     }
     if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'geo_submit_official_publish', payload }, '*');
+  } catch {
+  }
+  return null;
+};
+
+window.geoSaveOfficialPublishDraft = function(payload) {
+  try {
+    const base = getGeoApiBaseUrl();
+    if (base) {
+      return geoApiRequest('/official-publish/save', { method: 'POST', body: JSON.stringify(payload || {}) }).then((r) => {
+        dispatchGeoMessage('geo_official_publish_save_result', { ok: Boolean(r?.data?.saved), ...(r?.data || {}) });
+        return r;
+      });
+    }
+    if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'geo_save_official_publish_draft', payload }, '*');
   } catch {
   }
   return null;
