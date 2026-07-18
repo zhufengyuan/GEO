@@ -422,7 +422,7 @@ export function initPublicOpinion(els, options = {}) {
 
   const inferApiBase = () => {
     try {
-      const saved = String(localStorage.getItem('geo_api_base_url_v1') || '').trim().replace(/\/+$/g, '');
+      const saved = String(localStorage.getItem('geo_api_base_url_v2') || '').trim().replace(/\/+$/g, '');
       if (saved) return saved;
     } catch {
     }

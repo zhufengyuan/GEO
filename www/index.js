@@ -32,7 +32,7 @@ let currentModule = null;
 
 let llmSvgManifest = { files: [], baseUrl: 'llm-svg' };
 
-const GEO_BUILD_ID = '2026-06-04-reform-2';
+const GEO_BUILD_ID = '2026-07-19-pagination';
 try {
   window.__GEO_BUILD_ID__ = GEO_BUILD_ID;
 } catch {
@@ -50,7 +50,7 @@ try {
 } catch {
 }
 
-const GEO_API_STORAGE_KEY = 'geo_api_base_url_v1';
+const GEO_API_STORAGE_KEY = 'geo_api_base_url_v2';
 let geoApiBaseUrl = '';
 let geoLastApiError = null;
 
@@ -71,8 +71,8 @@ function getGeoApiBaseUrl() {
       const port = String(window.location.port || '').trim();
       const host = String(window.location.hostname || '').trim();
       const isLocal = host === '127.0.0.1' || host === 'localhost';
-      if (isLocal && port && port !== '8000') {
-        geoApiBaseUrl = `http://${host}:8000/api/v1`;
+      if (isLocal && port && port !== '8123') {
+        geoApiBaseUrl = `http://${host}:8123/api/v1`;
         try {
           localStorage.setItem(GEO_API_STORAGE_KEY, geoApiBaseUrl);
         } catch {
@@ -100,10 +100,10 @@ function getGeoApiBaseUrl() {
       const port = String(window.location.port || '').trim();
       const host = String(window.location.hostname || '').trim();
       const isLocal = host === '127.0.0.1' || host === 'localhost';
-      if (isLocal && port && port !== '8000') {
-        geoApiBaseUrl = `http://${host}:8000/api/v1`;
+      if (isLocal && port && port !== '8123') {
+        geoApiBaseUrl = `http://${host}:8123/api/v1`;
       } else {
-        geoApiBaseUrl = `${window.location.origin}/api/v1`;
+        geoApiBaseUrl = `${window.location.protocol}//${host}/api/v1`;
       }
       return geoApiBaseUrl;
     }
@@ -111,7 +111,7 @@ function getGeoApiBaseUrl() {
   }
   try {
     if (window.location && String(window.location.protocol || '') === 'file:') {
-      geoApiBaseUrl = 'http://127.0.0.1:8000/api/v1';
+      geoApiBaseUrl = 'http://127.0.0.1:8123/api/v1';
       return geoApiBaseUrl;
     }
   } catch {

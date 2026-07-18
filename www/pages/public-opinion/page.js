@@ -1,5 +1,5 @@
 import { initTemplate } from '../_shared/page-template.js';
-import { initPublicOpinion } from './app.js';
+import { initPublicOpinion } from './app.js?v=2026-07-19-pagination';
 
 const Page = {
   async init() {
