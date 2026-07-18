@@ -413,6 +413,98 @@ export function initPublicOpinion(els, options = {}) {
   let isLoading = false;
   let selectedItemKey = '';
 
+  // ---- 官媒接口（official_media_api）服务端分页相关状态 ----
+  const isApiMode = String(options?.dataSource || '').trim() === 'official_media_api';
+  let apiTotal = 0;
+  let apiCounts = { all: 0, website: 0, media: 0 };
+  let apiLoading = false;
+  let loadSeq = 0;
+
+  const inferApiBase = () => {
+    try {
+      const saved = String(localStorage.getItem('geo_api_base_url_v1') || '').trim().replace(/\/+$/g, '');
+      if (saved) return saved;
+    } catch {
+    }
+    try {
+      const loc = window.location;
+      if (loc && String(loc.protocol || '').startsWith('http')) {
+        const host = String(loc.hostname || '').trim();
+        const port = String(loc.port || '').trim();
+        const isLocal = host === '127.0.0.1' || host === 'localhost';
+        if (isLocal && port && port !== '8123') return `http://${host}:8123/api/v1`;
+        return `${loc.protocol}//${host}/api/v1`;
+      }
+    } catch {
+    }
+    return 'http://127.0.0.1:8123/api/v1';
+  };
+
+  // 按页请求官媒数据：把当前筛选/关键词/Tab 作为查询参数发给后端，单页返回
+  const loadPage = async (page) => {
+    const target = Math.max(1, parseInt(page, 10) || 1);
+    loadSeq += 1;
+    const seq = loadSeq;
+    apiLoading = true;
+    currentPage = target;
+    if (!filteredData.length) {
+      setLoading(true);
+    } else if (els.resultInfo) {
+      els.resultInfo.innerHTML = '加载中…';
+    }
+    try {
+      const base = inferApiBase();
+      const params = new URLSearchParams();
+      params.set('page', String(target));
+      params.set('page_size', String(PAGE_SIZE));
+      if (keyword) params.set('keyword', keyword);
+      if (filters.platform) params.set('platform', filters.platform);
+      if (filters.industry) params.set('industry', filters.industry);
+      if (filters.region) params.set('region', filters.region);
+      if (filters.fans) params.set('fans', filters.fans);
+      if (filters.cert) params.set('cert', filters.cert);
+      if (filters.mtype) params.set('mtype', filters.mtype);
+      if (filters.extra) params.set('extra', filters.extra);
+      if (currentTab === 'website') params.set('tab', 'website');
+      else if (currentTab === 'media') params.set('tab', 'media');
+      const url = `${base}/official-media?${params.toString()}`;
+      const res = await fetch(url, { credentials: 'omit', cache: 'no-store' });
+      const json = await res.json().catch(() => null);
+      if (seq !== loadSeq) return; // 已有更新的请求，丢弃旧结果
+      if (!json || typeof json !== 'object' || json.success !== true || !json.data) {
+        throw new Error(json?.error?.message || `请求失败（${res.status || 0}）`);
+      }
+      const data = json.data || {};
+      const items = Array.isArray(data.items) ? data.items : [];
+      allData = normalizeApiRows(items);
+      filteredData = allData;
+      apiTotal = Math.max(0, Number(data.total) || 0);
+      apiCounts = {
+        all: Math.max(0, Number(data.total_all ?? data.total ?? 0) || 0),
+        website: Math.max(0, Number(data.total_website ?? 0) || 0),
+        media: Math.max(0, Number(data.total_media ?? 0) || 0)
+      };
+      loadedFromApi = true;
+      updateTabCounts();
+      renderCrumb();
+      setLoading(false);
+      renderList();
+    } catch (e) {
+      if (seq !== loadSeq) return;
+      setLoading(false);
+      const msg = String(e?.message || e || '请求失败');
+      if (!loadedFromApi) {
+        if (els.list) {
+          els.list.innerHTML = `<div class="empty-state">自动加载失败：${escapeHtml(msg)}<div class="page-muted" style="margin-top:8px;">请刷新页面或检查官方媒体接口。</div></div>`;
+        }
+      } else if (els.resultInfo) {
+        els.resultInfo.innerHTML = '加载失败，请重试';
+      }
+    } finally {
+      if (seq === loadSeq) apiLoading = false;
+    }
+  };
+
   const makeItemKey = (item) => {
     if (!item || typeof item !== 'object') return '';
     return [
@@ -601,6 +693,12 @@ export function initPublicOpinion(els, options = {}) {
   };
 
   const updateTabCounts = (base = allData) => {
+    if (isApiMode) {
+      if (els.cntAll) els.cntAll.textContent = `(${apiCounts.all.toLocaleString()})`;
+      if (els.cntWebsite) els.cntWebsite.textContent = `(${apiCounts.website.toLocaleString()})`;
+      if (els.cntMedia) els.cntMedia.textContent = `(${apiCounts.media.toLocaleString()})`;
+      return;
+    }
     const data = Array.isArray(base) ? base : allData;
     if (els.cntAll) els.cntAll.textContent = `(${data.length.toLocaleString()})`;
     if (els.cntWebsite) els.cntWebsite.textContent = `(${data.filter((d) => d.type === 'website').length.toLocaleString()})`;
@@ -655,11 +753,11 @@ export function initPublicOpinion(els, options = {}) {
     const actionMode = String(options?.actionMode || '').trim() === 'publish' ? 'publish' : 'copy';
     const actionLabel = actionMode === 'publish' ? '去发布' : '复制';
 
-    const total = filteredData.length;
-    const totalPages = Math.ceil(total / PAGE_SIZE);
-    if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+    const total = isApiMode ? apiTotal : filteredData.length;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (!isApiMode && currentPage > totalPages && totalPages > 0) currentPage = totalPages;
     const start = (currentPage - 1) * PAGE_SIZE;
-    const pageData = filteredData.slice(start, start + PAGE_SIZE);
+    const pageData = isApiMode ? filteredData : filteredData.slice(start, start + PAGE_SIZE);
 
     els.resultInfo.innerHTML = `共 <b>${total.toLocaleString()}</b> 条结果，第 ${currentPage} / ${Math.max(1, totalPages)} 页`;
 
@@ -673,6 +771,7 @@ export function initPublicOpinion(els, options = {}) {
       const rows = pageData
         .map((d, idx) => {
           const absoluteIndex = start + idx;
+          const dataIdx = isApiMode ? idx : absoluteIndex;
           const intro = d.note || d.rate || d.speed || '—';
           const metaA = d.type === 'media' ? (d.platform || '—') : (d.region || '—');
           const metaB = d.industry || d.fans || '—';
@@ -684,7 +783,7 @@ export function initPublicOpinion(els, options = {}) {
             <td>${escapeHtml(metaA)}</td>
             <td>${escapeHtml(metaB)}</td>
             <td>${escapeHtml(d.price || '—')}</td>
-            <td><input type="radio" name="poMediaPick" class="po-media-check" data-index="${absoluteIndex}" ${checked} /></td>
+            <td><input type="radio" name="poMediaPick" class="po-media-check" data-index="${dataIdx}" ${checked} /></td>
           </tr>`;
         })
         .join('');
@@ -768,6 +867,11 @@ export function initPublicOpinion(els, options = {}) {
   };
 
   const applyFilter = () => {
+    if (isApiMode) {
+      currentPage = 1;
+      loadPage(1);
+      return;
+    }
     let base = allData;
     if (filters.platform) {
       base = base.filter((d) => d.type === 'media' && (d.platform || '').includes(filters.platform));
@@ -927,6 +1031,10 @@ export function initPublicOpinion(els, options = {}) {
     if (!btn) return;
     const p = parseInt(btn.getAttribute('data-page') || '1', 10);
     if (!Number.isFinite(p) || p <= 0) return;
+    if (isApiMode) {
+      loadPage(p);
+      return;
+    }
     const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
     currentPage = Math.max(1, Math.min(totalPages, p));
     renderList();
@@ -937,6 +1045,10 @@ export function initPublicOpinion(els, options = {}) {
     if (target?.id !== 'po2JumpBtn') return;
     const input = document.getElementById('po2Jump');
     const val = parseInt(input?.value || '1', 10);
+    if (isApiMode) {
+      loadPage(Number.isFinite(val) ? val : 1);
+      return;
+    }
     const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
     currentPage = Math.max(1, Math.min(totalPages, Number.isFinite(val) ? val : 1));
     renderList();
@@ -1126,72 +1238,8 @@ export function initPublicOpinion(els, options = {}) {
   updateTabCounts();
   const dataSource = String(options?.dataSource || '').trim();
   if (dataSource === 'official_media_api') {
-    setLoading(true);
-    const queryFn = window.geoQueryOfficialMedia;
-    let timeout = null;
-    timeout = setTimeout(() => {
-      if (loadedFromApi || allData.length) return;
-      setLoading(false);
-      if (els.list) els.list.innerHTML = '<div class="empty-state">官方媒体数据请求超时，请刷新页面重试。</div>';
-    }, 6000);
-    cleanups.push(() => timeout && clearTimeout(timeout));
-
-    const inferApiBase = () => {
-      try {
-        const saved = String(localStorage.getItem('geo_api_base_url_v1') || '').trim().replace(/\/+$/g, '');
-        if (saved) return saved;
-      } catch {
-      }
-      try {
-        const loc = window.location;
-        if (loc && String(loc.protocol || '').startsWith('http')) {
-          const host = String(loc.hostname || '').trim();
-          const port = String(loc.port || '').trim();
-          const isLocal = host === '127.0.0.1' || host === 'localhost';
-          if (isLocal && port && port !== '8000') return `http://${host}:8000/api/v1`;
-          return `${loc.origin}/api/v1`;
-        }
-      } catch {
-      }
-      return 'http://127.0.0.1:8000/api/v1';
-    };
-
-    const loadFromApi = async () => {
-      const base = inferApiBase();
-      const url = `${base}/official-media?page=1&page_size=50000`;
-      if (els.resultInfo) {
-        els.resultInfo.innerHTML = `<span class="page-muted">数据源：</span><b>${escapeHtml(url)}</b>`;
-      }
-      try {
-        const res = await fetch(url, { credentials: 'omit', cache: 'no-store' });
-        const json = await res.json().catch(() => null);
-        if (!json || typeof json !== 'object' || json.success !== true || !json.data) {
-          throw new Error(json?.error?.message || `请求失败（${res.status || 0}）`);
-        }
-        const items = Array.isArray(json.data.items) ? json.data.items : [];
-        allData = normalizeApiRows(items);
-        loadedFromApi = true;
-        updateTabCounts();
-        renderCrumb();
-        applyFilter();
-        setLoading(false);
-      } catch (e) {
-        if (loadedFromApi || allData.length) return;
-        setLoading(false);
-        const msg = String(e?.message || e || '请求失败');
-        if (els.list) {
-          const retryText = dataSource === 'official_media_api'
-            ? '请刷新页面或检查官方媒体接口。'
-            : '请点击“导入Excel”手动导入。';
-          els.list.innerHTML = `<div class="empty-state">自动加载失败：${escapeHtml(msg)}<div class="page-muted" style="margin-top:8px;">${retryText}</div></div>`;
-        }
-      }
-    };
-
-    if (typeof queryFn === 'function') {
-      queryFn({ page: 1, page_size: 50000, ts: Date.now() });
-    }
-    loadFromApi();
+    // 按页加载，避免一次性拉取全部数据导致 loading 过久
+    loadPage(1);
   } else {
     requestPublicOpinionConfigFromR();
     loadDefaultExcel();

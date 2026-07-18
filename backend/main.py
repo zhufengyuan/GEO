@@ -1,6 +1,6 @@
 """
 FastAPI 主入口
-运行：python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+运行：python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8123
 """
 import sys
 import os
@@ -1381,6 +1381,121 @@ async def ai_task_get(tid: int, user=Depends(get_current_user)):
     return ok({"id": tid, "status": "completed", "result": None})
 
 
+# ---- official-media 字段提取 / 过滤（与前端 extractRowMeta + applyFilter 对齐）----
+_OM_PATTERNS = {
+    "name": ["媒体名称", "账号名称", "媒体", "账号", "名称", "平台名称"],
+    "platform": ["平台", "渠道", "站点"],
+    "industry": ["行业", "领域"],
+    "region": ["所在地区", "地区", "地域", "省", "市"],
+    "fans": ["粉丝量", "粉丝数", "粉丝"],
+    "cert": ["账号认证", "认证"],
+    "price": ["报价", "价格", "费用", "单价", "刊例", "报价（元）", "报价(元)"],
+    "url": ["链接", "网址", "URL", "url"],
+    "rate": ["收录率", "收录", "收录情况"],
+    "speed": ["出稿时效", "出稿时间", "出稿", "时效", "时长"],
+    "note": ["备注", "说明", "要求", "注意"],
+}
+
+
+def _om_get(row, patterns):
+    """对应前端 getValueByPatterns：按关键词命中列名取值（跳过 __ 前缀字段）"""
+    if not row or not isinstance(row, dict):
+        return ""
+    keys = [k for k in row.keys() if k is not None and not str(k).startswith("__")]
+    for p in patterns:
+        for k in keys:
+            if p in str(k):
+                v = row.get(k)
+                if v is None:
+                    continue
+                s = str(v).strip()
+                if s:
+                    return s
+    return ""
+
+
+# 字段名 -> 后端 _normalize_positional_row 预填的 __ 键（与前端 extractRowMeta 对齐）
+_OM_FIELD_KEY = {
+    "name": "__name",
+    "platform": "__platform",
+    "industry": "__industry",
+    "region": "__region",
+    "fans": "__fans",
+    "cert": "__verify",
+    "price": "__price",
+    "url": "__url",
+    "rate": "__rate",
+    "speed": "__speed",
+    "note": "__remark",
+}
+
+
+def _om_normalize(row):
+    """对应前端 extractRowMeta + inferType，返回归一化字段，并把 __ 字段写回 row"""
+    sheet_type = str(row.get("__type", "") or "").strip()
+    vals = {}
+    for f, pats in _OM_PATTERNS.items():
+        existing = str(row.get(_OM_FIELD_KEY.get(f, "")) or "").strip()
+        vals[f] = existing if existing else _om_get(row, pats)
+    if sheet_type == "全国网站媒体":
+        t = "website"
+    elif sheet_type == "官方自媒体":
+        t = "media"
+    else:
+        t = "media" if (vals["fans"] or vals["platform"]) else "website"
+    # 写回 __ 字段（已存在则不覆盖），保持前端 normalizeApiRows 结果一致
+    for f, k in _OM_FIELD_KEY.items():
+        row.setdefault(k, vals[f])
+    vals["type"] = t
+    return vals
+
+
+def _om_match(item, f, kw, tab):
+    """对应前端 applyFilter 的过滤条件（tab 在外部单独统计后再应用）"""
+    t = item["type"]
+    if f.get("platform") and not (t == "media" and f["platform"] in (item["platform"] or "")):
+        return False
+    if f.get("industry") and f["industry"] not in (item["industry"] or ""):
+        return False
+    if f.get("region") and not (t != "website" or f["region"] in (item["region"] or "")):
+        return False
+    if f.get("fans") and not (t != "media" or (item["fans"] or "") == f["fans"]):
+        return False
+    if f.get("cert") and not (t != "media" or (item["cert"] or "") == f["cert"]):
+        return False
+    if f.get("mtype") and t != f["mtype"]:
+        return False
+    if f.get("extra"):
+        if f["extra"] not in (item["note"] or "") and f["extra"] not in (item["speed"] or ""):
+            return False
+    if kw:
+        hay = " ".join([item["name"] or "", item["note"] or "", item["platform"] or "", item["industry"] or ""]).lower()
+        if kw not in hay:
+            return False
+    if tab == "website" and t != "website":
+        return False
+    if tab == "media" and t != "media":
+        return False
+    return True
+
+
+_om_data_cache = None
+
+
+def _get_om_data():
+    """缓存读取+清洗后的官媒数据，避免每次请求都重读 Excel（~3.5s -> ~0s）"""
+    global _om_data_cache
+    if _om_data_cache is not None:
+        return _om_data_cache
+    from backend.services.excel_service import read_official_media_excel
+    from backend.utils.sanitize import sanitize_obj as _sanitize_obj_external
+    rows = read_official_media_excel()
+    rows = _sanitize_obj_external(rows)
+    # 深拷贝，防止后续过滤操作污染缓存
+    _om_data_cache = [dict(r) for r in rows]
+    return _om_data_cache
+
+
 @app.get("/api/v1/official-media")
 async def official_media_list(
     page: int = 1,
@@ -1388,37 +1503,74 @@ async def official_media_list(
     keyword: Optional[str] = None,
     media_type: Optional[str] = None,
     sheet: Optional[str] = None,
+    platform: Optional[str] = None,
+    industry: Optional[str] = None,
+    region: Optional[str] = None,
+    fans: Optional[str] = None,
+    cert: Optional[str] = None,
+    mtype: Optional[str] = None,
+    extra: Optional[str] = None,
+    tab: Optional[str] = None,
     user=Depends(get_current_user),
 ):
-    from backend.services.excel_service import read_official_media_excel
-    rows = read_official_media_excel()
+    rows = _get_om_data()
 
-    from backend.utils.sanitize import sanitize_obj as _sanitize_obj_external
-    rows = _sanitize_obj_external(rows)
-    if keyword:
-        kw = keyword.strip().lower()
-        def _match(r):
-            for v in (r or {}).values():
-                if v is None:
-                    continue
-                if kw in str(v).lower():
-                    return True
-            return False
-        rows = [r for r in rows if _match(r)]
+    # 兼容旧参数：按原始 __type / __sheet 过滤
     if media_type:
         rows = [r for r in rows if str(r.get("__type", "")) == media_type]
     if sheet:
         rows = [r for r in rows if str(r.get("__sheet", "")) == sheet]
 
-    total = len(rows)
+    f = {
+        "platform": (platform or "").strip(),
+        "industry": (industry or "").strip(),
+        "region": (region or "").strip(),
+        "fans": (fans or "").strip(),
+        "cert": (cert or "").strip(),
+        "mtype": (mtype or "").strip(),
+        "extra": (extra or "").strip(),
+    }
+    kw = (keyword or "").strip().lower()
+    tabv = (tab or "").strip()
+
+    # 归一化 + 过滤（tab 先不应用，用于统计各 Tab 数量）
+    norm = []
+    for r in rows:
+        item = _om_normalize(r)
+        # 对齐前端 normalizeApiRows 的空行过滤
+        if not (item["name"] or item["platform"] or item["price"] or item["note"]):
+            continue
+        if not _om_match(item, f, kw, ""):
+            continue
+        norm.append((r, item))
+
+    total_all = len(norm)
+    total_website = sum(1 for _, it in norm if it["type"] == "website")
+    total_media = sum(1 for _, it in norm if it["type"] == "media")
+
+    # 再应用 tab 过滤
+    if tabv == "website":
+        norm = [x for x in norm if x[1]["type"] == "website"]
+    elif tabv == "media":
+        norm = [x for x in norm if x[1]["type"] == "media"]
+
+    total = len(norm)
     if page < 1:
         page = 1
     if page_size < 1:
         page_size = 50
     start = (page - 1) * page_size
     end = start + page_size
-    items = rows[start:end]
-    return ok({"total": total, "page": page, "pageSize": page_size, "items": items})
+    items = [r for r, _ in norm[start:end]]
+    return ok({
+        "total": total,
+        "page": page,
+        "pageSize": page_size,
+        "items": items,
+        "total_all": total_all,
+        "total_website": total_website,
+        "total_media": total_media,
+    })
 
 
 @app.get("/api/v1/official-media/summary")
@@ -1985,6 +2137,23 @@ async def diagnosis_files_download(task: str, model: Optional[str] = None, user=
         filename=filename,
     )
 
+@app.get("/api/v1/data-statistics")
+async def data_statistics_data(user=Depends(get_current_user)):
+    """数据统计 - 读取数据统计_测试数据.xlsx，返回完整payload"""
+    from backend.services.data_stats_service import read_data_stats_excel
+    from backend.utils.sanitize import sanitize_obj as _sanitize_obj_ds
+    payload = read_data_stats_excel()
+    payload = _sanitize_obj_ds(payload)
+    return ok(payload)
+
+
+@app.get("/api/v1/data-statistics/summary")
+async def data_statistics_summary(user=Depends(get_current_user)):
+    """数据统计 - 摘要信息"""
+    from backend.services.data_stats_service import get_data_stats_summary
+    return ok(get_data_stats_summary())
+
+
 @app.get("/api/v1/health")
 def health_check():
     return api_response({"status": "ok", "version": "2026-06-04-reform-2"})
@@ -2023,4 +2192,4 @@ if _www_dir.exists():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=settings.DEBUG)
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=8123, reload=settings.DEBUG)
