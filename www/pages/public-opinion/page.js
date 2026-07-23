@@ -1,5 +1,5 @@
 import { initTemplate } from '../_shared/page-template.js';
-import { initPublicOpinion } from './app.js?v=2026-07-19-pagination';
+import { initPublicOpinion } from './app.js?v=2026-07-23-yuqing-crawl';
 
 const Page = {
   async init() {
@@ -12,10 +12,8 @@ const Page = {
       taskList: document.getElementById('poTaskList'),
       tools: document.getElementById('poTools'),
       tabsBar: document.getElementById('poTabsBar'),
-      enterBtn: document.getElementById('poEnterBtn'),
       mainTitle: document.getElementById('poMainTitle'),
       scanBtn: document.getElementById('poScanBtn'),
-      reportBtn: document.getElementById('poReportBtn'),
       results: document.getElementById('poResults'),
       modal: document.getElementById('poModal'),
       modalTitle: document.getElementById('poModalTitle'),

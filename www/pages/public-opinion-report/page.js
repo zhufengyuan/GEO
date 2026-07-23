@@ -58,45 +58,62 @@ const Page = {
       tbody.innerHTML = rows.join('');
     };
 
-    const mock = () => {
-      const total = 80;
-      const neg = 12;
-      const pos = 28;
-      const neu = total - neg - pos;
-      if (els.total) els.total.textContent = String(total);
-      if (els.neg) els.neg.textContent = String(neg);
-      if (els.pos) els.pos.textContent = String(pos);
-      if (els.neu) els.neu.textContent = String(neu);
+    const GEO_BASE = window.GEO_BASE || '';
 
-      const days = buildLast7();
-      const values = [18, 24, 20, 30, 28, 22, 26];
-      renderTrend(days, values);
+    const fetchStats = async () => {
+      const kw = (els.kw?.value || '').trim();
+      const params = new URLSearchParams({ keyword: kw });
+      const url = `${GEO_BASE}/api/v1/public-opinion/stats?${params}`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const json = await resp.json();
+      if (!json.success || !json.data) throw new Error(json.error || 'API 返回异常');
+      return json.data;
+    };
 
-      renderTable(
-        els.topicRows,
-        [
-          `<tr><td>1</td><td>口碑讨论</td><td>92</td></tr>`,
-          `<tr><td>2</td><td>售后服务</td><td>81</td></tr>`,
-          `<tr><td>3</td><td>交付时效</td><td>73</td></tr>`
-        ],
-        3
-      );
+    const refresh = async () => {
+      try {
+        const stats = await fetchStats();
 
-      renderTable(
-        els.sourceRows,
-        [
-          `<tr><td>今日头条</td><td>26</td></tr>`,
-          `<tr><td>公众号</td><td>18</td></tr>`,
-          `<tr><td>小红书</td><td>14</td></tr>`,
-          `<tr><td>知乎</td><td>12</td></tr>`
-        ],
-        2
-      );
+        if (els.total) els.total.textContent = String(stats.total || 0);
+        if (els.pos) els.pos.textContent = String(stats.positive || 0);
+        if (els.neu) els.neu.textContent = String(stats.neutral || 0);
+        if (els.neg) els.neg.textContent = String(stats.negative || 0);
+
+        const days = (stats.trend_days && stats.trend_days.length > 0)
+          ? stats.trend_days
+          : buildLast7();
+        const values = (stats.trend_values && stats.trend_values.length > 0)
+          ? stats.trend_values
+          : [0, 0, 0, 0, 0, 0, 0];
+        renderTrend(days, values);
+
+        const topicRows = (stats.topic_rows || []);
+        renderTable(
+          els.topicRows,
+          topicRows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.name || '未知'}</td><td>${r.count || 0}</td></tr>`),
+          3
+        );
+
+        const sourceRows = (stats.source_rows || []);
+        renderTable(
+          els.sourceRows,
+          sourceRows.map((r) => `<tr><td>${r.name || '未知'}</td><td>${r.count || 0}</td></tr>`),
+          2
+        );
+      } catch (e) {
+        if (els.total) els.total.textContent = '—';
+        if (els.pos) els.pos.textContent = '—';
+        if (els.neu) els.neu.textContent = '—';
+        if (els.neg) els.neg.textContent = '—';
+        if (els.trend) els.trend.innerHTML = `<div class="page-muted" style="padding:12px;">加载失败</div>`;
+        console.error('fetchStats error:', e);
+      }
     };
 
     els.refreshBtn?.addEventListener('click', () => {
       window.geoConsume?.({ event_type: 'ui', page: 'public-opinion-report', action: 'refresh', units: 1, amount: 0 });
-      mock();
+      refresh();
     });
 
     els.exportPdfBtn?.addEventListener('click', () => {
@@ -115,11 +132,10 @@ const Page = {
     if (els.from) els.from.value = dayKey(from);
     if (els.to) els.to.value = dayKey(now);
 
-    mock();
+    refresh();
   },
   destroy() {
   }
 };
 
 export default Page;
-
