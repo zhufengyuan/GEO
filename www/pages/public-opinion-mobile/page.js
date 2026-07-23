@@ -20,25 +20,28 @@ const Page = {
         .replaceAll("'", '&#39;');
     };
 
-    const mockList = (kw) => {
-      const key = (kw || '品牌').trim();
-      return [
-        {
-          title: `【讨论】${key} 相关话题热度上升，用户关注点集中在服务体验`,
-          desc: `模拟数据：围绕 ${key} 的讨论主要来自多个平台，包含观点、体验与对比内容。`,
-          meta: '今日头条 · 10:23'
-        },
-        {
-          title: `【预警】${key} 出现负面关键词，建议及时响应`,
-          desc: '模拟数据：建议跟进原帖、核实情况并准备回复口径。',
-          meta: '微博 · 09:12'
-        },
-        {
-          title: `【信息】${key} 新品相关内容被转发扩散`,
-          desc: '模拟数据：可结合内容投放与评论互动提升正面曝光。',
-          meta: '公众号 · 昨日'
-        }
-      ];
+    const GEO_BASE = window.GEO_BASE || '';
+
+    const fetchList = async (kw) => {
+      const keyword = (kw || '').trim() || '品牌';
+      const params = new URLSearchParams({
+        keyword: keyword,
+        info_type: 'all',
+        sentiment: 'all',
+        page: '1',
+        page_size: '10'
+      });
+      const url = `${GEO_BASE}/api/v1/public-opinion/search?${params}`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const json = await resp.json();
+      if (!json.success || !json.data) throw new Error(json.error || 'API 返回异常');
+      const items = json.data.items || [];
+      return items.map((it) => ({
+        title: it.title || '',
+        desc: it.snippet || '',
+        meta: `${it.source || '未知'} · ${it.time || ''}`
+      }));
     };
 
     const render = (list) => {
@@ -54,9 +57,15 @@ const Page = {
         .join('');
     };
 
-    const refresh = () => {
+    const refresh = async () => {
       const kw = els.mSearch?.value || '';
-      render(mockList(kw));
+      els.mList && (els.mList.innerHTML = `<div class="page-muted" style="padding:12px;">正在搜索...</div>`);
+      try {
+        const list = await fetchList(kw);
+        render(list);
+      } catch (e) {
+        els.mList && (els.mList.innerHTML = `<div class="page-muted" style="padding:12px;">搜索失败: ${escapeHtml(String(e.message || e))}</div>`);
+      }
       window.geoConsume?.({ event_type: 'ui', page: 'public-opinion-mobile', action: 'refresh', units: 1, amount: 0 });
     };
 
@@ -77,4 +86,3 @@ const Page = {
 };
 
 export default Page;
-

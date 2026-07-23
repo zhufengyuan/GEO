@@ -1,5 +1,5 @@
 export function initPublicOpinion(els, options = {}) {
-  if (els?.createBtn && els?.taskList && els?.scanBtn && els?.reportBtn && els?.results) {
+  if (els?.createBtn && els?.taskList && els?.scanBtn && els?.results) {
     const on = (el, evt, fn) => {
       if (!el) return;
       el.addEventListener(evt, fn);
@@ -34,98 +34,27 @@ export function initPublicOpinion(els, options = {}) {
       tasks: [{ id: `t_${Date.now()}`, keyword: '任务 1', infoType: 'all', sentiment: 'all', freq: 'realtime' }],
       activeTaskId: null,
       resultsByTask: new Map(),
+      cacheByTask: new Map(),
       compareMode: false,
       compareTaskIds: []
     };
 
-    const hash32 = (s) => {
-      let h = 2166136261;
-      for (let i = 0; i < s.length; i += 1) {
-        h ^= s.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-      }
-      return h >>> 0;
-    };
+    const GEO_BASE = window.GEO_BASE || '';
 
-    const makeRand = (seed) => {
-      let x = seed >>> 0;
-      return () => {
-        x ^= x << 13;
-        x ^= x >>> 17;
-        x ^= x << 5;
-        return (x >>> 0) / 4294967296;
-      };
-    };
-
-    const pick = (r, arr) => {
-      return arr[Math.floor(r() * arr.length)];
-    };
-
-    const pad2 = (n) => String(n).padStart(2, '0');
-    const fmtTime = (d) => {
-      return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-    };
-
-    const genItems = (task) => {
-      const kw = String(task.keyword || '').trim() || '关键词';
-      const seed = hash32(`${task.id}_${kw}_${task.infoType}_${task.sentiment}_${task.freq}`);
-      const r = makeRand(seed);
-
-      const sources = {
-        all: ['今日头条', '微信公众号', '小红书', '知乎', '微博', '百度', '抖音', '快手', 'B站'],
-        news: ['今日头条', '百度', '腾讯新闻', '新浪新闻'],
-        app: ['今日头条', '知乎', '小红书', '抖音'],
-        forum: ['知乎', '微博', '贴吧', '社区论坛']
-      };
-      const tags = {
-        all: ['APP', '公众号', '新闻', '论坛'],
-        news: ['新闻'],
-        app: ['APP'],
-        forum: ['论坛']
-      };
-
-      const tone = {
-        positive: ['好评', '推荐', '口碑', '认可', '点赞'],
-        neutral: ['讨论', '观点', '信息', '对比', '分析'],
-        negative: ['投诉', '质疑', '争议', '避雷', '曝光']
-      };
-
-      const industries = ['包装', '制造', '环保材料', '物流', '零售', '家居', '食品', '服装'];
-      const aspects = ['质量', '交付', '售后', '价格', '合规', '环保', '服务', '体验'];
-
-      const wantSent = task.sentiment || 'all';
-      const sentiments = wantSent === 'all' ? ['positive', 'neutral', 'negative'] : [wantSent];
-
-      const count = 6 + Math.floor(r() * 5);
-      const list = [];
-      for (let i = 0; i < count; i += 1) {
-        const sentiment = pick(r, sentiments);
-        const tag = pick(r, tags[task.infoType] || tags.all);
-        const src = pick(r, sources[task.infoType] || sources.all);
-        const heat = 40 + Math.floor(r() * 60) + (sentiment === 'negative' ? 10 : 0);
-
-        const ind = pick(r, industries);
-        const asp = pick(r, aspects);
-        const keyTone = pick(r, tone[sentiment] || tone.neutral);
-
-        const title = `${keyTone}｜${kw} 在${ind}领域的${asp}表现引发${sentiment === 'neutral' ? '关注' : sentiment === 'positive' ? '热议' : '争议'}`;
-        const summary = `围绕“${kw}”的内容在${src}出现多条讨论，重点涉及${asp}、${pick(r, aspects)}与${pick(r, aspects)}等方面。该条为模拟数据，用于展示舆情扫描与分析流程。`;
-        const now = new Date();
-        now.setMinutes(now.getMinutes() - (i * 37 + Math.floor(r() * 20)));
-        const url = `https://example.com/po/${task.id}/${i + 1}`;
-        list.push({
-          tag,
-          title,
-          snippet: summary,
-          time: fmtTime(now),
-          source: src,
-          heat,
-          sentiment,
-          url
-        });
-      }
-
-      return list.sort((a, b) => b.heat - a.heat);
+    const fetchResults = async (task) => {
+      const params = new URLSearchParams({
+        keyword: String(task.keyword || '').trim(),
+        info_type: task.infoType || 'all',
+        sentiment: task.sentiment || 'all',
+        page: '1',
+        page_size: '20'
+      });
+      const url = `${GEO_BASE}/api/v1/public-opinion/search?${params}`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const json = await resp.json();
+      if (!json.success || !json.data) throw new Error(json.error || 'API 返回异常');
+      return { items: json.data.items || [], cached: json.data.cached || false };
     };
 
     const getRadioValue = (name) => {
@@ -153,7 +82,6 @@ export function initPublicOpinion(els, options = {}) {
       renderTabs();
       renderMainTitle();
       renderResults();
-      if (els.enterBtn) els.enterBtn.textContent = state.compareMode ? '退出' : '进入';
     };
 
     const renderTasks = () => {
@@ -249,55 +177,44 @@ export function initPublicOpinion(els, options = {}) {
 
       const items = state.resultsByTask.get(state.activeTaskId) || [];
       if (items.length === 0) {
-        els.results.innerHTML = `<div class="page-muted" style="padding:12px;">点击“扫描”获取结果</div>`;
+        els.results.innerHTML = `<div class="page-muted" style="padding:12px;">点击"扫描"获取结果</div>`;
         return;
       }
-      els.results.innerHTML = renderItemsHtml(items);
+
+      // 缓存状态指示
+      const cacheInfo = state.cacheByTask.get(state.activeTaskId);
+      let cacheHtml = '';
+      if (cacheInfo) {
+        const elapsed = Math.round((Date.now() - cacheInfo.ts) / 1000);
+        const elapsedStr = elapsed < 60 ? `${elapsed}秒前` : `${Math.floor(elapsed / 60)}分钟前`;
+        if (cacheInfo.cached) {
+          cacheHtml = `<div class="cache-info" style="font-size:12px;color:#888;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+            <span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:11px;">缓存中</span>
+            <span>更新于 ${elapsedStr}（5分钟内重复搜索使用缓存，之后自动刷新）</span>
+          </div>`;
+        } else {
+          cacheHtml = `<div class="cache-info" style="font-size:12px;color:#888;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+            <span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:10px;font-size:11px;">实时</span>
+            <span>刚刚更新</span>
+          </div>`;
+        }
+      }
+
+      els.results.innerHTML = cacheHtml + renderItemsHtml(items);
     };
 
-    const mockScan = () => {
+    const realScan = async () => {
       const task = state.tasks.find((x) => x.id === state.activeTaskId);
       if (!task) return;
-      state.resultsByTask.set(task.id, genItems(task));
-      renderResults();
-    };
-
-    const showReport = () => {
-      const task = state.tasks.find((x) => x.id === state.activeTaskId);
-      if (!task) return;
-      const sent = { positive: 0, neutral: 0, negative: 0 };
-      const bySource = new Map();
-      state.results.forEach((r) => {
-        const s = r.sentiment || 'neutral';
-        if (s in sent) sent[s] += 1;
-        const src = r.source || '未知';
-        bySource.set(src, (bySource.get(src) || 0) + 1);
-      });
-      const srcTop = Array.from(bySource.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([k, v]) => `${escapeHtml(k)}（${v}）`)
-        .join('、');
-      openModal(
-        '分析报告',
-        `<div class="card" style="padding:12px;">
-        <div class="page-muted">任务</div>
-        <div style="font-weight:900;margin-top:6px;">${escapeHtml(task.keyword)}</div>
-      </div>
-      <div class="card" style="padding:12px;margin-top:10px;">
-        <div class="page-muted">结果数（Mock）</div>
-        <div style="font-weight:900;margin-top:6px;">${state.results.length}</div>
-      </div>
-      <div class="card" style="padding:12px;margin-top:10px;">
-        <div class="page-muted">情感分布（Mock）</div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
-          <span class="badge badge-green">正面 ${sent.positive}</span>
-          <span class="badge badge-gray">中性 ${sent.neutral}</span>
-          <span class="badge badge-red">负面 ${sent.negative}</span>
-        </div>
-        <div class="page-muted" style="margin-top:8px;">来源 TOP：${srcTop || '—'}</div>
-      </div>`
-      );
+      els.results.innerHTML = `<div class="page-muted" style="padding:12px;">正在搜索...</div>`;
+      try {
+        const { items, cached } = await fetchResults(task);
+        state.resultsByTask.set(task.id, items);
+        state.cacheByTask.set(task.id, { cached, ts: Date.now() });
+        renderResults();
+      } catch (e) {
+        els.results.innerHTML = `<div class="page-muted" style="padding:12px;">搜索失败: ${escapeHtml(String(e.message || e))}</div>`;
+      }
     };
 
     on(els.createBtn, 'click', () => {
@@ -330,19 +247,9 @@ export function initPublicOpinion(els, options = {}) {
       window.geoConsume?.({ event_type: 'ui', page: 'public-opinion', action: `tool_${tool}`, units: 1, amount: 0 });
     });
 
-    on(els.enterBtn, 'click', () => {
-      if (state.tasks.length <= 1) return;
-      setCompareMode(!state.compareMode);
-    });
-
     on(els.scanBtn, 'click', () => {
-      mockScan();
+      realScan();
       window.geoConsume?.({ event_type: 'ui', page: 'public-opinion', action: 'scan', units: 1, amount: 0 });
-    });
-
-    on(els.reportBtn, 'click', () => {
-      window.geoConsume?.({ event_type: 'ui', page: 'public-opinion', action: 'report_page', units: 1, amount: 0 });
-      window.navigateTo?.('public-opinion-report');
     });
 
     on(els.results, 'click', (e) => {

@@ -32,7 +32,7 @@ let currentModule = null;
 
 let llmSvgManifest = { files: [], baseUrl: 'llm-svg' };
 
-const GEO_BUILD_ID = '2026-07-19-pagination';
+const GEO_BUILD_ID = '2026-07-23-yuqing-crawl';
 try {
   window.__GEO_BUILD_ID__ = GEO_BUILD_ID;
 } catch {
