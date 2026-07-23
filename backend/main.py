@@ -2174,6 +2174,47 @@ def get_plans():
 def vite_probe():
     return Response(status_code=204)
 
+
+# ── 舆情搜索 API ─────────────────────────────────────────
+from backend.crawlers.opinion import search_opinion as _po_search
+from backend.crawlers.opinion import get_opinion_stats as _po_stats
+
+
+@app.get("/api/v1/public-opinion/search")
+async def public_opinion_search(
+    keyword: str = "",
+    info_type: str = "all",
+    sentiment: str = "all",
+    page: int = 1,
+    page_size: int = 20,
+):
+    """舆情关键词搜索 — 实时抓取搜狗微信/搜狗网页/必应，5分钟缓存"""
+    keyword = (keyword or "").strip()
+    if not keyword:
+        return fail("VALIDATION", "关键词不能为空")
+    if page < 1:
+        page = 1
+    if page_size < 1 or page_size > 100:
+        page_size = 20
+    import asyncio
+    result = await asyncio.get_event_loop().run_in_executor(
+        None, _po_search, keyword, info_type, sentiment, page, page_size
+    )
+    return ok(result)
+
+
+@app.get("/api/v1/public-opinion/stats")
+async def public_opinion_stats(keyword: str = ""):
+    """舆情统计聚合 — 供报告页使用"""
+    keyword = (keyword or "").strip()
+    if not keyword:
+        return fail("VALIDATION", "关键词不能为空")
+    import asyncio
+    result = await asyncio.get_event_loop().run_in_executor(
+        None, _po_stats, keyword
+    )
+    return ok(result)
+
 _data_dir = (Path(_PROJECT_ROOT) / "data").resolve()
 if _data_dir.exists():
     app.mount("/data", StaticFiles(directory=str(_data_dir)), name="data")
