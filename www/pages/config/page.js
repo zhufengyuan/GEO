@@ -167,7 +167,7 @@ const Page = {
         list.push({
           id: i + 1,
           event_type: type,
-          page: type === 'ai_generate' ? 'data-query' : type === 'publish' ? 'media-publish' : 'config',
+          page: type === 'ai_generate' ? 'data-statistics' : type === 'publish' ? 'media-publish' : 'config',
           action: pick.name,
           amount,
           created_at: formatTime(t)
