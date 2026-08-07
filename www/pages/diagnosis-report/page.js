@@ -180,6 +180,7 @@ const Page = {
       await saveKnowledgeBaseMerge('企业基础信息', patch);
       const page_context = buildPageContext(saveFields);
 
+
       const first = MODELS[0].id;
       setActivePill(first);
       renderReport(reportBodyModel, '生成中...', { placeholder: '点击分析按钮后，结果将显示在此处' });
@@ -204,24 +205,32 @@ const Page = {
       await saveKnowledgeBaseMerge('企业基础信息', patch);
       const page_context = buildPageContext(saveFields);
 
-      const parts = [];
+      // 收集各模型结果
+      const modelContents = {};
       for (const m of MODELS) {
         let t = modelCache[m.id];
         if (t == null) {
           t = await waitForFile(m.id);
           modelCache[m.id] = t;
         }
-        parts.push(`【${m.name}】\n${String(t || '').trim()}\n`);
+        if (t && String(t).trim()) {
+          modelContents[m.id] = String(t).trim();
+        }
       }
-      const combined = parts.join('\n');
-      if (!combined.trim()) {
+      if (!Object.keys(modelContents).length) {
         alert('请先生成各模型的分析结果');
         setBusy(false);
         return;
       }
 
-      renderReport(reportBodySummary, '生成中...', { placeholder: '点击汇总分析按钮后，结果将显示在此处' });
+      renderReport(reportBodySummary, '正在综合各模型报告生成汇总...', { placeholder: '点击汇总分析按钮后，结果将显示在此处' });
 
+      const parts = [];
+      for (const m of MODELS) {
+        const t = modelContents[m.id] || '';
+        parts.push(`【${m.name}】\n${t}\n`);
+      }
+      const combined = parts.join('\n');
       const req_id = `dr_summary_${Date.now()}_${Math.random().toString(16).slice(2)}`;
       const prompt =
         "请把下面多个大模型的企业诊断报告内容综合起来，去重汇总，生成一篇新的文章（结构清晰，可直接发布）。\n" +
@@ -232,22 +241,3 @@ const Page = {
       window.geoDiagnosisFilesSave?.({ task: TASK, model: 'summary', content: text });
       modelCache.summary = text;
       renderReport(reportBodySummary, text, { placeholder: '点击汇总分析按钮后，结果将显示在此处' });
-      setBusy(false);
-    };
-
-    runBtn?.addEventListener('click', runFourModels);
-    runSummaryBtn?.addEventListener('click', runSummary);
-    downloadBtn?.addEventListener('click', () => {
-      window.geoDiagnosisFilesDownloadWord?.({ task: TASK, model: 'summary' });
-    });
-  },
-  destroy() {
-    try {
-      if (Page._cleanup) Page._cleanup();
-    } catch {
-    }
-    Page._cleanup = null;
-  }
-};
-
-export default Page;
