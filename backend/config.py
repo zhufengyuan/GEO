@@ -29,9 +29,9 @@ _R_CFG = _read_config_r()
 class Settings:
     DEBUG: bool = True
 
-    DB_HOST: str = os.getenv("DB_HOST", "YOUR_DB_HOST")
+    DB_HOST: str = os.getenv("DB_HOST", "1.117.188.4")
     DB_USER: str = os.getenv("DB_USER", "root")
-    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "YOUR_DB_PASSWORD")
+    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "3POKJzGCs3JNdhum")
     DB_NAME: str = os.getenv("DB_NAME", "geo")
     DB_PORT: int = int(os.getenv("DB_PORT", "3306"))
     DB_CHARSET: str = "utf8mb4"
@@ -44,9 +44,9 @@ class Settings:
     AUTH_DISABLED: bool = True
     DEV_USER_ID: int = 1
 
-    LLM_URL: str = _R_CFG.get("llm_url") or os.getenv("LLM_URL", "http://YOUR_DB_HOST:5200/wenxinqianfan")
-    WENXIN_API_KEY: str = os.getenv("WENXIN_API_KEY", "YOUR_WENXIN_API_KEY")
-    WENXIN_SECRET_KEY: str = os.getenv("WENXIN_SECRET_KEY", "YOUR_WENXIN_SECRET_KEY")
+    LLM_URL: str = _R_CFG.get("llm_url") or os.getenv("LLM_URL", "http://1.117.188.4:5200/wenxinqianfan")
+    WENXIN_API_KEY: str = os.getenv("WENXIN_API_KEY", "z9LQiF34PzazRt3Bhenu0ey9")
+    WENXIN_SECRET_KEY: str = os.getenv("WENXIN_SECRET_KEY", "n9FLmBesVrDy9V8qlStA8b0VkgujXoZl")
     OFFICIAL_MEDIA_EXCEL: str = (Path(__file__).resolve().parents[1] / "data" / "2026年网站媒体及官方自媒体报价-Q2.xls").as_posix()
     OFFICIAL_PUBLISH_PARTNER_URL: str = os.getenv("OFFICIAL_PUBLISH_PARTNER_URL", "")
     OFFICIAL_PUBLISH_PARTNER_TOKEN: str = os.getenv("OFFICIAL_PUBLISH_PARTNER_TOKEN", "")
@@ -56,7 +56,7 @@ class Settings:
         "http://127.0.0.1:4510",
         "http://localhost:8123",
         "http://127.0.0.1:8123",
-        "http://YOUR_DB_HOST:3838",
+        "http://1.117.188.4:3838",
     ]
 
 
