@@ -1,6 +1,6 @@
 """
 FastAPI 主入口
-运行：python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8123
+运行：python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 """
 import sys
 import os
@@ -29,8 +29,6 @@ from urllib.parse import urlparse
 
 from backend.config import settings
 from backend.utils.api_response import api_response, APIException
-from backend.utils.sanitize import sanitize_obj as _sanitize_obj
-from backend.utils.kb_helpers import load_kb_section, load_full_kb, build_kb_context
 from backend.database import apply_migrations
 from backend.schemas import (
     LoginRequest,
@@ -42,9 +40,66 @@ from backend.schemas import (
     MonitorTaskCreateRequest,
 )
 
+import math
+import numbers
+
 
 class SafeJSONResponse(JSONResponse):
     def render(self, content) -> bytes:
+        def _sanitize_value(v):
+            try:
+                import pandas as pd  # type: ignore
+                try:
+                    if pd.isna(v):
+                        return None
+                except Exception:
+                    pass
+            except Exception:
+                pass
+            if v is None:
+                return None
+            if isinstance(v, bool):
+                return v
+            if isinstance(v, float):
+                if not math.isfinite(v):
+                    return None
+                return v
+            if isinstance(v, numbers.Number):
+                try:
+                    fv = float(v)
+                except Exception:
+                    return None
+                if not math.isfinite(fv):
+                    return None
+                try:
+                    if isinstance(v, int):
+                        return int(v)
+                except Exception:
+                    pass
+                return fv
+            return v
+
+        def _sanitize_key(k):
+            kk = _sanitize_value(k)
+            if kk is None:
+                return "null"
+            try:
+                if isinstance(kk, numbers.Number) and not isinstance(kk, bool):
+                    return str(kk)
+            except Exception:
+                pass
+            return str(kk)
+
+        def _sanitize_obj(obj):
+            if isinstance(obj, dict):
+                out = {}
+                for k, v in obj.items():
+                    out[_sanitize_key(k)] = _sanitize_obj(v)
+                return out
+            if isinstance(obj, (list, tuple, set)):
+                return [_sanitize_obj(x) for x in obj]
+            return _sanitize_value(obj)
+
         encoded = jsonable_encoder(content)
         encoded = _sanitize_obj(encoded)
         return json.dumps(encoded, ensure_ascii=False, allow_nan=False).encode("utf-8")
@@ -100,6 +155,7 @@ from backend.auth.dependencies import get_current_user
 from backend.utils.api_response import ok, fail
 from backend.api.publish_records import router as publish_records_router
 from backend.api.official_publish import router as official_publish_router
+from backend.crawlers.website import scrape_website_sync, auto_resolve_website_url
 
 app.include_router(publish_records_router)
 app.include_router(official_publish_router)
@@ -262,11 +318,21 @@ async def articles_create(req: ArticleCreateRequest, user=Depends(get_current_us
     lexicon = query_row("SELECT * FROM lexicons WHERE id=%s", [lexicon_id]) if lexicon_id > 0 else None
     lexicon = lexicon or {}
 
-    kb_base = load_kb_section(user["id"], "企业基础信息")
-    kb_docs = load_kb_section(user["id"], "docs")
-    kb_positioning = load_kb_section(user["id"], "positioning")
-    if kb_positioning is not None and isinstance(kb_docs, dict):
-        kb_docs = {**kb_docs, "positioning": kb_positioning}
+    def load_kb_section(sec: str):
+        row = query_row(
+            "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
+            [user["id"], sec],
+        ) or {}
+        content = row.get("content")
+        if not content:
+            return None
+        try:
+            return json.loads(content)
+        except Exception:
+            return content
+
+    kb_base = load_kb_section("企业基础信息")
+    kb_docs = load_kb_section("docs")
 
     task = {
         "tab": req.tab,
@@ -295,7 +361,7 @@ async def articles_create(req: ArticleCreateRequest, user=Depends(get_current_us
         if not title:
             title = (lexicon.get("company", "") + " " + lexicon.get("industry_keyword", "")).strip()[:120]
 
-    article_type = req.article_type or {"product": "产品宣传", "brand": "企业品牌", "activity": "主题活动创作"}.get(req.tab, "")
+    article_type = req.article_type or {"product": "产品宣传", "brand": "企业品牌", "activity": "活动关键词"}.get(req.tab, "")
     aid = insert(
         """INSERT INTO articles (title, content, article_type, creation_type, style, tone, brand_embed, review_status, enterprise_id)
            VALUES (%s, %s, %s, %s, %s, %s, %s, 0, %s)""",
@@ -696,7 +762,7 @@ async def question_words_items(lexicon_id: int, user=Depends(get_current_user)):
 async def question_words_create(req: LexiconCreateRequest, user=Depends(get_current_user)):
     from backend.database import insert, execute
     from backend.services.llm_service import async_call_llm
-    from backend.services.prompt_service import build_expand_words_prompt, build_question_words_prompt
+    from backend.services.prompt_service import build_expand_words_prompt
     words_obj = req.words or {}
     lid = insert(
         """INSERT INTO lexicons (user_id, name, company, industry_keyword, decision_stage, words, question_keyword)
@@ -733,46 +799,7 @@ async def question_words_create(req: LexiconCreateRequest, user=Depends(get_curr
             continue
         seen.add(kk)
         keywords2.append(kk)
-    questions = []
-    try:
-        prompt = build_question_words_prompt(
-            company=str(req.company or "").strip(),
-            industry_keyword=str(req.industry_keyword or "").strip(),
-            question_keyword=str(req.question_keyword or req.industry_keyword or "").strip(),
-            decision_stage=str(req.decision_stage or "").strip(),
-            words=words_obj,
-            enterprise_library_content="",
-            seed_keywords=keywords2,
-        )
-        raw = await async_call_llm(prompt, timeout=120)
-        lines = str(raw or "").splitlines()
-        for line in lines:
-            s = str(line or "").strip()
-            if not s:
-                continue
-            s = re.sub(r"^\s*[\-\*]\s*", "", s)
-            s = re.sub(r"^\s*\d+\s*[\.\、\)\:]?\s*", "", s)
-            s = s.strip()
-            if not s:
-                continue
-            questions.append(s)
-    except Exception as e:
-        print(f"[question_words] 生成失败：{e}")
-        questions = []
-
-    seen_q = set()
-    questions2 = []
-    for q in questions:
-        qq = str(q or "").strip()
-        if not qq or qq in seen_q:
-            continue
-        seen_q.add(qq)
-        questions2.append(qq)
-
-    if not questions2:
-        questions2 = keywords2
-
-    for i, w in enumerate(questions2, 1):
+    for i, w in enumerate(keywords2, 1):
         insert(
             "INSERT INTO question_words (lexicon_id, enterprise_id, seq_no, question_text, gen_date) VALUES (%s, %s, %s, %s, CURDATE())",
             [lid, None, i, w],
@@ -786,7 +813,7 @@ async def question_words_create(req: LexiconCreateRequest, user=Depends(get_curr
                 execute("UPDATE lexicons SET expand_words=%s WHERE id=%s", [expand[:500], lid])
         except Exception as e:
             print(f"[expand] 生成失败：{e}")
-    return ok({"id": lid, "question_count": len(questions2)})
+    return ok({"id": lid, "question_count": len(keywords2)})
 
 
 @app.delete("/api/v1/question-words")
@@ -839,14 +866,68 @@ async def monitor_tasks_update(tid: int, body: dict, user=Depends(get_current_us
 async def monitor_tasks_delete(tid: int, user=Depends(get_current_user)):
     from backend.database import execute
     execute("DELETE FROM monitor_tasks WHERE id=%s AND user_id=%s", [tid, user["id"]])
+
+
+@app.get("/api/v1/public-opinion/search")
+async def public_opinion_search(
+    keyword: str = "",
+    info_type: str = "all",
+    sentiment: str = "all",
+    page: int = 1,
+    page_size: int = 20,
+    user=Depends(get_current_user),
+):
+    from backend.crawlers.opinion import search_opinion
+
+    if not keyword.strip():
+        return fail("INVALID_PARAM", "keyword 不能为空")
+
+    try:
+        result = search_opinion(
+            keyword=keyword.strip(),
+            info_type=info_type,
+            sentiment=sentiment,
+            page=page,
+            page_size=page_size,
+        )
+        return ok(result)
+    except Exception as e:
+        return fail("SEARCH_ERROR", str(e))
+
+
+@app.get("/api/v1/public-opinion/search")
+async def public_opinion_search(
+    keyword: str = "",
+    info_type: str = "all",
+    sentiment: str = "all",
+    page: int = 1,
+    page_size: int = 20,
+    user=Depends(get_current_user),
+):
+    from backend.crawlers.opinion import search_opinion
+
+    if not keyword.strip():
+        return fail("INVALID_PARAM", "keyword 不能为空")
+
+    try:
+        result = search_opinion(
+            keyword=keyword.strip(),
+            info_type=info_type,
+            sentiment=sentiment,
+            page=page,
+            page_size=page_size,
+        )
+        return ok(result)
+    except Exception as e:
+        return fail("SEARCH_ERROR", str(e))
     return ok({"deleted": True})
 
 
 @app.post("/api/v1/files/upload")
 async def files_upload(file: UploadFile = File(...), user=Depends(get_current_user)):
     from backend.database import insert
-    upload_dir = Path(_PROJECT_ROOT) / "data" / "uploads"
-    upload_dir.mkdir(parents=True, exist_ok=True)
+    upload_dir = Path("uploads")
+    upload_dir.mkdir(exist_ok=True)
     ext = Path(file.filename).suffix
     save_name = f"{uuid.uuid4().hex}{ext}"
     save_path = upload_dir / save_name
@@ -872,7 +953,7 @@ async def files_get(fid: int, user=Depends(get_current_user)):
     row = query_row("SELECT * FROM enterprise_images WHERE id=%s", [fid])
     if not row:
         return fail("NOT_FOUND", "文件不存在")
-    path = (Path(_PROJECT_ROOT) / "data" / "uploads") / str(row["image_url"]).split("/")[-1]
+    path = Path("uploads") / str(row["image_url"]).split("/")[-1]
     if not path.exists():
         return fail("NOT_FOUND", "文件不存在")
     return FileResponse(path, filename=row.get("file_name"))
@@ -946,6 +1027,20 @@ async def ai_models(user=Depends(get_current_user)):
     })
 
 
+@app.post("/api/v1/diagnosis/scrape-website")
+async def scrape_website_endpoint(body: dict, user=Depends(get_current_user)):
+    """实时抓取官网页面内容"""
+    url = str(body.get("url") or "").strip()
+    if not url:
+        return fail("MISSING_URL", "请提供目标网址")
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    from backend.crawlers.website import scrape_website_sync
+    result = scrape_website_sync(url, timeout=15, max_chars=15000)
+    return ok(result)
+
+
 @app.post("/api/v1/ai/execute")
 async def ai_execute(body: dict, user=Depends(get_current_user)):
     from backend.database import query_row
@@ -956,14 +1051,15 @@ async def ai_execute(body: dict, user=Depends(get_current_user)):
         build_kb_profile_prompt,
         build_kb_library_prompt,
         build_kb_timeline_prompt,
-        build_kb_positioning_prompt,
         build_article_prompt,
         build_article_product_chat_prompt,
         build_article_writing_init_chat_prompt,
         build_data_diagnosis_prompt,
         build_website_diagnosis_prompt,
+        build_competitor_discovery_prompt,
         build_competitor_analysis_prompt,
         build_diagnosis_report_prompt,
+        build_diagnosis_report_with_scrape_prompt,
         build_optimization_plan_prompt,
         build_optimization_schedule_prompt,
         build_acceptance_score_prompt,
@@ -974,46 +1070,161 @@ async def ai_execute(body: dict, user=Depends(get_current_user)):
     hint = body.get("hint", "")
     page_context = str(body.get("page_context") or "").strip()
 
-    full_kb = load_full_kb(user["id"], int(lexicon_id or 0))
-    enterprise = full_kb["enterprise"]
-    lexicon = full_kb["lexicon"]
-    kb_base = full_kb["kb_base"]
-    kb_docs = full_kb["kb_docs"]
-    kb = build_kb_context(kb_base, kb_docs, enterprise)
+    enterprise = query_row("SELECT * FROM enterprise_base_info ORDER BY id DESC LIMIT 1") or {}
+    lexicon = {}
+    if lexicon_id:
+        lexicon = query_row("SELECT * FROM lexicons WHERE id=%s", [lexicon_id]) or {}
+
+    kb_base = {}
+    kb_docs = {}
+    try:
+        row1 = query_row(
+            "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
+            [user["id"], "企业基础信息"],
+        ) or {}
+        kb_base = json.loads(row1.get("content") or "{}") if row1 else {}
+    except Exception:
+        kb_base = {}
+
+    try:
+        row2 = query_row(
+            "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
+            [user["id"], "docs"],
+        ) or {}
+        kb_docs = json.loads(row2.get("content") or "{}") if row2 else {}
+    except Exception:
+        kb_docs = {}
+
+    def _timeline_text(d):
+        rows = d.get("timeline_rows") if isinstance(d, dict) else None
+        if not isinstance(rows, list) or not rows:
+            return ""
+        parts = []
+        for r in rows[:30]:
+            t = str((r or {}).get("time") or "").strip()
+            e = str((r or {}).get("event") or "").strip()
+            if t or e:
+                parts.append(f"{t} {e}".strip())
+        return "\n".join(parts)
+
+    # 合并前端表单实时值（用户可能刚填了但尚未保存）
+    kb_form_values = body.get("kb_form_values") if isinstance(body.get("kb_form_values"), dict) else {}
+    if kb_form_values:
+        kb_base = {**kb_base, **kb_form_values}  # 表单值优先
+
+    kb = {
+        "enterprise_full_name": kb_base.get("企业全称") or enterprise.get("enterprise_full_name") or "",
+        "enterprise_short_name": kb_base.get("企业简称") or enterprise.get("enterprise_short_name") or "",
+        "enterprise_address": kb_base.get("企业地址") or enterprise.get("enterprise_address") or "",
+        "enterprise_contact": kb_base.get("企业联系方式") or enterprise.get("enterprise_contact") or "",
+        "enterprise_website": kb_base.get("企业官网") or enterprise.get("enterprise_website") or "",
+        "main_products": kb_base.get("主营产品") or enterprise.get("main_products") or "",
+        "target_customers": kb_base.get("目标客户") or enterprise.get("target_customers") or "",
+        "sales_region": kb_base.get("销售区域范围") or enterprise.get("sales_region") or "",
+        "sales_channel": kb_base.get("销售方式或渠道") or enterprise.get("sales_channel") or "",
+        "enterprise_advantage": kb_base.get("企业优势") or enterprise.get("enterprise_advantage") or "",
+        "product_advantage": kb_base.get("产品优势") or enterprise.get("product_advantage") or "",
+        "tech_advantage": kb_base.get("技术优势") or enterprise.get("tech_advantage") or "",
+        "company_profile": (kb_docs.get("company_profile") if isinstance(kb_docs, dict) else "") or "",
+        "enterprise_library": (kb_docs.get("enterprise_library") if isinstance(kb_docs, dict) else "") or "",
+        "timeline_text": _timeline_text(kb_docs if isinstance(kb_docs, dict) else {}),
+        "extras": json.dumps({"base": kb_base, "docs": kb_docs}, ensure_ascii=False),
+    }
 
     if task == "generate_title":
         prompt = build_title_prompt(enterprise, lexicon, keyword, hint)
     elif task == "generate_activity_desc":
         prompt = build_activity_desc_prompt(enterprise, lexicon, keyword, hint)
-    elif task in (
-        "generate_kb_profile",
-        "generate_kb_library",
-        "generate_kb_timeline",
-        "generate_kb_positioning_main",
-        "generate_kb_positioning_sub",
-    ):
+    elif task in ("generate_kb_profile", "generate_kb_library", "generate_kb_timeline"):
         if task == "generate_kb_profile":
             prompt = build_kb_profile_prompt(kb)
         elif task == "generate_kb_library":
             prompt = build_kb_library_prompt(kb)
-        elif task == "generate_kb_timeline":
-            prompt = build_kb_timeline_prompt(kb)
-        elif task == "generate_kb_positioning_sub":
-            prompt = build_kb_positioning_prompt(kb, mode="sub", current_text=str(body.get("current_text") or ""))
         else:
-            prompt = build_kb_positioning_prompt(kb, mode="main", current_text=str(body.get("current_text") or ""))
+            prompt = build_kb_timeline_prompt(kb)
     elif task == "data_diagnosis":
         manual = str(body.get("manual") or body.get("input") or "").strip()
         prompt = build_data_diagnosis_prompt(kb, manual, page_context)
     elif task == "website_diagnosis":
         prompt = build_website_diagnosis_prompt(kb, page_context)
     elif task == "competitor_analysis":
-        competitors = str(body.get("competitors") or body.get("input") or "").strip()
-        prompt = build_competitor_analysis_prompt(kb, competitors, page_context)
+        # ===== competitor auto-discovery + website scraping + corpus detection + comparison =====
+        from backend.crawlers.website import compose_competitor_discovery_query, search_baidu_for_official_website, segment_and_summarize_long_content
+        from backend.services.llm_service import call_llm_sync
+        import json as _json, re as _re, logging as _logging
+        _logger = _logging.getLogger(__name__)
+
+        # Step 1: Build discovery query from KB (product + industry + region)
+        _query = compose_competitor_discovery_query(kb_base, page_context, str(body.get("competitors") or "").strip())
+        _disc_prompt = build_competitor_discovery_prompt(kb, _query)
+
+        # Step 2: Call LLM to discover competitors
+        try:
+            _disc_result = call_llm_sync(_disc_prompt, timeout=30)
+        except Exception as e:
+            _logger.warning("Competitor discovery LLM failed: %s", e)
+            _disc_result = ""
+
+        # Step 3: Parse competitor JSON list
+        _comp_list = []
+        if _disc_result:
+            try:
+                _match = _re.search(r'\[.*\]', _disc_result, _re.DOTALL)
+                if _match:
+                    _comp_list = _json.loads(_match.group())
+            except Exception as e:
+                _logger.warning("Competitor JSON parse failed: %s", e)
+
+        # Step 4: Scrape each competitor website
+        _comp_scraped = {}
+        _comp_names = []
+        _our = str(kb_base.get("企业全称") or kb_base.get("企业简称") or "").strip()
+
+        for _c in _comp_list[:8]:
+            _nm = str(_c.get("company_name") or "").strip()
+            if not _nm or (_our and (_nm == _our or _our in _nm or _nm in _our)):
+                continue
+
+            _url = None
+            try:
+                _url = search_baidu_for_official_website(_nm)
+            except Exception as e:
+                _logger.warning("Baidu search failed for %s: %s", _nm, e)
+
+            if _url:
+                _scr = scrape_website_sync(_url, timeout=15, max_chars=15000)
+                if _scr.get("ok") or _scr.get("raw_html"):
+                    _comp_scraped[_nm] = _scr
+            _comp_names.append(_nm)
+
+        # Step 5: Corpus detection - segment and summarize long content
+        if _comp_scraped:
+            _comp_scraped = segment_and_summarize_long_content(_comp_scraped)
+
+        # Step 6: Build final analysis prompt with scraped competitor data
+        _comp_str = ", ".join(_comp_names) if _comp_names else (
+            str(body.get("competitors") or body.get("input") or "").strip()
+        )
+        prompt = build_competitor_analysis_prompt(
+            kb, _comp_str, page_context,
+            competitor_scraped=_comp_scraped
+        )
     elif task == "diagnosis_report":
         extra_input = str(body.get("input") or "").strip()
         llm_name = str(body.get("llm_name") or body.get("model_name") or "").strip()
-        prompt = build_diagnosis_report_prompt(kb, extra_input, llm_name, page_context)
+        # 自动解析官网 URL：优先 KB 表单"企业官网" -> 百度搜索公司名
+        company_name = str(kb_base.get("企业全称") or kb_base.get("企业简称") or "").strip()
+        website_url = auto_resolve_website_url(kb_base, company_name)
+        if website_url:
+            scraped = scrape_website_sync(website_url, timeout=15, max_chars=15000)
+            if scraped.get("ok"):
+                prompt = build_diagnosis_report_with_scrape_prompt(
+                    kb, extra_input, llm_name, page_context, website_content=scraped
+                )
+            else:
+                prompt = build_diagnosis_report_prompt(kb, extra_input, llm_name, page_context)
+        else:
+            prompt = build_diagnosis_report_prompt(kb, extra_input, llm_name, page_context)
     elif task == "optimization_plan":
         prompt = build_optimization_plan_prompt(kb)
     elif task == "optimization_schedule":
@@ -1112,12 +1323,25 @@ async def article_writing_init_chat(body: dict, user=Depends(get_current_user)):
     products = payload.get("products") if isinstance(payload.get("products"), list) else []
     images = payload.get("images") if isinstance(payload.get("images"), list) else []
 
-    full_kb = load_full_kb(user["id"], lexicon_id)
-    enterprise = full_kb["enterprise"]
-    lexicon = full_kb["lexicon"]
-    kb_base = full_kb["kb_base"]
-    kb_docs = full_kb["kb_docs"]
+    enterprise = query_row("SELECT * FROM enterprise_base_info ORDER BY id DESC LIMIT 1") or {}
+    lexicon = query_row("SELECT * FROM lexicons WHERE id=%s", [lexicon_id]) if lexicon_id > 0 else None
+    lexicon = lexicon or {}
 
+    def load_kb_section(sec: str):
+        row = query_row(
+            "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
+            [user["id"], sec],
+        ) or {}
+        content = row.get("content")
+        if not content:
+            return None
+        try:
+            return json.loads(content)
+        except Exception:
+            return content
+
+    kb_base = load_kb_section("企业基础信息")
+    kb_docs = load_kb_section("docs")
     prompt = build_article_writing_init_chat_prompt(
         enterprise,
         lexicon,
@@ -1170,11 +1394,21 @@ async def article_writing_chat(body: dict, user=Depends(get_current_user)):
     lexicon = query_row("SELECT * FROM lexicons WHERE id=%s", [lexicon_id]) if lexicon_id > 0 else None
     lexicon = lexicon or {}
 
-    kb_base = load_kb_section(user["id"], "企业基础信息")
-    kb_docs = load_kb_section(user["id"], "docs")
-    kb_positioning = load_kb_section(user["id"], "positioning")
-    if kb_positioning is not None and isinstance(kb_docs, dict):
-        kb_docs = {**kb_docs, "positioning": kb_positioning}
+    def load_kb_section(sec: str):
+        row = query_row(
+            "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
+            [user["id"], sec],
+        ) or {}
+        content = row.get("content")
+        if not content:
+            return None
+        try:
+            return json.loads(content)
+        except Exception:
+            return content
+
+    kb_base = load_kb_section("企业基础信息")
+    kb_docs = load_kb_section("docs")
     prompt = build_article_product_chat_prompt(
         enterprise,
         lexicon,
@@ -1206,6 +1440,80 @@ async def article_writing_generate(body: dict, user=Depends(get_current_user)):
     return await ai_execute(payload, user)
 
 
+
+@app.post("/api/v1/article-writing/suggestions")
+async def article_writing_suggestions(body: dict, user=Depends(get_current_user)):
+    from backend.database import query_row
+    from backend.services.llm_service import async_call_llm
+    from backend.services.prompt_service import build_article_writing_suggestions_prompt
+
+    payload = dict(body or {})
+    lexicon_id = int(payload.get("lexicon_id") or payload.get("lexiconId") or 0)
+    task_tab = str(payload.get("tab") or "").strip()
+    question_text = str(payload.get("question_text") or payload.get("questionText") or "").strip()
+    platforms = str(payload.get("platforms") or "").strip()
+    user_input = str(payload.get("user_input") or payload.get("userInput") or "").strip()
+    product = payload.get("product")
+    products = payload.get("products") if isinstance(payload.get("products"), list) else []
+    images = payload.get("images") if isinstance(payload.get("images"), list) else []
+    article_text = str(payload.get("content") or payload.get("text") or "").strip()
+
+    if not article_text:
+        return fail("INVALID_PARAM", "content 不能为空")
+
+    enterprise = query_row("SELECT * FROM enterprise_base_info ORDER BY id DESC LIMIT 1") or {}
+    lexicon = query_row("SELECT * FROM lexicons WHERE id=%s", [lexicon_id]) if lexicon_id > 0 else None
+    lexicon = lexicon or {}
+
+    def load_kb_section(sec: str):
+        row = query_row(
+            "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
+            [user["id"], sec],
+        ) or {}
+        content = row.get("content")
+        if not content:
+            return None
+        try:
+            return json.loads(content)
+        except Exception:
+            return content
+
+    kb_base = load_kb_section("企业基础信息")
+    kb_docs = load_kb_section("docs")
+
+    def _safe_json(v):
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return v
+        try:
+            return json.dumps(v, ensure_ascii=False)
+        except Exception:
+            return str(v)
+
+    prompt = build_article_writing_suggestions_prompt(
+        enterprise=enterprise,
+        lexicon=lexicon,
+        kb_base=kb_base,
+        kb_docs=kb_docs,
+        task_tab=task_tab,
+        task_question_text=question_text,
+        task_platforms=platforms,
+        task_user_input=user_input,
+        task_product_json=_safe_json(product),
+        task_products_json=_safe_json(products) if products else "",
+        task_images_json=_safe_json(images) if images else "",
+        article_text=article_text,
+    )
+
+    if not prompt:
+        return fail("LLM_ERROR", "提示词模板缺失")
+
+    raw = str((await async_call_llm(prompt)) or "").strip()
+    if not raw:
+        return fail("LLM_ERROR", "大模型服务无返回，请稍后重试")
+
+    return ok({"text": raw, "suggestions": raw})
 @app.post("/api/v1/article-writing/optimize")
 async def article_writing_optimize(body: dict, user=Depends(get_current_user)):
     from backend.database import query_row
@@ -1226,11 +1534,21 @@ async def article_writing_optimize(body: dict, user=Depends(get_current_user)):
     lexicon = query_row("SELECT * FROM lexicons WHERE id=%s", [lexicon_id]) if lexicon_id > 0 else None
     lexicon = lexicon or {}
 
-    kb_base = load_kb_section(user["id"], "企业基础信息")
-    kb_docs = load_kb_section(user["id"], "docs")
-    kb_positioning = load_kb_section(user["id"], "positioning")
-    if kb_positioning is not None and isinstance(kb_docs, dict):
-        kb_docs = {**kb_docs, "positioning": kb_positioning}
+    def load_kb_section(sec: str):
+        row = query_row(
+            "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
+            [user["id"], sec],
+        ) or {}
+        content = row.get("content")
+        if not content:
+            return None
+        try:
+            return json.loads(content)
+        except Exception:
+            return content
+
+    kb_base = load_kb_section("企业基础信息")
+    kb_docs = load_kb_section("docs")
     prompt = build_article_product_optimize_prompt(
         enterprise,
         lexicon,
@@ -1265,237 +1583,6 @@ async def article_writing_optimize(body: dict, user=Depends(get_current_user)):
 
     return ok({"suggestions": suggestions, "text": optimized})
 
-
-@app.post("/api/v1/article-writing/suggestions")
-async def article_writing_suggestions(body: dict, user=Depends(get_current_user)):
-    from backend.services.llm_service import async_call_llm
-    from backend.services.prompt_service import build_article_writing_suggestions_prompt
-
-    payload = dict(body or {})
-    tab = str(payload.get("tab") or "product").strip() or "product"
-    lexicon_id = int(payload.get("lexicon_id") or payload.get("lexiconId") or 0)
-    question_text = str(payload.get("question_text") or payload.get("questionText") or "").strip()
-    platforms = payload.get("platforms") if isinstance(payload.get("platforms"), list) else []
-    article_type = str(payload.get("article_type") or payload.get("articleType") or "").strip()
-    style = str(payload.get("style") or "").strip()
-    tone = str(payload.get("tone") or "").strip()
-    brand_embed = bool(payload.get("brand_embed") or payload.get("brandEmbed") or False)
-    user_input = str(payload.get("user_input") or payload.get("userInput") or "").strip()
-    product = payload.get("product") if isinstance(payload.get("product"), dict) else {}
-    products = payload.get("products") if isinstance(payload.get("products"), list) else []
-    images = payload.get("images") if isinstance(payload.get("images"), list) else []
-    article_text = str(payload.get("content") or payload.get("article_text") or payload.get("text") or "").strip()
-    if not article_text:
-        return fail("INVALID_PARAM", "content 不能为空")
-
-    full_kb = load_full_kb(user["id"], lexicon_id)
-    enterprise = full_kb["enterprise"]
-    lexicon = full_kb["lexicon"]
-    kb_base = full_kb["kb_base"]
-    kb_docs = full_kb["kb_docs"]
-
-    task = {
-        "tab": tab,
-        "question_text": question_text,
-        "platforms": platforms,
-        "article_type": article_type,
-        "style": style,
-        "tone": tone,
-        "brand_embed": brand_embed,
-        "user_input": user_input,
-        "product": product,
-        "products": products,
-        "images": images,
-    }
-    prompt = build_article_writing_suggestions_prompt(
-        enterprise,
-        lexicon,
-        task,
-        kb_base=kb_base,
-        kb_docs=kb_docs,
-        article_text=article_text,
-    )
-    text = str((await async_call_llm(prompt)) or "").strip()
-    if not text:
-        return fail("LLM_ERROR", "大模型服务无返回，请稍后重试")
-    return ok({"text": text})
-
-
-@app.post("/api/v1/article-writing/rewrite")
-async def article_writing_rewrite(body: dict, user=Depends(get_current_user)):
-    from backend.services.llm_service import async_call_llm
-    from backend.services.prompt_service import build_article_writing_rewrite_prompt
-
-    payload = dict(body or {})
-    tab = str(payload.get("tab") or "product").strip() or "product"
-    lexicon_id = int(payload.get("lexicon_id") or payload.get("lexiconId") or 0)
-    question_text = str(payload.get("question_text") or payload.get("questionText") or "").strip()
-    platforms = payload.get("platforms") if isinstance(payload.get("platforms"), list) else []
-    article_type = str(payload.get("article_type") or payload.get("articleType") or "").strip()
-    style = str(payload.get("style") or "").strip()
-    tone = str(payload.get("tone") or "").strip()
-    brand_embed = bool(payload.get("brand_embed") or payload.get("brandEmbed") or False)
-    user_input = str(payload.get("user_input") or payload.get("userInput") or "").strip()
-    product = payload.get("product") if isinstance(payload.get("product"), dict) else {}
-    products = payload.get("products") if isinstance(payload.get("products"), list) else []
-    images = payload.get("images") if isinstance(payload.get("images"), list) else []
-    article_text = str(payload.get("content") or payload.get("article_text") or payload.get("text") or "").strip()
-    if not article_text:
-        return fail("INVALID_PARAM", "content 不能为空")
-
-    full_kb = load_full_kb(user["id"], lexicon_id)
-    enterprise = full_kb["enterprise"]
-    lexicon = full_kb["lexicon"]
-    kb_base = full_kb["kb_base"]
-    kb_docs = full_kb["kb_docs"]
-
-    task = {
-        "tab": tab,
-        "question_text": question_text,
-        "platforms": platforms,
-        "article_type": article_type,
-        "style": style,
-        "tone": tone,
-        "brand_embed": brand_embed,
-        "user_input": user_input,
-        "product": product,
-        "products": products,
-        "images": images,
-    }
-    prompt = build_article_writing_rewrite_prompt(
-        enterprise,
-        lexicon,
-        task,
-        kb_base=kb_base,
-        kb_docs=kb_docs,
-        article_text=article_text,
-    )
-    text = str((await async_call_llm(prompt)) or "").strip()
-    if not text:
-        return fail("LLM_ERROR", "大模型服务无返回，请稍后重试")
-    return ok({"text": text})
-
-
-@app.get("/api/v1/ai/tasks/{tid}")
-async def ai_task_get(tid: int, user=Depends(get_current_user)):
-    return ok({"id": tid, "status": "completed", "result": None})
-
-
-# ---- official-media 字段提取 / 过滤（与前端 extractRowMeta + applyFilter 对齐）----
-_OM_PATTERNS = {
-    "name": ["媒体名称", "账号名称", "媒体", "账号", "名称", "平台名称"],
-    "platform": ["平台", "渠道", "站点"],
-    "industry": ["行业", "领域"],
-    "region": ["所在地区", "地区", "地域", "省", "市"],
-    "fans": ["粉丝量", "粉丝数", "粉丝"],
-    "cert": ["账号认证", "认证"],
-    "price": ["报价", "价格", "费用", "单价", "刊例", "报价（元）", "报价(元)"],
-    "url": ["链接", "网址", "URL", "url"],
-    "rate": ["收录率", "收录", "收录情况"],
-    "speed": ["出稿时效", "出稿时间", "出稿", "时效", "时长"],
-    "note": ["备注", "说明", "要求", "注意"],
-}
-
-
-def _om_get(row, patterns):
-    """对应前端 getValueByPatterns：按关键词命中列名取值（跳过 __ 前缀字段）"""
-    if not row or not isinstance(row, dict):
-        return ""
-    keys = [k for k in row.keys() if k is not None and not str(k).startswith("__")]
-    for p in patterns:
-        for k in keys:
-            if p in str(k):
-                v = row.get(k)
-                if v is None:
-                    continue
-                s = str(v).strip()
-                if s:
-                    return s
-    return ""
-
-
-# 字段名 -> 后端 _normalize_positional_row 预填的 __ 键（与前端 extractRowMeta 对齐）
-_OM_FIELD_KEY = {
-    "name": "__name",
-    "platform": "__platform",
-    "industry": "__industry",
-    "region": "__region",
-    "fans": "__fans",
-    "cert": "__verify",
-    "price": "__price",
-    "url": "__url",
-    "rate": "__rate",
-    "speed": "__speed",
-    "note": "__remark",
-}
-
-
-def _om_normalize(row):
-    """对应前端 extractRowMeta + inferType，返回归一化字段，并把 __ 字段写回 row"""
-    sheet_type = str(row.get("__type", "") or "").strip()
-    vals = {}
-    for f, pats in _OM_PATTERNS.items():
-        existing = str(row.get(_OM_FIELD_KEY.get(f, "")) or "").strip()
-        vals[f] = existing if existing else _om_get(row, pats)
-    if sheet_type == "全国网站媒体":
-        t = "website"
-    elif sheet_type == "官方自媒体":
-        t = "media"
-    else:
-        t = "media" if (vals["fans"] or vals["platform"]) else "website"
-    # 写回 __ 字段（已存在则不覆盖），保持前端 normalizeApiRows 结果一致
-    for f, k in _OM_FIELD_KEY.items():
-        row.setdefault(k, vals[f])
-    vals["type"] = t
-    return vals
-
-
-def _om_match(item, f, kw, tab):
-    """对应前端 applyFilter 的过滤条件（tab 在外部单独统计后再应用）"""
-    t = item["type"]
-    if f.get("platform") and not (t == "media" and f["platform"] in (item["platform"] or "")):
-        return False
-    if f.get("industry") and f["industry"] not in (item["industry"] or ""):
-        return False
-    if f.get("region") and not (t != "website" or f["region"] in (item["region"] or "")):
-        return False
-    if f.get("fans") and not (t != "media" or (item["fans"] or "") == f["fans"]):
-        return False
-    if f.get("cert") and not (t != "media" or (item["cert"] or "") == f["cert"]):
-        return False
-    if f.get("mtype") and t != f["mtype"]:
-        return False
-    if f.get("extra"):
-        if f["extra"] not in (item["note"] or "") and f["extra"] not in (item["speed"] or ""):
-            return False
-    if kw:
-        hay = " ".join([item["name"] or "", item["note"] or "", item["platform"] or "", item["industry"] or ""]).lower()
-        if kw not in hay:
-            return False
-    if tab == "website" and t != "website":
-        return False
-    if tab == "media" and t != "media":
-        return False
-    return True
-
-
-_om_data_cache = None
-
-
-def _get_om_data():
-    """缓存读取+清洗后的官媒数据，避免每次请求都重读 Excel（~3.5s -> ~0s）"""
-    global _om_data_cache
-    if _om_data_cache is not None:
-        return _om_data_cache
-    from backend.services.excel_service import read_official_media_excel
-    from backend.utils.sanitize import sanitize_obj as _sanitize_obj_external
-    rows = read_official_media_excel()
-    rows = _sanitize_obj_external(rows)
-    # 深拷贝，防止后续过滤操作污染缓存
-    _om_data_cache = [dict(r) for r in rows]
-    return _om_data_cache
-
-
 @app.get("/api/v1/official-media")
 async def official_media_list(
     page: int = 1,
@@ -1503,74 +1590,82 @@ async def official_media_list(
     keyword: Optional[str] = None,
     media_type: Optional[str] = None,
     sheet: Optional[str] = None,
-    platform: Optional[str] = None,
-    industry: Optional[str] = None,
-    region: Optional[str] = None,
-    fans: Optional[str] = None,
-    cert: Optional[str] = None,
-    mtype: Optional[str] = None,
-    extra: Optional[str] = None,
-    tab: Optional[str] = None,
     user=Depends(get_current_user),
 ):
-    rows = _get_om_data()
+    from backend.services.excel_service import read_official_media_excel
+    import math
+    import datetime
+    import numbers
+    rows = read_official_media_excel()
 
-    # 兼容旧参数：按原始 __type / __sheet 过滤
+    def _sanitize(v):
+        try:
+            import pandas as pd  # type: ignore
+            try:
+                if pd.isna(v):
+                    return None
+            except Exception:
+                pass
+            if isinstance(v, getattr(pd, "Timestamp", ())):
+                try:
+                    return v.to_pydatetime().isoformat()
+                except Exception:
+                    return str(v)
+        except Exception:
+            pass
+        if v is None:
+            return None
+        if isinstance(v, (datetime.datetime, datetime.date)):
+            return v.isoformat()
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, numbers.Number):
+            try:
+                fv = float(v)
+            except Exception:
+                return None
+            if not math.isfinite(fv):
+                return None
+            try:
+                if isinstance(v, int):
+                    return int(v)
+            except Exception:
+                pass
+            return fv
+        return v
+
+    def _sanitize_obj(obj):
+        if isinstance(obj, dict):
+            return {k: _sanitize_obj(_sanitize(v)) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_sanitize_obj(_sanitize(x)) for x in obj]
+        return _sanitize(obj)
+
+    rows = _sanitize_obj(rows)
+    if keyword:
+        kw = keyword.strip().lower()
+        def _match(r):
+            for v in (r or {}).values():
+                if v is None:
+                    continue
+                if kw in str(v).lower():
+                    return True
+            return False
+        rows = [r for r in rows if _match(r)]
     if media_type:
         rows = [r for r in rows if str(r.get("__type", "")) == media_type]
     if sheet:
         rows = [r for r in rows if str(r.get("__sheet", "")) == sheet]
 
-    f = {
-        "platform": (platform or "").strip(),
-        "industry": (industry or "").strip(),
-        "region": (region or "").strip(),
-        "fans": (fans or "").strip(),
-        "cert": (cert or "").strip(),
-        "mtype": (mtype or "").strip(),
-        "extra": (extra or "").strip(),
-    }
-    kw = (keyword or "").strip().lower()
-    tabv = (tab or "").strip()
-
-    # 归一化 + 过滤（tab 先不应用，用于统计各 Tab 数量）
-    norm = []
-    for r in rows:
-        item = _om_normalize(r)
-        # 对齐前端 normalizeApiRows 的空行过滤
-        if not (item["name"] or item["platform"] or item["price"] or item["note"]):
-            continue
-        if not _om_match(item, f, kw, ""):
-            continue
-        norm.append((r, item))
-
-    total_all = len(norm)
-    total_website = sum(1 for _, it in norm if it["type"] == "website")
-    total_media = sum(1 for _, it in norm if it["type"] == "media")
-
-    # 再应用 tab 过滤
-    if tabv == "website":
-        norm = [x for x in norm if x[1]["type"] == "website"]
-    elif tabv == "media":
-        norm = [x for x in norm if x[1]["type"] == "media"]
-
-    total = len(norm)
+    total = len(rows)
     if page < 1:
         page = 1
     if page_size < 1:
         page_size = 50
     start = (page - 1) * page_size
     end = start + page_size
-    items = [r for r, _ in norm[start:end]]
-    return ok({
-        "total": total,
-        "page": page,
-        "pageSize": page_size,
-        "items": items,
-        "total_all": total_all,
-        "total_website": total_website,
-        "total_media": total_media,
-    })
+    items = rows[start:end]
+    return ok({"total": total, "page": page, "pageSize": page_size, "items": items})
 
 
 @app.get("/api/v1/official-media/summary")
@@ -1692,39 +1787,6 @@ async def knowledge_base_save(body: dict, user=Depends(get_current_user)):
             insert(f"INSERT INTO enterprise_base_info ({', '.join(cols)}) VALUES ({placeholders})", params)
 
     return ok({"saved": True, "section": sec})
-
-
-@app.post("/api/v1/knowledge-base/graph")
-async def knowledge_base_graph(body: dict = Body(default={}), user=Depends(get_current_user)):
-    from backend.utils.kb_graph import build_knowledge_graph
-
-    saved_base = load_kb_section(user["id"], "企业基础信息")
-    saved_docs = load_kb_section(user["id"], "docs")
-    saved_positioning = load_kb_section(user["id"], "positioning")
-
-    req_base = body.get("base")
-    req_docs = body.get("docs")
-    req_positioning = body.get("positioning")
-
-    kb_base = {}
-    if isinstance(saved_base, dict):
-        kb_base.update(saved_base)
-    if isinstance(req_base, dict):
-        kb_base.update(req_base)
-
-    kb_docs = {}
-    if isinstance(saved_docs, dict):
-        kb_docs.update(saved_docs)
-    if isinstance(req_docs, dict):
-        kb_docs.update(req_docs)
-
-    kb_positioning = {}
-    if isinstance(saved_positioning, dict):
-        kb_positioning.update(saved_positioning)
-    if isinstance(req_positioning, dict):
-        kb_positioning.update(req_positioning)
-
-    return ok(build_knowledge_graph(kb_base=kb_base, kb_docs=kb_docs, kb_positioning=kb_positioning))
 
 
 @app.post("/api/v1/knowledge-base/products/import")
@@ -2028,7 +2090,7 @@ async def tools_summarize_urls(body: dict = Body(...), user=Depends(get_current_
     return ok({"urls": safe_urls, "summary": summary or ""})
 
 
-_DIAG_UPLOAD_DIR = Path(_PROJECT_ROOT) / "data" / "uploads"
+_DIAG_UPLOAD_DIR = Path("uploads")
 _DIAG_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -2137,23 +2199,6 @@ async def diagnosis_files_download(task: str, model: Optional[str] = None, user=
         filename=filename,
     )
 
-@app.get("/api/v1/data-statistics")
-async def data_statistics_data(user=Depends(get_current_user)):
-    """数据统计 - 读取数据统计_测试数据.xlsx，返回完整payload"""
-    from backend.services.data_stats_service import read_data_stats_excel
-    from backend.utils.sanitize import sanitize_obj as _sanitize_obj_ds
-    payload = read_data_stats_excel()
-    payload = _sanitize_obj_ds(payload)
-    return ok(payload)
-
-
-@app.get("/api/v1/data-statistics/summary")
-async def data_statistics_summary(user=Depends(get_current_user)):
-    """数据统计 - 摘要信息"""
-    from backend.services.data_stats_service import get_data_stats_summary
-    return ok(get_data_stats_summary())
-
-
 @app.get("/api/v1/health")
 def health_check():
     return api_response({"status": "ok", "version": "2026-06-04-reform-2"})
@@ -2174,63 +2219,14 @@ def get_plans():
 def vite_probe():
     return Response(status_code=204)
 
-
-# ── 舆情搜索 API ─────────────────────────────────────────
-from backend.crawlers.opinion import search_opinion as _po_search
-from backend.crawlers.opinion import get_opinion_stats as _po_stats
-
-
-@app.get("/api/v1/public-opinion/search")
-async def public_opinion_search(
-    keyword: str = "",
-    info_type: str = "all",
-    sentiment: str = "all",
-    page: int = 1,
-    page_size: int = 20,
-):
-    """舆情关键词搜索 — 实时抓取搜狗微信/搜狗网页/必应，5分钟缓存"""
-    keyword = (keyword or "").strip()
-    if not keyword:
-        return fail("VALIDATION", "关键词不能为空")
-    if page < 1:
-        page = 1
-    if page_size < 1 or page_size > 100:
-        page_size = 20
-    import asyncio
-    result = await asyncio.get_event_loop().run_in_executor(
-        None, _po_search, keyword, info_type, sentiment, page, page_size
-    )
-    return ok(result)
-
-
-@app.get("/api/v1/public-opinion/stats")
-async def public_opinion_stats(keyword: str = ""):
-    """舆情统计聚合 — 供报告页使用"""
-    keyword = (keyword or "").strip()
-    if not keyword:
-        return fail("VALIDATION", "关键词不能为空")
-    import asyncio
-    result = await asyncio.get_event_loop().run_in_executor(
-        None, _po_stats, keyword
-    )
-    return ok(result)
-
-_data_dir = (Path(_PROJECT_ROOT) / "data").resolve()
-if _data_dir.exists():
-    app.mount("/data", StaticFiles(directory=str(_data_dir)), name="data")
-
-_uploads_dir = (_data_dir / "uploads").resolve()
-if _uploads_dir.exists():
-    app.mount("/uploads", StaticFiles(directory=str(_uploads_dir)), name="uploads")
-
-_llm_svg_dir = (Path(_PROJECT_ROOT) / "svg").resolve()
-if _llm_svg_dir.exists():
-    app.mount("/llm-svg", StaticFiles(directory=str(_llm_svg_dir)), name="llm-svg")
-
 _www_dir = (Path(_PROJECT_ROOT) / "www").resolve()
 if _www_dir.exists():
     app.mount("/", StaticFiles(directory=str(_www_dir), html=True), name="www")
 
+_uploads_dir = (Path(_PROJECT_ROOT) / "uploads").resolve()
+if _uploads_dir.exists():
+    app.mount("/uploads", StaticFiles(directory=str(_uploads_dir)), name="uploads")
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("backend.main:app", host="0.0.0.0", port=8123, reload=settings.DEBUG)
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=settings.DEBUG)
