@@ -24,6 +24,124 @@
 
 ---
 
+
+
+## 最近更新
+> **2026-08-07 (2)** — 竞品分析报告升级为9章节专业格式
+
+### 报告模板重写
+-  从8章节升级为9章节+附录的专业报告结构
+- 新增【九、执行保障建议】：团队配置、工具推荐、复盘机制、竞品监控、风险预案
+- 新增【附录：待核查清单汇总】：统一汇总全报告中的待核查项，含核查方法与状态
+- 执行清单细化：第七节明确90天三个阶段（快速见效→深度优化→巩固超越），每项含负责人建议/完成标准/P级
+- 第八节拆分为品牌/流量/数据/生态四大壁垒，均附时间里程碑与关键指标
+- 所有表格规范化：竞品名单表、SEO对标表、横向对比总表、差距分析表均使用Markdown表格格式
+- 差异化策略细化：3-5个策略，每个附差异化指数/切入逻辑/具体打法/预期效果/资源需求/风险提示
+|  | 219行，完整9章+附录报告模板 |
+
+> **2026-08-07 (2)** — 竞品分析报告升级为9章节专业格式
+
+### 报告模板重写
+-  从8章节升级为9章节+附录的专业报告结构
+- 新增【九、执行保障建议】：团队配置、工具推荐、复盘机制、竞品监控、风险预案
+- 新增【附录：待核查清单汇总】：统一汇总全报告中的待核查项，含核查方法与状态
+- 执行清单细化：第七节明确90天三个阶段（快速见效→深度优化→巩固超越），每项含负责人建议/完成标准/P级
+- 第八节拆分为品牌/流量/数据/生态四大壁垒，均附时间里程碑与关键指标
+- 所有表格规范化：竞品名单表、SEO对标表、横向对比总表、差距分析表均使用Markdown表格格式
+- 差异化策略细化：3-5个策略，每个附差异化指数/切入逻辑/具体打法/预期效果/资源需求/风险提示
+|  | 219行，完整9章+附录报告模板 |
+
+
+> **2026-08-07** — 竞品分析自动化 + 爬虫增强
+
+### 竞品自动发现（competitor-analysis）
+- 竞品分析不再需要手动输入竞品名称。系统自动从企业知识库（产品 + 行业 + 销售区域）构建查询，交由大模型推荐竞争对手公司。
+- 对每个发现的竞品，自动通过百度搜索定位其官网并爬取页面内容。
+- 爬取的竞品官网内容实时注入分析提示词，实现**真正的多维度竞品对比**（无需人工调研）。
+
+### 爬虫反爬回退
+- 当官网爬取遇到反爬措施（HTTP 403 / 429 / 503）时，自动下载原始 HTML 并**交由大模型直接解析**提取有用文本，避免爬虫彻底失败。
+
+### 语料检测机制
+- 新增 `segment_and_summarize_long_content()` 函数：当竞品爬取内容过长（单个竞品 > 6000 字或总计 > 35000 字），自动分段调用大模型进行摘要提取，整合后再注入分析 prompt。
+- 防止超长内容导致 LLM 上下文溢出或分析质量下降。
+
+### 爬取时间标注
+- 所有诊断报告的官网爬取结果中新增 `scraped_at` 字段（ISO 8601 UTC 时间戳），明确标注内容获取时间，提升报告可信度。
+
+### 变更文件
+| 文件 | 变更 |
+|------|------|
+| `backend/crawlers/website.py` | 新增 `scraped_at`、反爬回退（raw_html）、`compose_competitor_discovery_query()`、`search_baidu_for_company()`、`segment_and_summarize_long_content()` |
+| `backend/services/prompt_service.py` | `build_diagnosis_report_with_scrape_prompt()` 使用真实 `scraped_at`；新增 `build_competitor_discovery_prompt()`；`build_competitor_analysis_prompt()` 接受 `competitor_scraped` 参数 |
+| `backend/main.py` | `competitor_analysis` handler 重写为 6 步自动发现流程 |
+| `backend/prompts/competitor_discovery_prompt.txt` | **新增**：竞品发现 prompt 模板 |
+| `backend/prompts/competitor_analysis_prompt.txt` | 新增 `{{competitor_scraped_block}}` 占位符 |
+
+
+---
+
+
+
+### 图片文件名业务信息提取
+- 上传图片时自动从文件名识别企业/产品/业务关键词，注入 LLM 提示词上下文
+- 智能过滤噪音词（IMG_、微信图片、截图、纯数字日期），中英文双语支持
+- 4 个文章创作相关的 prompt 模板均已集成 `image_filename_context` 变量
+
+### 文章优化 + 写作建议 + 舆情搜索 端点补全
+- 新增 `POST /api/v1/article-writing/suggestions` — AI 写作建议生成（已有模板和 prompt 函数，补全路由）
+- 修复 `POST /api/v1/article-writing/optimize` — 文章优化端点（此前误删函数体导致 405）
+- 新增 `GET /api/v1/public-opinion/search` — 舆情关键词搜索（调用已有 `crawlers/opinion.py` 三源聚合）
+
+### 前端 Bug 修复
+- 产品库数据格式兼容：文章创作页和知识库页同时支持 `{rows}` 和 `{products}` 两种格式
+- 企业诊断汇总：移除无效的 `/agent-summary` 调用，改为直接拼接多模型输出
+- AI 内容溢出修复：诊断报告/文章管理/品牌表单增加 x/y 轴滚轮
+- 数据统计页 `const` → `let` 修复
+
+
+### 变更文件（服务器 vs GitHub 差异）
+| 文件 | 服务器状态 |
+|------|-----------|
+| `backend/crawlers/website.py` | **新增**（竞品自动发现 + 反爬回退 + 语料分段） |
+| `backend/services/dashboard_service.py` | **新增**（数据看板服务） |
+| `backend/utils/filename_parser.py` | **新增**（图片文件名业务信息提取） |
+| `backend/utils/kb_helpers.py` | **新增**（知识库公共工具函数） |
+| `backend/utils/sanitize.py` | **新增**（通用数据清洗工具） |
+| `backend/prompts/agent_summary_prompt.txt` | **新增** |
+| `backend/prompts/article_product_optimize_prompt.txt` | **新增** |
+| `backend/prompts/article_writing_rewrite_prompt.txt` | **新增** |
+| `backend/prompts/article_writing_suggestions_prompt.txt` | **新增** |
+| `backend/prompts/competitor_discovery_prompt.txt` | **新增** |
+| `backend/prompts/diagnosis_report_scrape_prompt.txt` | **新增** |
+| `backend/prompts/industry_identification_rules.txt` | **新增** |
+| `backend/prompts/kb_positioning_prompt.txt` | **新增** |
+| `backend/prompts/question_words_prompt.txt` | **新增** |
+| `backend/main.py` | **修改**（新增 3 个路由 + 竞品自动发现流程 + 诊断汇总重构） |
+| `backend/services/prompt_service.py` | **修改**（新增 9 个 build_* 函数 + image_filename_context） |
+| `backend/crawlers/opinion.py` | **修改**（GitHub 已有空壳，服务器补充完整搜狗+必应三源聚合实现） |
+| `backend/requirements.txt` | **修改**（新增 beautifulsoup4>=4.12.0） |
+| `www/pages/article-writing/page.js` | **修改**（产品库格式兼容 + 写作建议集成） |
+| `www/pages/diagnosis-report/page.js` | **修改**（移除无效 agent-summary 调用） |
+| `www/pages/knowledge-base/page.js` | **修改**（产品库格式兼容） |
+| `www/pages/data-statistics/page.js` | **修改**（const→let 修复 + API 语料补全） |
+| `www/styles/theme.css` | **修改**（AI 内容溢出 y 轴滚轮） |
+| `www/pages/diag-common.js` | **修改**（防长字符串撑破） |
+
+### GitHub 仓库对比（zhufengyuan/GEO, 最后一次提交 Jul 29）
+
+| 维度 | GitHub (v1.0.0) | 服务器 (当前) |
+|------|----------------|--------------|
+| 提示词模板 | 26 个 | 29 个（+9） |
+| 后端路由 | ~40 个 | ~45 个（+5） |
+| 爬虫模块 | opinion.py | opinion.py + website.py |
+| 工具模块 | 3 个 | 6 个（+kb_helpers + filename_parser + sanitize） |
+| 服务模块 | 5 个 | 6 个（+dashboard_service） |
+| 依赖包 | 15 个 | 16 个（+beautifulsoup4） |
+| 竞品分析 | 手动输入竞品名 | 自动发现 + 爬取 + 多维对比 |
+
+> **说明**：服务器版本领先 GitHub 约 9 天开发进度。GitHub 仓库的 `opinion.py` 仅有爬虫框架，服务器版本已补充完整的搜狗微信/网页 + 必应三源聚合实现。上述 `新增` 表示 GitHub 仓库中没有该文件。
+
 ## 项目简介
 
 本项目是一套面向企业的 GEO（Generative Engine Optimization，生成式引擎优化）全流程作业平台。
@@ -47,7 +165,7 @@ GEO 是 SEO 在 AI 时代的进化版。传统 SEO 优化网站在搜索引擎�
 | 企业知识库 | knowledge-base | 录入企业基本信息、产品库、图片库、官网地址、文档等，作为 AI 写作的核心素材库 |
 | 基础数据诊断 | original-data-diagnosis | 分析企业现有内容数据的基本情况与健康度 |
 | 企业官网诊断 | website-diagnosis | 诊断企业官网当前的 GEO 优化状态与短板 |
-| 竞争对手分析 | competitor-analysis | 对比同行竞争者的 GEO 表现，发现差距与机会 |
+| 竞争对手分析 | competitor-analysis | **自动发现**竞品企业（基于产品+行业+区域），爬取其官网内容，多维度对比分析 |
 | 企业诊断报告 | diagnosis-report | 汇总生成综合诊断报告，全面评估 GEO 现状 |
 | 优化建议方案 | optimization-plan | 基于诊断结果，给出可落地的系统化优化建议 |
 
@@ -104,19 +222,28 @@ STEP 1  创建问题词库  →  STEP 2  文章创作  →  STEP 3  媒体发布
 │    │   ├── dependencies.py   FastAPI Depends 注入 get_current_user    │
 │    │   └── routes.py        /api/v1/auth/* 路由                     │
 │    │                                                                 │
+│   ├── crawlers/                          # 爬虫模块（舆情 + 竞品自动发现）
+│   ├── crawlers/                          # 爬虫模块（舆情 + 竞品自动发现）
 │    ├── api/ ─── 可选的 APIRouter 模块（示例：publish_records.py）       │
 │    │   由 main.py include_router() 挂载；其余接口直接在 main.py 中定义 │
 │    │                                                                 │
 │    ├── services/ ─── 服务层（业务逻辑）                                │
 │    │   ├── auth_service.py    用户认证（passlib bcrypt）               │
 │    │   ├── llm_service.py     大模型调用（httpx 异步 / requests 同步）│
-│    │   ├── prompt_service.py  提示词模板渲染（26 个 .txt 模板）       │
+│    │   ├── prompt_service.py  提示词模板渲染（29 个 .txt 模板）       │
 │    │   ├── excel_service.py   Excel 媒体报价读取                      │
-│    │   └── consume_service.py 消耗记录                               │
+│    │   ├── consume_service.py 消耗记录
+│    │   └── dashboard_service.py 数据看板服务                               │
+│    ││    ├── crawlers/ ── 爬虫模块（独立抓取引擎）│    │   ├── opinion.py       搜狗微信/网页 + 必应三源聚合舆情搜索│    │   └── website.py       竞品自动发现 + 反爬回退 + 语料分段摘要
+│    ││    ├── crawlers/ ── 爬虫模块（独立抓取引擎）│    │   ├── opinion.py       搜狗微信/网页 + 必应三源聚合舆情搜索│    │   └── website.py       竞品自动发现 + 反爬回退 + 语料分段摘要
 │    │                                                                 │
 │    ├── utils/ ─── 工具层                                              │
 │    │   ├── api_response.py    统一响应格式 ok/fail/APIException       │
-│    │   └── pagination.py      分页工具（最大 500 条/页）               │
+│    │   ├── pagination.py      分页工具（最大 500 条/页）
+│    │   ├── kb_graph.py       知识图谱
+│    │   ├── kb_helpers.py     知识库公共工具函数
+│    │   ├── filename_parser.py 图片文件名业务信息提取
+│    │   └── sanitize.py       通用数据清洗工具               │
 │    │                                                                 │
 │    ├── database.py ─── PyMySQL + dbutils 连接池（最大 20 连接）       │
 │    │   ├── query / query_row / execute / insert / insert_many        │
@@ -124,7 +251,7 @@ STEP 1  创建问题词库  →  STEP 2  文章创作  →  STEP 3  媒体发布
 │    │                                                                 │
 │    ├── config.py ─── Settings 配置类                                 │
 │    ├── schemas.py ─── Pydantic v2 请求/响应模型                       │
-│    └── prompts/ ─── 26 个提示词/规则 .txt 模板文件                    │
+│    └── prompts/ ─── 27 个提示词/规则 .txt 模板文件                    │
 │                                                                      │
 └──────────────────────┬──────────────────────────────────────────────┘
                        │ HTTP REST API（/api/v1/*）
@@ -163,7 +290,7 @@ STEP 1  创建问题词库  →  STEP 2  文章创作  →  STEP 3  媒体发布
 | JWT | 纯 HmacSHA256（无第三方库） | — | 令牌生成、验证、过期检测 |
 | 异步 HTTP | httpx | >=0.25.0 | 调用 LLM 大模型服务 |
 | 同步 HTTP | requests | >=2.31.0 | LLM 备选调用方式 |
-| Excel 处理 | pandas + openpyxl | >=2.0.0 / >=3.1.0 | 读取媒体报价 Excel（后端） |
+| HTML 解析 | beautifulsoup4 + parsel | >=4.12.0 / >=1.8.0 | 爬虫网页内容解析 |
 | 图片处理 | Pillow | >=10.0.0 | 上传图片处理 |
 | 文件上传 | python-multipart | >=0.0.6 | multipart/form-data 解析 |
 | 环境变量 | python-dotenv | >=1.0.0 | .env 文件加载 |
@@ -182,6 +309,8 @@ GEO/
 │   ├── main.py                           # 应用入口（路由/中间件/静态资源挂载）
 │   ├── config.py                         # 配置（数据库/JWT/LLM/CORS）
 │   ├── database.py                       # 连接池 + migrations 执行
+│   ├── crawlers/                          # 爬虫模块（舆情 + 竞品自动发现）
+│   ├── crawlers/                          # 爬虫模块（舆情 + 竞品自动发现）
 │   ├── api/                              # APIRouter 模块
 │   ├── services/                         # 业务服务层
 │   ├── prompts/                          # 提示词模板（.txt）
@@ -257,9 +386,9 @@ CREATE DATABASE IF NOT EXISTS geo CHARACTER SET utf8mb4 COLLATE utf8mb4_general_
 
 当前仓库内默认值（已写入配置文件）：
 
-- `DB_HOST=your-server-ip`
-- `DB_PASSWORD=your-db-password`
-- `LLM_URL=http://your-server-ip:5200/wenxinqianfan`
+- `DB_HOST=1.117.188.4`
+- `DB_PASSWORD=3POKJzGCs3JNdhum`
+- `LLM_URL=http://1.117.188.4:5200/wenxinqianfan`
 - `WENXIN_API_KEY / WENXIN_SECRET_KEY` 已写入配置文件
 
 4) 启动
@@ -786,7 +915,7 @@ Refresh Token（有效期 30 天）：
 
 ## 提示词模板系统
 
-系统使用 26 个 .txt 模板文件驱动 AI 内容生成，通过 prompt_service.py 的 render_prompt() 函数替换 {{key}} 占位符。
+系统使用 27 个 .txt 模板文件驱动 AI 内容生成，通过 prompt_service.py 的 render_prompt() 函数替换 {{key}} 占位符。
 
 ### 模板文件清单
 
@@ -807,11 +936,12 @@ Refresh Token（有效期 30 天）：
 | kb_timeline_prompt.txt | 发展历程生成 | enterprise_full_name, main_products 等 |
 | data_diagnosis_prompt.txt | 基础数据诊断 | enterprise_full_name, manual, page_context, company_profile 等 |
 | website_diagnosis_prompt.txt | 官网诊断 | enterprise_full_name, enterprise_website, page_context |
-| competitor_analysis_prompt.txt | 竞争对手分析 | enterprise_full_name, competitors, page_context |
+| competitor_analysis_prompt.txt | 竞争对手分析（含自动爬取竞品官网内容） | enterprise_full_name, competitors, page_context, competitor_scraped_block |
 | diagnosis_report_prompt.txt | 诊断报告 | llm_instruction, enterprise_full_name, extra_input, company_profile 等 |
 | optimization_plan_prompt.txt | 优化方案 | enterprise_full_name, company_profile 等 |
 | optimization_schedule_prompt.txt | 优化排期 | enterprise_full_name, main_products 等 |
 | acceptance_score_prompt.txt | 验收评分 | enterprise_full_name, main_products 等 |
+| competitor_discovery_prompt.txt | **新增**：竞品发现 | query, enterprise_full_name 等 |
 
 ### 模板渲染流程
 
