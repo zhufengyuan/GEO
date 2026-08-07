@@ -29,6 +29,8 @@
 【用户选中的图片信息（可能为空）】
 {{images_json}}
 
+{{image_filename_context}}
+
 【对话历史（JSON数组，role=ai/user）】
 {{history_json}}
 
