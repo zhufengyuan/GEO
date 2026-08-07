@@ -100,6 +100,13 @@
 - 数据统计页 `const` → `let` 修复
 
 
+### 工作台仪表台数据链路打通（AI 引用 / AI 统计）
+- 新增 `GET /api/v1/dashboard/stats` 和 `GET /api/v1/dashboard/quick-stats` 两个后端路由（`main.py`）
+- `dashboard_service.py` 新增 `AI_PLATFORMS`（8 个 AI 平台：豆包/千问/元宝/DeepSeek/文心/纳米360/KIMI/智谱）和 `PLATFORM_NAME_MAP`（发布平台中文映射）；`llm_stats` 返回正确结构
+- `index.js` 新增 `window.geoApiGet` / `window.geoApiPost` 辅助函数
+- `home.js` 重写：`init()` 调用 dashboard API → `renderDashboard()` 填充 AI 收录 / AI 引用 / 发布统计三个面板
+- 当前 `indexed` / `citations` 值为 0（`monitor_tasks` 表待填充），链路已打通，后续接入 AI 监控后自动生效
+
 ### 变更文件（服务器 vs GitHub 差异）
 | 文件 | 服务器状态 |
 |------|-----------|
@@ -384,12 +391,12 @@ CREATE DATABASE IF NOT EXISTS geo CHARACTER SET utf8mb4 COLLATE utf8mb4_general_
 - `LLM_URL`（也可通过环境变量 `LLM_URL` 或根目录 `config.R` 的 `llm_url` 注入）
 - 生产环境务必更换 `JWT_SECRET`，并设置 `AUTH_DISABLED=False`
 
-当前仓库内默认值（已写入配置文件）：
+当前仓库内默认值（通过环境变量配置）：
 
 - `DB_HOST=YOUR_SERVER_IP`
 - `DB_PASSWORD=YOUR_DB_PASSWORD`
-- `LLM_URL=http://YOUR_SERVER_IP:5200/wenxinqianfan`
-- `WENXIN_API_KEY / WENXIN_SECRET_KEY` 已写入配置文件
+- `LLM_URL=http://YOUR_LLM_HOST:5200/wenxinqianfan`
+- `WENXIN_API_KEY / WENXIN_SECRET_KEY` 通过环境变量配置
 
 4) 启动
 
