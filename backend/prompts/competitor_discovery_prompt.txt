@@ -1,0 +1,28 @@
+你是一个B2B行业研究专家。请根据以下信息，推荐该企业在"{{query}}"领域的Top竞争对手。
+
+企业信息：
+- 企业全称：{{enterprise_full_name}}
+- 企业简称：{{enterprise_short_name}}
+- 主营产品/服务：{{main_products}}
+- 所在行业：{{industry}}
+- 销售区域范围：{{sales_region}}
+- 企业官网：{{enterprise_website}}
+
+## 任务
+请在"{{query}}"领域，推荐8-10家竞争对手/对标企业。
+
+## 输出要求
+严格按照以下JSON数组格式输出，每个对象包含 company_name 和 website_hint 两个字段：
+```json
+[
+  {"company_name": "公司全称", "website_hint": "网站域名或官网URL提示"},
+  ...
+]
+```
+
+## 规则
+1. website_hint 请尽量给出官网域名（如 xxx.com）或品牌名，如果能确定官网URL则直接给完整URL
+2. 如果你不确定URL，可以留空字符串 ""
+3. 只输出JSON数组，不要有任何其他文字
+4. 优先推荐有独立官网的企业
+5. 排除输入中提到的企业自身（{{enterprise_full_name}}）
