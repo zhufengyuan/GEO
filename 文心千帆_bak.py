@@ -10,7 +10,7 @@ def get_access_token():
     使用 API Key，Secret Key 获取access_token，替换下列示例中的应用API Key、应用Secret Key
     """
         
-    url = "https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=z9LQiF34PzazRt3Bhenu0ey9&client_secret=n9FLmBesVrDy9V8qlStA8b0VkgujXoZl"
+    url = "https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=YOUR_WENXIN_API_KEY&client_secret=YOUR_WENXIN_SECRET_KEY"
     
     payload = json.dumps("")
     headers = {
