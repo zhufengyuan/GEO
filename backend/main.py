@@ -2199,6 +2199,30 @@ async def diagnosis_files_download(task: str, model: Optional[str] = None, user=
         filename=filename,
     )
 
+
+# ── 工作台数据看板 ──
+@app.get("/api/v1/dashboard/stats")
+async def dashboard_stats(user=Depends(get_current_user)):
+    from backend.services.dashboard_service import get_dashboard_stats
+    try:
+        uid = user.get("id") if isinstance(user, dict) else None
+        result = get_dashboard_stats(user_id=uid)
+        return ok(result)
+    except Exception as e:
+        return fail("DASHBOARD_ERROR", str(e))
+
+
+@app.get("/api/v1/dashboard/quick-stats")
+async def dashboard_quick_stats(user=Depends(get_current_user)):
+    from backend.services.dashboard_service import get_dashboard_quick_stats
+    try:
+        uid = user.get("id") if isinstance(user, dict) else None
+        result = get_dashboard_quick_stats(user_id=uid)
+        return ok(result)
+    except Exception as e:
+        return fail("DASHBOARD_ERROR", str(e))
+
+
 @app.get("/api/v1/health")
 def health_check():
     return api_response({"status": "ok", "version": "2026-06-04-reform-2"})
