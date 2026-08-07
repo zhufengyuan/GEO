@@ -805,7 +805,7 @@ const Page = {
       if (d.type === 'geo_knowledge_base_data') {
         const sec = String(d.payload?.section || '').trim();
         if (sec === 'products') {
-          const rows = Array.isArray(d.payload?.data?.rows) ? d.payload.data.rows : [];
+          const rows = Array.isArray(d.payload?.data?.rows) ? d.payload.data.rows : (Array.isArray(d.payload?.data?.products) ? d.payload.data.products : []);
           state.kbProducts = rows.filter((x) => x && typeof x === 'object');
           state.productPickerLoading = false;
           if (state.productPickerOpen) renderProductPicker();
