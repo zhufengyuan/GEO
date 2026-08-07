@@ -14,6 +14,9 @@ from typing import Dict, Optional
 from pathlib import Path
 import json
 
+# 文件名业务信息解析
+from backend.utils.filename_parser import extract_business_context_from_images
+
 # 模板目录（相对于 backend-py/）
 _PROMPT_DIR = Path(__file__).parent.parent / "prompts"
 
@@ -44,45 +47,6 @@ def render_prompt(tpl: str, vars: dict) -> str:
 def build_expand_words_prompt(keyword: str) -> str:
     tpl = _read_template("expand_words_prompt.txt")
     return render_prompt(tpl, {"keyword": keyword})
-
-def build_question_words_prompt(
-    company: str,
-    industry_keyword: str,
-    question_keyword: str,
-    decision_stage: str,
-    words: Optional[dict] = None,
-    enterprise_library_content: str = "",
-    seed_keywords: Optional[list] = None,
-) -> str:
-    tpl = _read_template("question_words_prompt.txt")
-    w = words if isinstance(words, dict) else {}
-    seeds = seed_keywords if isinstance(seed_keywords, list) else []
-    try:
-        seeds_json = json.dumps(seeds, ensure_ascii=False)
-    except Exception:
-        seeds_json = str(seeds)
-    lib = str(enterprise_library_content or "").strip()
-    if not lib:
-        try:
-            lib = json.dumps(w, ensure_ascii=False)
-        except Exception:
-            lib = str(w)
-    return render_prompt(tpl, {
-        "company": company or "",
-        "industry_keyword": industry_keyword or "",
-        "question_keyword": question_keyword or "",
-        "decision_stage": decision_stage or "",
-        "region": str(w.get("region") or "").strip(),
-        "feature": str(w.get("feature") or "").strip(),
-        "attribute": str(w.get("attribute") or "").strip(),
-        "scene": str(w.get("scene") or "").strip(),
-        "people": str(w.get("people") or "").strip(),
-        "pain": str(w.get("pain") or "").strip(),
-        "price": str(w.get("price") or "").strip(),
-        "other": str(w.get("other") or "").strip(),
-        "enterprise_library_content": lib,
-        "seed_keywords": seeds_json,
-    })
 
 
 def build_title_prompt(
@@ -243,6 +207,7 @@ def build_article_prompt(
         "task_product_json": json.dumps(prod, ensure_ascii=False),
         "task_products_json": json.dumps(products, ensure_ascii=False),
         "task_images_json": json.dumps(images, ensure_ascii=False),
+        "image_filename_context": extract_business_context_from_images(images),
     })
 
 
@@ -312,6 +277,7 @@ def build_article_product_chat_prompt(
         "product_json": _safe_json(prod),
         "products_json": _safe_json(prods),
         "images_json": _safe_json(imgs),
+        "image_filename_context": extract_business_context_from_images(imgs),
         "history_json": _safe_json(hist),
     })
 
@@ -371,107 +337,8 @@ def build_article_product_optimize_prompt(
         "user_input": str(user_input or "").strip(),
         "products_json": _safe_json(prods),
         "images_json": _safe_json(imgs),
+        "image_filename_context": extract_business_context_from_images(imgs),
         "draft_text": str(draft_text or "").strip(),
-    })
-
-
-def build_article_writing_suggestions_prompt(
-    enterprise: dict,
-    lexicon: dict,
-    task: dict,
-    kb_base: Optional[dict] = None,
-    kb_docs: Optional[dict] = None,
-    article_text: str = "",
-) -> str:
-    tpl = _read_template("article_writing_suggestions_prompt.txt")
-    if not tpl:
-        tpl = _read_template("article_product_optimize_prompt.txt")
-
-    def _safe_json(v):
-        if v is None:
-            return ""
-        if isinstance(v, str):
-            return v
-        try:
-            return json.dumps(v, ensure_ascii=False)
-        except Exception:
-            return str(v)
-
-    tab = task.get("tab", "product")
-    task_platforms = task.get("platforms") if isinstance(task.get("platforms"), list) else []
-    prod = task.get("product") if isinstance(task.get("product"), dict) else {}
-    products = task.get("products") if isinstance(task.get("products"), list) else []
-    images = task.get("images") if isinstance(task.get("images"), list) else []
-
-    return render_prompt(tpl, {
-        "kb_base_json": _safe_json(kb_base),
-        "kb_docs_json": _safe_json(kb_docs),
-        "task_tab": tab,
-        "task_question_text": str(task.get("question_text") or "").strip(),
-        "task_platforms": "、".join([str(x).strip() for x in task_platforms if str(x).strip()]),
-        "task_user_input": str(task.get("user_input") or "").strip(),
-        "task_product_json": _safe_json(prod),
-        "task_products_json": _safe_json(products),
-        "task_images_json": _safe_json(images),
-        "article_text": str(article_text or "").strip(),
-    })
-
-
-def build_article_writing_rewrite_prompt(
-    enterprise: dict,
-    lexicon: dict,
-    task: dict,
-    kb_base: Optional[dict] = None,
-    kb_docs: Optional[dict] = None,
-    article_text: str = "",
-) -> str:
-    tpl = _read_template("article_writing_rewrite_prompt.txt")
-    if not tpl:
-        tpl = _read_template("article_product_optimize_prompt.txt")
-
-    geo_general_rules = _read_template("geo_general_rules.txt")
-
-    def _safe_json(v):
-        if v is None:
-            return ""
-        if isinstance(v, str):
-            return v
-        try:
-            return json.dumps(v, ensure_ascii=False)
-        except Exception:
-            return str(v)
-
-    tab = task.get("tab", "product")
-
-    def _task_corpus() -> str:
-        parts = []
-        parts.append(f"创作入口：{tab}")
-        qt = str(task.get("question_text") or "").strip()
-        if qt:
-            parts.append(f"选中问题词：{qt}")
-        platforms = task.get("platforms") if isinstance(task.get("platforms"), list) else []
-        if platforms:
-            parts.append("主要平台：" + "、".join([str(x).strip() for x in platforms if str(x).strip()]))
-        at = str(task.get("article_type") or "").strip()
-        if at:
-            parts.append(f"文章类型：{at}")
-        style = str(task.get("style") or "").strip()
-        if style:
-            parts.append(f"文章风格：{style}")
-        tone = str(task.get("tone") or "").strip()
-        if tone:
-            parts.append(f"文章语调：{tone}")
-        ui = str(task.get("user_input") or "").strip()
-        if ui:
-            parts.append("用户输入内容：\n" + ui)
-        return "\n".join([p for p in parts if p]).strip()
-
-    return render_prompt(tpl, {
-        "geo_general_rules": geo_general_rules,
-        "kb_base_json": _safe_json(kb_base),
-        "kb_docs_json": _safe_json(kb_docs),
-        "task_corpus": _task_corpus(),
-        "article_text": str(article_text or "").strip(),
     })
 
 
@@ -519,6 +386,7 @@ def build_article_writing_init_chat_prompt(
         "question_text": question_text or "",
         "products_json": _safe_json(prods),
         "images_json": _safe_json(imgs),
+        "image_filename_context": extract_business_context_from_images(imgs),
     })
 
 
@@ -628,7 +496,69 @@ def build_website_diagnosis_prompt(kb: dict, page_context: str = "") -> str:
     })
 
 
-def build_competitor_analysis_prompt(kb: dict, competitors: str, page_context: str = "") -> str:
+def build_competitor_discovery_prompt(kb: dict, query: str = "") -> str:
+    """构建竞品发现提示词——让LLM推荐该领域的Top竞争对手"""
+    tpl = _read_template("competitor_discovery_prompt.txt")
+    q = query or ""
+    if not q:
+        # 自动构建查询词
+        parts = []
+        region = str(kb.get("sales_region", "") or kb.get("销售区域范围", "")).strip()
+        if region:
+            parts.append(region)
+        product = str(kb.get("main_products", "") or kb.get("主营产品", "") or kb.get("主营产品/服务", "")).strip()
+        if product:
+            parts.append(product)
+        industry = str(kb.get("industry", "") or kb.get("所在行业", "")).strip()
+        if industry:
+            parts.append(industry)
+        q = " ".join(parts) if parts else str(kb.get("enterprise_full_name", ""))
+    return render_prompt(tpl, {
+        "query": q,
+        "enterprise_full_name": kb.get("enterprise_full_name", ""),
+        "enterprise_short_name": kb.get("enterprise_short_name", ""),
+        "enterprise_website": kb.get("enterprise_website", ""),
+        "main_products": kb.get("main_products", ""),
+        "industry": kb.get("industry", "") or kb.get("所在行业", ""),
+        "sales_region": kb.get("sales_region", "") or kb.get("销售区域范围", ""),
+    })
+
+
+def build_competitor_analysis_prompt(kb: dict, competitors: str, page_context: str = "", competitor_scraped: dict = None) -> str:
+    """构建竞品分析提示词
+
+    Args:
+        kb: 企业知识库字典
+        competitors: 竞品名称列表（逗号分隔）
+        page_context: 页面上下文
+        competitor_scraped: {公司名: {url, title, text, scraped_at, ...}} 竞品官网爬取结果
+    """
+    # 构建竞品爬取内容块
+    scraped_block = ""
+    if competitor_scraped:
+        from datetime import datetime
+        parts = ["## 以下为实时爬取的竞品官网内容\n"]
+        for i, (comp_name, data) in enumerate(competitor_scraped.items(), 1):
+            if not isinstance(data, dict):
+                continue
+            parts.append(f"### 竞品{i}：{comp_name}")
+            scrape_time = data.get("scraped_at", datetime.now().isoformat())
+            parts.append(f"- 官网URL：{data.get('url', '')}")
+            parts.append(f"- 页面标题：{data.get('title', '')}")
+            parts.append(f"- 爬取时间：{scrape_time}")
+            if data.get("raw_html"):
+                parts.append("- （遭遇反爬，原始HTML交由LLM解析）")
+            if data.get("error") and not data.get("ok"):
+                parts.append(f"- 爬取失败：{data.get('error', '未知')}")
+                parts.append("")
+                continue
+            text = data.get("text", "")
+            if text:
+                parts.append(f"- 页面内容：")
+                parts.append(text)
+            parts.append("")
+        scraped_block = "\n".join(parts)
+
     tpl = _read_template("competitor_analysis_prompt.txt")
     return render_prompt(tpl, {
         "enterprise_full_name": kb.get("enterprise_full_name", ""),
@@ -640,6 +570,7 @@ def build_competitor_analysis_prompt(kb: dict, competitors: str, page_context: s
         "product_advantage": kb.get("product_advantage", ""),
         "tech_advantage": kb.get("tech_advantage", ""),
         "competitors": competitors or "",
+        "competitor_scraped_block": scraped_block,
         "page_context": page_context or "",
         "extras": kb.get("extras", ""),
     })
@@ -662,6 +593,75 @@ def build_diagnosis_report_prompt(kb: dict, extra_input: str, llm_name: str, pag
         "company_profile": kb.get("company_profile", ""),
         "enterprise_library": kb.get("enterprise_library", ""),
         "timeline_text": kb.get("timeline_text", ""),
+        "extra_input": extra_input or "",
+        "page_context": page_context or "",
+        "extras": kb.get("extras", ""),
+    })
+
+
+def build_diagnosis_report_with_scrape_prompt(
+    kb: dict,
+    extra_input: str,
+    llm_name: str,
+    page_context: str = "",
+    website_content: dict = None,
+) -> str:
+    """生成含实时爬虫内容的诊断报告提示词"""
+    tpl = _read_template("diagnosis_report_scrape_prompt.txt")
+    llm = str(llm_name or "").strip()
+    llm_instruction = f"请按照{llm}大模型的风格生成内容。\n\n" if llm else ""
+
+    # 构建爬虫内容块（带时间戳标注）
+    website_content_block = ""
+    if website_content and isinstance(website_content, dict) and website_content.get("ok"):
+        from datetime import datetime
+        fetch_time = website_content.get("scraped_at") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        fetch_url = str(website_content.get("url") or "")
+        fetch_title = str(website_content.get("title") or "")
+        fetch_text = str(website_content.get("text") or "")
+        fetch_chars = website_content.get("chars", 0)
+        fetch_elapsed_ms = website_content.get("elapsed_ms", 0)
+        fetch_truncated = website_content.get("truncated", False)
+
+        parts = [
+            "## 【实时爬取的官网内容 — 以下内容为刚刚从官网实时抓取】",
+            f"- 抓取时间：{fetch_time}",
+            f"- 来源网址：{fetch_url}",
+            f"- 页面标题：{fetch_title}",
+            f"- 内容长度：{fetch_chars} 字符（抓取耗时 {fetch_elapsed_ms}ms）",
+        ]
+        if fetch_truncated:
+            parts.append("- ⚠️ 内容过长已截断（仅保留前 15000 字符）")
+
+        parts.append("")
+        parts.append("### 官网页面正文内容")
+        parts.append(fetch_text)
+
+        website_content_block = "\n".join(parts)
+    elif website_content and isinstance(website_content, dict) and website_content.get("error"):
+        fetch_time = website_content.get("scraped_at") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        website_content_block = (
+            f"## 【官网爬取失败】\n"
+            f"- 爬取时间：{fetch_time}\n"
+            f"- 目标网址：{website_content.get('url', '')}\n"
+            f"- 失败原因：{website_content.get('error', '未知错误')}\n"
+            f"- 请基于现有知识库内容进行分析。"
+        )
+
+    return render_prompt(tpl, {
+        "llm_instruction": llm_instruction,
+        "enterprise_full_name": kb.get("enterprise_full_name", ""),
+        "enterprise_short_name": kb.get("enterprise_short_name", ""),
+        "enterprise_website": kb.get("enterprise_website", ""),
+        "main_products": kb.get("main_products", ""),
+        "target_customers": kb.get("target_customers", ""),
+        "enterprise_advantage": kb.get("enterprise_advantage", ""),
+        "product_advantage": kb.get("product_advantage", ""),
+        "tech_advantage": kb.get("tech_advantage", ""),
+        "company_profile": kb.get("company_profile", ""),
+        "enterprise_library": kb.get("enterprise_library", ""),
+        "timeline_text": kb.get("timeline_text", ""),
+        "website_content_block": website_content_block,
         "extra_input": extra_input or "",
         "page_context": page_context or "",
         "extras": kb.get("extras", ""),
@@ -713,4 +713,98 @@ def build_acceptance_score_prompt(kb: dict) -> str:
         "product_advantage": kb.get("product_advantage", ""),
         "tech_advantage": kb.get("tech_advantage", ""),
         "extras": kb.get("extras", ""),
+    })
+
+
+def build_article_writing_suggestions_prompt(
+    enterprise: dict,
+    lexicon: dict,
+    kb_base: Optional[dict] = None,
+    kb_docs: Optional[dict] = None,
+    task_tab: str = "",
+    task_question_text: str = "",
+    task_platforms: str = "",
+    task_user_input: str = "",
+    task_product_json: str = "",
+    task_products_json: str = "",
+    task_images_json: str = "",
+    article_text: str = "",
+) -> str:
+    tpl = _read_template("article_writing_suggestions_prompt.txt")
+    if not tpl:
+        return ""
+
+    geo_general_rules = _read_template("geo_general_rules.txt")
+    industry_identification_rules = _read_template("industry_identification_rules.txt")
+
+    def _safe_json(v):
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return v
+        try:
+            return json.dumps(v, ensure_ascii=False)
+        except Exception:
+            return str(v)
+
+    return render_prompt(tpl, {
+        "task_tab": str(task_tab or ""),
+        "task_question_text": str(task_question_text or ""),
+        "task_platforms": str(task_platforms or ""),
+        "task_user_input": str(task_user_input or ""),
+        "kb_base_json": _safe_json(kb_base),
+        "kb_docs_json": _safe_json(kb_docs),
+        "task_product_json": _safe_json(task_product_json),
+        "task_products_json": _safe_json(task_products_json),
+        "task_images_json": _safe_json(task_images_json),
+        "article_text": str(article_text or ""),
+        "geo_general_rules": geo_general_rules,
+        "industry_identification_rules": industry_identification_rules,
+    })
+
+
+def build_article_writing_suggestions_prompt(
+    enterprise: dict,
+    lexicon: dict,
+    kb_base: Optional[dict] = None,
+    kb_docs: Optional[dict] = None,
+    task_tab: str = "",
+    task_question_text: str = "",
+    task_platforms: str = "",
+    task_user_input: str = "",
+    task_product_json: str = "",
+    task_products_json: str = "",
+    task_images_json: str = "",
+    article_text: str = "",
+) -> str:
+    tpl = _read_template("article_writing_suggestions_prompt.txt")
+    if not tpl:
+        return ""
+
+    geo_general_rules = _read_template("geo_general_rules.txt")
+    industry_identification_rules = _read_template("industry_identification_rules.txt")
+
+    def _safe_json(v):
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return v
+        try:
+            return json.dumps(v, ensure_ascii=False)
+        except Exception:
+            return str(v)
+
+    return render_prompt(tpl, {
+        "task_tab": str(task_tab or ""),
+        "task_question_text": str(task_question_text or ""),
+        "task_platforms": str(task_platforms or ""),
+        "task_user_input": str(task_user_input or ""),
+        "kb_base_json": _safe_json(kb_base),
+        "kb_docs_json": _safe_json(kb_docs),
+        "task_product_json": _safe_json(task_product_json),
+        "task_products_json": _safe_json(task_products_json),
+        "task_images_json": _safe_json(task_images_json),
+        "article_text": str(article_text or ""),
+        "geo_general_rules": geo_general_rules,
+        "industry_identification_rules": industry_identification_rules,
     })
