@@ -379,6 +379,8 @@ body {
 }
 
 .report {
+  overflow: auto;
+  max-height: calc(100vh - 280px);
   margin-top: 14px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -395,7 +397,8 @@ body {
 }
 
 .report-body {
-  height: 100%;
+  overflow: auto;
+  min-height: 200px;
 }
 
 .download {
@@ -427,6 +430,8 @@ body {
 }
 
 .textarea {
+  overflow-x: auto;
+  overflow-y: auto;
   width: 100%;
   min-height: 92px;
   resize: vertical;
@@ -460,6 +465,8 @@ body {
 }
 
 .editor-shell .textarea {
+  overflow-x: auto;
+  overflow-y: auto;
   flex: 1;
   min-height: 0;
 }
