@@ -360,7 +360,8 @@ const Page = {
       const buttons = [
         { key: 'dashboard', label: '数据看板' },
         { key: 'summary', label: '总览' },
-        { key: 'columns', label: '字段统计' }
+        { key: 'columns', label: '字段统计' },
+        { key: 'raw', label: '原始数据' }
       ];
       els.viewBtns.innerHTML = buttons
         .map((b) => {
@@ -383,7 +384,7 @@ const Page = {
       return null;
     };
 
-    const requestFromR = () => {
+    let requestFromR = () => {
       try {
         if (window.parent && window.parent !== window) {
           window.parent.postMessage({ type: 'geo_request_data_statistics_data' }, '*');
@@ -409,6 +410,46 @@ const Page = {
     renderViews();
     render();
     if (!state.data) requestFromR();
+
+    // 同时从后端API拉取工作台统计
+    (async () => {
+      try {
+        const resp = await window.geoApiGet?.('/api/v1/dashboard/stats');
+        if (resp?.ok && resp?.data) {
+          window.__geoDashboardStats = resp.data;
+          updateDashboardKpis(resp.data);
+        }
+      } catch (err) {
+        console.warn('[Dashboard] Failed to fetch stats:', err);
+      }
+    })();
+
+    function updateDashboardKpis(stats) {
+      const d = stats || {};
+      if (kpiArticles && d.total_articles > 0) {
+        kpiArticles.textContent = String(d.total_articles);
+      }
+      const llmList = Array.isArray(d.llm_stats) ? d.llm_stats : [];
+      if (kpiCited && llmList.length > 0) {
+        const totalLlmArticles = llmList.reduce((sum, x) => sum + Number(x.articles || 0), 0);
+        kpiCited.textContent = String(totalLlmArticles);
+      }
+      const platforms = d.publish_by_platform || {};
+      if (kpiLinks && Object.keys(platforms).length > 0) {
+        kpiLinks.textContent = String(Object.keys(platforms).length);
+      }
+    }
+
+    // 请求R重新推送时也刷新后端数据
+    const origRequestFromR = requestFromR;
+    requestFromR = () => {
+      origRequestFromR();
+      window.geoApiGet?.('/api/v1/dashboard/stats').then(resp => {
+        if (resp?.ok && resp?.data) {
+          updateDashboardKpis(resp.data);
+        }
+      }).catch(() => {});
+    };
 
     const bindFilters = () => {
       const root = els.timeFilters;
