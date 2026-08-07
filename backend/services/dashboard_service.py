@@ -6,6 +6,12 @@ import time
 from typing import Dict, List, Any, Optional
 from backend.database import query, query_row
 
+# 8 个 AI 平台（匹配前端 data-llm-key）
+AI_PLATFORMS = [{'model': 'doubao', 'model_name': '豆包'}, {'model': 'qwen', 'model_name': '千问'}, {'model': 'yuanbao', 'model_name': '元宝'}, {'model': 'deepseek', 'model_name': 'DeepSeek'}, {'model': 'wenxin', 'model_name': '文心'}, {'model': 'nami360', 'model_name': '纳米360'}, {'model': 'kimi', 'model_name': 'KIMI'}, {'model': 'zhipu', 'model_name': '智谱'}]
+
+# 发布平台 code -> 前端显示名
+PLATFORM_NAME_MAP = {'sohu': '搜狐', 'wangyi': '网易', 'baijiahao': '百度号', 'toutiao': '头条号', 'xiaohongshu': '小红书', 'wechat': '公众号', 'zhihu': '知乎', 'csdn': 'CSDN', 'qiye': '企业号', 'bilibili': '哔哩', 'douyin': '抖音'}
+
 
 def get_dashboard_stats(user_id: Optional[int] = None) -> Dict[str, Any]:
     """
@@ -56,10 +62,11 @@ def get_dashboard_stats(user_id: Optional[int] = None) -> Dict[str, Any]:
                 "GROUP BY platform_code ORDER BY cnt DESC"
             )
             for row in platform_rows:
-                platform = str(row.get("platform_code", "")).strip()
+                code = str(row.get("platform_code", "")).strip()
                 cnt = int(row.get("cnt", 0))
-                if platform and cnt > 0:
-                    result["publish_by_platform"][platform] = cnt
+                if code and cnt > 0:
+                    display_name = PLATFORM_NAME_MAP.get(code, code)
+                    result["publish_by_platform"][display_name] = cnt
         except Exception:
             pass
 
@@ -92,45 +99,19 @@ def get_dashboard_stats(user_id: Optional[int] = None) -> Dict[str, Any]:
         except Exception:
             result["trend_30d"] = []
 
-        # ── 各 LLM 统计 ──
-        # 从 publish_records 按 platform_code 聚合（作为不同的发布渠道）
-        try:
-            llm_rows = query(
-                "SELECT platform_code, COUNT(*) as articles "
-                "FROM publish_records "
-                "WHERE platform_code IS NOT NULL AND platform_code != '' "
-                "GROUP BY platform_code ORDER BY articles DESC"
-            )
-            model_name_map = {
-                'doubao': '豆包', 'yuanbao': '元宝', 'deepseek': 'DeepSeek',
-                'qianwen': '千问', 'wenxin': '文心一言',
-                'douyin': '抖音', 'wechat': '微信公众号', 'zhihu': '知乎',
-                'xiaohongshu': '小红书', 'bilibili': 'B站',
+        # ── 各 LLM 统计（8 个 AI 平台，匹配前端 data-llm-key）──
+        # indexed / citations 目前无数据源（monitor_tasks 表待填充）
+        result["llm_stats"] = [
+            {
+                "model": p["model"],
+                "model_name": p["model_name"],
+                "articles": result["total_articles"],
+                "indexed": 0,
+                "citations": 0,
             }
-            for row in llm_rows:
-                code = str(row.get("platform_code", ""))
-                articles = int(row.get("articles", 0))
-                name = model_name_map.get(code, code)
-                if code and articles > 0:
-                    result["llm_stats"].append({
-                        "model": code,
-                        "model_name": name,
-                        "articles": articles,
-                        "indexed": 0,  # 后续从监控数据补充
-                        "citations": 0,  # 后续从监控数据补充
-                    })
-        except Exception:
-            pass
+            for p in AI_PLATFORMS
+        ]
 
-        # 如果没有 llm_stats，提供默认结构
-        if not result["llm_stats"]:
-            result["llm_stats"] = [
-                {"model": "doubao", "articles": 0, "indexed": 0, "citations": 0},
-                {"model": "yuanbao", "articles": 0, "indexed": 0, "citations": 0},
-                {"model": "deepseek", "articles": 0, "indexed": 0, "citations": 0},
-                {"model": "qianwen", "articles": 0, "indexed": 0, "citations": 0},
-                {"model": "wenxin", "articles": 0, "indexed": 0, "citations": 0},
-            ]
 
     except Exception as e:
         print(f"[DashboardStats] Error: {e}")
