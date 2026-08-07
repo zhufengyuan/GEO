@@ -4,10 +4,10 @@ app_dir <- if (nzchar(app_dir)) dirname(app_dir) else normalizePath(getwd(), win
 geo_config <- list(
   app_dir = app_dir,
   llm_svg_dir = file.path(app_dir, "svg"),
-  llm_url = "http://YOUR_DB_HOST:5200/wenxinqianfan",
+  llm_url = "http://YOUR_LLM_HOST:5200/wenxinqianfan",
   wenxin_api_key = "YOUR_WENXIN_API_KEY",
   wenxin_secret_key = "YOUR_WENXIN_SECRET_KEY",
-  api_base_url = "http://www.sunfitness123.xyz/api/v1",
+  api_base_url = "https://YOUR_DOMAIN/api/v1",
   db_config = list(
     host = "YOUR_DB_HOST",
     user = "root",
