@@ -10,9 +10,9 @@
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | DEBUG | bool | True | 调试模式：开启日志中间件、CORS 放开为 * |
-| DB_HOST | str | "your-server-ip" | MySQL 地址 |
+| DB_HOST | str | "YOUR_SERVER_IP" | MySQL 地址 |
 | DB_USER | str | "root" | MySQL 用户 |
-| DB_PASSWORD | str | "your-db-password" | MySQL 密码 |
+| DB_PASSWORD | str | "YOUR_DB_PASSWORD" | MySQL 密码 |
 | DB_NAME | str | "geo" | 数据库名 |
 | DB_PORT | int | 3306 | MySQL 端口 |
 | DB_CHARSET | str | "utf8mb4" | 字符集 |
@@ -22,9 +22,9 @@
 | JWT_REFRESH_EXPIRE_DAYS | int | 30 | Refresh Token 有效期 |
 | AUTH_DISABLED | bool | True | 跳过认证开关（生产环境设为 False） |
 | DEV_USER_ID | int | 1 | 开发模式默认用户 ID |
-| LLM_URL | str | "http://your-server-ip:5200/wenxinqianfan" | 大模型服务地址 |
-| WENXIN_API_KEY | str | "your-wenxin-api-key" | 文心千帆 Key |
-| WENXIN_SECRET_KEY | str | "your-wenxin-secret-key" | 文心千帆 Secret |
+| LLM_URL | str | "http://YOUR_SERVER_IP:5200/wenxinqianfan" | 大模型服务地址 |
+| WENXIN_API_KEY | str | "YOUR_WENXIN_API_KEY" | 文心千帆 Key |
+| WENXIN_SECRET_KEY | str | "YOUR_WENXIN_SECRET_KEY" | 文心千帆 Secret |
 | OFFICIAL_MEDIA_EXCEL | str | 自动指向 data/.xls | 媒体报价 Excel 文件路径 |
 | OFFICIAL_PUBLISH_PARTNER_URL | str | "" | （可选）官媒发布渠道对接地址（用于 `/official-publish/submit` 转发） |
 | OFFICIAL_PUBLISH_PARTNER_TOKEN | str | "" | （可选）官媒发布渠道鉴权 Token（Bearer） |
