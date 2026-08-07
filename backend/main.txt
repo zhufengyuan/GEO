@@ -1,0 +1,19 @@
+nohup: ignoring input
+INFO:     Started server process [11412]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8123 (Press CTRL+C to quit)
+[API] GET / -> 200 (5.56ms)
+INFO:     127.0.0.1:60968 - "GET / HTTP/1.1" 200 OK
+[API] GET /docs -> 404 (0.97ms)
+INFO:     127.0.0.1:60970 - "GET /docs HTTP/1.1" 404 Not Found
+[API] GET / -> 200 (1.03ms)
+INFO:     127.0.0.1:32892 - "GET / HTTP/1.1" 200 OK
+[API] GET /docs -> 404 (0.84ms)
+INFO:     127.0.0.1:32894 - "GET /docs HTTP/1.1" 404 Not Found
+[API] GET /api/v1/ -> 404 (0.81ms)
+INFO:     127.0.0.1:32896 - "GET /api/v1/ HTTP/1.1" 404 Not Found
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [11412]
