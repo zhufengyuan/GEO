@@ -49,3 +49,10 @@ data/*.xlsx
 
 # Debug
 .dbg/
+# Sensitive config files (use env vars instead)
+backend/config.py
+config.R
+
+# All uploads directories
+backend/uploads/
+uploads/
