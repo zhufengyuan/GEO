@@ -32,7 +32,7 @@ let currentModule = null;
 
 let llmSvgManifest = { files: [], baseUrl: 'llm-svg' };
 
-const GEO_BUILD_ID = '2026-07-23-yuqing-crawl';
+const GEO_BUILD_ID = '2026-08-08-dashboard-fix';
 try {
   window.__GEO_BUILD_ID__ = GEO_BUILD_ID;
 } catch {
@@ -192,6 +192,14 @@ async function geoApiUpload(path, formData) {
     return null;
   }
 }
+
+window.geoApiGet = async function(path) {
+  return await geoApiRequest(path, { method: 'GET' });
+};
+
+window.geoApiPost = async function(path, body) {
+  return await geoApiRequest(path, { method: 'POST', body: body != null ? JSON.stringify(body) : undefined });
+};
 
 function applyLlmSvgIcons(root) {
   const doc = root || document;
