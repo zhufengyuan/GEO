@@ -28,6 +28,8 @@
 【用户选中的图片信息（可能为空）】
 {{images_json}}
 
+{{image_filename_context}}
+
 【待优化文案】
 {{draft_text}}
 
