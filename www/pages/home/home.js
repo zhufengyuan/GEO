@@ -20,7 +20,7 @@ const HomePage = {
 
   async loadDashboardStats() {
     try {
-      const resp = await window.geoApiGet?.('/api/v1/dashboard/stats');
+      const resp = await window.geoApiGet?.('/dashboard/stats');
       if (resp && resp.success && resp.data) {
         this.renderDashboard(resp.data);
       }
