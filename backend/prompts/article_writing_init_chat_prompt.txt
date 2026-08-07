@@ -26,6 +26,8 @@
 【用户选中的图片信息（可能为空）】
 {{images_json}}
 
+{{image_filename_context}}
+
 {{industry_identification_rules}}
 
 【输出要求】
