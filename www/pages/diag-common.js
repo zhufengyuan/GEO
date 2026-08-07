@@ -178,6 +178,9 @@ export function renderReport(el, text, options) {
   const placeholder = String(options?.placeholder || '点击分析按钮后，结果将显示在此处');
   const t = String(text ?? '');
   el.style.whiteSpace = 'pre-wrap';
+  el.style.overflowWrap = 'break-word';
+  el.style.wordBreak = 'break-word';
+  el.style.maxWidth = '100%';
 
   if (t === '生成中...') {
     el.textContent = t;
