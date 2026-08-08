@@ -414,7 +414,7 @@ const Page = {
     // 同时从后端API拉取工作台统计
     (async () => {
       try {
-        const resp = await window.geoApiGet?.('/api/v1/dashboard/stats');
+        const resp = await window.geoApiGet?.('/dashboard/stats');
         if (resp?.ok && resp?.data) {
           window.__geoDashboardStats = resp.data;
           updateDashboardKpis(resp.data);
@@ -444,7 +444,7 @@ const Page = {
     const origRequestFromR = requestFromR;
     requestFromR = () => {
       origRequestFromR();
-      window.geoApiGet?.('/api/v1/dashboard/stats').then(resp => {
+      window.geoApiGet?.('/dashboard/stats').then(resp => {
         if (resp?.ok && resp?.data) {
           updateDashboardKpis(resp.data);
         }
