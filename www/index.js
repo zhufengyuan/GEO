@@ -32,7 +32,7 @@ let currentModule = null;
 
 let llmSvgManifest = { files: [], baseUrl: 'llm-svg' };
 
-const GEO_BUILD_ID = '2026-08-08-diagnosis-report-fix';
+const GEO_BUILD_ID = '2026-08-08-stats-fix';
 try {
   window.__GEO_BUILD_ID__ = GEO_BUILD_ID;
 } catch {
@@ -906,13 +906,16 @@ window.geoAiExecute = function(payload) {
     if (base) {
       const body = payload && typeof payload === 'object' ? { ...payload } : {};
       geoApiRequest('/ai/execute', { method: 'POST', body: JSON.stringify(body) }).then((r) => {
+        const data = r?.data || {};
         dispatchGeoMessage('geo_ai_execute_result', {
           req_id: payload?.req_id,
           task: String(payload?.task || ''),
           ok: Boolean(r?.data),
           api_base: base,
           error: r?.data ? '' : (geoLastApiError?.message || '请求失败'),
-          text: String(r?.data?.text || ''),
+          text: String(data.text || ''),
+          content: String(data.content || data.text || ''),
+          suggestions: String(data.suggestions || ''),
         });
       });
       return;
@@ -972,7 +975,7 @@ window.geoDownloadEnterpriseIntroWord = async function(payload) {
     }
     const blob = await res.blob();
     const cd = String(res.headers.get('Content-Disposition') || '');
-    let filename = '企业介绍.doc';
+    let filename = '企业介绍.docx';
     const mStar = cd.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
     if (mStar && mStar[1]) {
       try {
@@ -1021,7 +1024,7 @@ window.geoDownloadWord = async function(payload) {
     }
     const blob = await res.blob();
     const cd = String(res.headers.get('Content-Disposition') || '');
-    let filename = '文档.doc';
+    let filename = '文档.docx';
     const mStar = cd.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
     if (mStar && mStar[1]) {
       try {
@@ -1135,7 +1138,8 @@ window.geoQueryArticles = function(payload) {
       const pageSize = Number(payload?.page_size || payload?.pageSize || (limit > 0 ? limit : 10)) || 10;
       const keyword = String(payload?.keyword || '').trim();
       const q = keyword ? `&keyword=${encodeURIComponent(keyword)}` : '';
-      geoApiRequest(`/articles?page=${encodeURIComponent(page)}&page_size=${encodeURIComponent(pageSize)}${q}`).then((r) => {
+      const rs = payload?.review_status != null ? `&review_status=${encodeURIComponent(payload.review_status)}` : '';
+      geoApiRequest(`/articles?page=${encodeURIComponent(page)}&page_size=${encodeURIComponent(pageSize)}${q}${rs}`).then((r) => {
         if (r?.data) {
           dispatchGeoMessage('geo_articles_data', { ...(r.data || {}), page, pageSize });
           return;
@@ -1172,7 +1176,7 @@ window.geoReviewArticle = function(payload) {
       const id = String(payload?.id || '').trim();
       if (!id) return;
       geoApiRequest(`/articles/${encodeURIComponent(id)}/review`, { method: 'POST', body: '{}' }).then((r) => {
-        dispatchGeoMessage('geo_article_review_result', { id, ok: !!r?.data?.reviewed });
+        dispatchGeoMessage('geo_article_review_result', { id, ok: r?.data?.review_status != null, review_status: r?.data?.review_status });
       });
       return;
     }
