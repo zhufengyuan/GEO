@@ -86,7 +86,7 @@ const Page = {
             .join('');
           const reviewed = Number(it.review_status || 0) === 1;
           const reviewBtn = reviewed
-            ? '<button class="op" data-action="review" disabled>已审核</button>'
+            ? '<button class="op op-success" data-action="review">已审核</button>'
             : '<button class="op" data-action="review">审核</button>';
           return `<tr data-id="${it.id}">
             <td><input type="checkbox" class="row-check" /></td>
@@ -158,7 +158,7 @@ const Page = {
       }
       state.loading = true;
       render();
-      window.geoQueryArticles?.({ page: state.page, page_size: state.pageSize, keyword: state.keyword, ts: Date.now() });
+      window.geoQueryArticles?.({ page: state.page, page_size: state.pageSize, keyword: state.keyword, review_status: -1, ts: Date.now() });
     };
 
     const onMessage = (event) => {
@@ -197,16 +197,19 @@ const Page = {
         const id = String(d.payload?.id || '').trim();
         if (!id) return;
         const ok = d.payload?.ok === true;
+        const reviewStatus = Number(d.payload?.review_status ?? 1);
         if (!ok) {
-          alert('审核失败，请稍后重试。');
+          alert('审核操作失败，请稍后重试。');
           return;
         }
-        state.items = (state.items || []).map((x) => String(x.id) === id ? { ...x, review_status: 1, reviewed_at: new Date().toISOString() } : x);
+        state.items = (state.items || []).map((x) => String(x.id) === id ? { ...x, review_status: reviewStatus, reviewed_at: reviewStatus === 1 ? new Date().toISOString() : null } : x);
         render();
-        if (approveBtn) approveBtn.style.display = 'none';
-        closeModal();
-        localStorage.setItem('mp_prefill_article_id', String(id));
-        window.navigateTo?.('media-publish');
+        if (reviewStatus === 1 && state.modalMode === 'review') {
+          if (approveBtn) approveBtn.style.display = 'none';
+          closeModal();
+          localStorage.setItem('mp_prefill_article_id', String(id));
+          window.navigateTo?.('media-publish');
+        }
       }
     };
     Page._handler = onMessage;
@@ -312,18 +315,8 @@ const Page = {
         window.geoConsume?.({ event_type: 'ui', page: 'article-manager', action: 'open_output', units: 1, amount: 0 });
       }
       if (action === 'review') {
-        if (Number(rowItem?.review_status || 0) === 1) return;
-        state.currentId = id || null;
-        state.modalMode = 'review';
-        if (approveBtn) approveBtn.style.display = '';
-        currentTitle = stripTypePrefix(String(rowItem?.title || '').trim()) || '文章输出';
-        currentContent = '加载中...';
-        if (modalTitle) modalTitle.textContent = '';
-        if (formatSelect) formatSelect.value = 'markdown';
-        refreshOutput();
-        openModal();
-        if (id) window.geoQueryArticleDetail?.({ id, ts: Date.now() });
-        window.geoConsume?.({ event_type: 'ui', page: 'article-manager', action: 'review_open', units: 1, amount: 0 });
+        if (id) window.geoReviewArticle?.({ id, ts: Date.now() });
+        window.geoConsume?.({ event_type: 'ui', page: 'article-manager', action: 'review_toggle', units: 1, amount: 0 });
       }
       if (action === 'delete') alert('删除：后续接入二次确认与删除接口。');
       if (action === 'publish') {
