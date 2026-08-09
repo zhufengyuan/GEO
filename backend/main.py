@@ -280,11 +280,49 @@ async def tenants_switch(tid: int, user=Depends(get_current_user)):
     return ok({"switched": True, "tenant_id": tid})
 
 
+# ── Dashboard Stats ──
+@app.get("/api/v1/dashboard/stats")
+async def dashboard_stats(user=Depends(get_current_user)):
+    from backend.database import query, query_row
+    stats = {"total_articles": 0, "llm_stats": [], "publish_by_platform": {}}
+    try:
+        r = query_row("SELECT COUNT(*) as c FROM articles")
+        stats["total_articles"] = int((r or {}).get("c", 0))
+    except Exception:
+        stats["total_articles"] = 0
+
+    # llm_stats: 尝试从 articles 按 article_type 分组作为各模型产出
+    try:
+        llm_rows = query("SELECT article_type, COUNT(*) as articles FROM articles GROUP BY article_type")
+        stats["llm_stats"] = [{"model": str(row.get("article_type", "")), "articles": int(row.get("articles", 0))} for row in (llm_rows or [])]
+    except Exception:
+        pass
+
+    # publish_by_platform
+    try:
+        from backend.api.publish_records import _detect_publish_records_schema
+        sch = _detect_publish_records_schema()
+        if sch:
+            pcol = sch.get("platform_col") or "platform_code"
+            pr_rows = query(f"SELECT {pcol}, COUNT(*) as cnt FROM publish_records GROUP BY {pcol}")
+            platforms = {}
+            for row in (pr_rows or []):
+                p = str(row.get(pcol, "")).strip()
+                if p:
+                    platforms[p] = int(row.get("cnt", 0))
+            stats["publish_by_platform"] = platforms
+    except Exception:
+        pass
+
+    return ok(stats)
+
+
 @app.get("/api/v1/articles")
 async def articles_list(
     page: int = 1,
     page_size: int = 20,
     keyword: Optional[str] = None,
+    review_status: Optional[int] = 1,
     user=Depends(get_current_user),
 ):
     from backend.database import query, query_row
@@ -293,6 +331,9 @@ async def articles_list(
     if keyword:
         where += " AND title LIKE %s"
         params.append(f"%{keyword}%")
+    if review_status is not None and review_status >= 0:
+        where += " AND review_status = %s"
+        params.append(review_status)
     params.append(page_size)
     params.append((page - 1) * page_size)
     sql = f"""
@@ -406,9 +447,15 @@ async def articles_update(aid: int, req: ArticleUpdateRequest, user=Depends(get_
 
 @app.post("/api/v1/articles/{aid}/review")
 async def articles_review(aid: int, user=Depends(get_current_user)):
-    from backend.database import execute
-    execute("UPDATE articles SET review_status=1, reviewed_at=NOW(), updated_at=NOW() WHERE id=%s", [aid])
-    return ok({"reviewed": True})
+    from backend.database import execute, query_row
+    row = query_row("SELECT review_status FROM articles WHERE id=%s", [aid])
+    current = int((row or {}).get("review_status", 0) or 0)
+    new_status = 0 if current == 1 else 1
+    if new_status == 1:
+        execute("UPDATE articles SET review_status=1, reviewed_at=NOW(), updated_at=NOW() WHERE id=%s", [aid])
+    else:
+        execute("UPDATE articles SET review_status=0, reviewed_at=NULL, updated_at=NOW() WHERE id=%s", [aid])
+    return ok({"reviewed": new_status == 1, "review_status": new_status})
 
 
 @app.delete("/api/v1/articles/{aid}")
@@ -822,7 +869,7 @@ async def question_words_delete(ids: List[int] = Body(default=[]), user=Depends(
     if not ids:
         return fail("INVALID_PARAM", "未提供有效 id")
     placeholders = ",".join(["%s"] * len(ids))
-    own = query(f"SELECT id FROM lexicons WHERE id IN ({placeholders}) AND user_id=%s", ids + [user["id"]])
+    uid = user["id"]; own = query(f"SELECT id FROM lexicons WHERE id IN ({placeholders}) AND user_id=%s", ids + [uid])
     own_ids = [int(r["id"]) for r in own if r.get("id") is not None]
     if not own_ids:
         return fail("NOT_FOUND", "未找到可删除的记录")
@@ -866,33 +913,6 @@ async def monitor_tasks_update(tid: int, body: dict, user=Depends(get_current_us
 async def monitor_tasks_delete(tid: int, user=Depends(get_current_user)):
     from backend.database import execute
     execute("DELETE FROM monitor_tasks WHERE id=%s AND user_id=%s", [tid, user["id"]])
-
-
-@app.get("/api/v1/public-opinion/search")
-async def public_opinion_search(
-    keyword: str = "",
-    info_type: str = "all",
-    sentiment: str = "all",
-    page: int = 1,
-    page_size: int = 20,
-    user=Depends(get_current_user),
-):
-    from backend.crawlers.opinion import search_opinion
-
-    if not keyword.strip():
-        return fail("INVALID_PARAM", "keyword 不能为空")
-
-    try:
-        result = search_opinion(
-            keyword=keyword.strip(),
-            info_type=info_type,
-            sentiment=sentiment,
-            page=page,
-            page_size=page_size,
-        )
-        return ok(result)
-    except Exception as e:
-        return fail("SEARCH_ERROR", str(e))
 
 
 @app.get("/api/v1/public-opinion/search")
@@ -1051,6 +1071,7 @@ async def ai_execute(body: dict, user=Depends(get_current_user)):
         build_kb_profile_prompt,
         build_kb_library_prompt,
         build_kb_timeline_prompt,
+        build_kb_positioning_prompt,
         build_article_prompt,
         build_article_product_chat_prompt,
         build_article_writing_init_chat_prompt,
@@ -1127,6 +1148,8 @@ async def ai_execute(body: dict, user=Depends(get_current_user)):
         "tech_advantage": kb_base.get("技术优势") or enterprise.get("tech_advantage") or "",
         "company_profile": (kb_docs.get("company_profile") if isinstance(kb_docs, dict) else "") or "",
         "enterprise_library": (kb_docs.get("enterprise_library") if isinstance(kb_docs, dict) else "") or "",
+        "main_positioning": (kb_docs.get("main_positioning") if isinstance(kb_docs, dict) else "") or "",
+        "sub_positioning": (kb_docs.get("sub_positioning") if isinstance(kb_docs, dict) else "") or "",
         "timeline_text": _timeline_text(kb_docs if isinstance(kb_docs, dict) else {}),
         "extras": json.dumps({"base": kb_base, "docs": kb_docs}, ensure_ascii=False),
     }
@@ -1135,11 +1158,15 @@ async def ai_execute(body: dict, user=Depends(get_current_user)):
         prompt = build_title_prompt(enterprise, lexicon, keyword, hint)
     elif task == "generate_activity_desc":
         prompt = build_activity_desc_prompt(enterprise, lexicon, keyword, hint)
-    elif task in ("generate_kb_profile", "generate_kb_library", "generate_kb_timeline"):
+    elif task in ("generate_kb_profile", "generate_kb_library", "generate_kb_timeline", "generate_kb_positioning_main", "generate_kb_positioning_sub"):
         if task == "generate_kb_profile":
             prompt = build_kb_profile_prompt(kb)
         elif task == "generate_kb_library":
             prompt = build_kb_library_prompt(kb)
+        elif task == "generate_kb_positioning_sub":
+            prompt = build_kb_positioning_prompt(kb, mode="sub", current_text=str(body.get("current_text") or ""))
+        elif task == "generate_kb_positioning_main":
+            prompt = build_kb_positioning_prompt(kb, mode="main", current_text=str(body.get("current_text") or ""))
         else:
             prompt = build_kb_timeline_prompt(kb)
     elif task == "data_diagnosis":
@@ -1179,6 +1206,7 @@ async def ai_execute(body: dict, user=Depends(get_current_user)):
         _comp_scraped = {}
         _comp_names = []
         _our = str(kb_base.get("企业全称") or kb_base.get("企业简称") or "").strip()
+        _req_id = str(body.get("req_id") or body.get("request_id") or f"comp_{int(time.time())}")
 
         for _c in _comp_list[:8]:
             _nm = str(_c.get("company_name") or "").strip()
@@ -1195,6 +1223,8 @@ async def ai_execute(body: dict, user=Depends(get_current_user)):
                 _scr = scrape_website_sync(_url, timeout=15, max_chars=15000)
                 if _scr.get("ok") or _scr.get("raw_html"):
                     _comp_scraped[_nm] = _scr
+                    # Item 5: 保存竞品爬取内容到 query_id/competitor/
+                    save_scraped_content(_req_id, "competitor", _nm, str(_scr.get("text") or _scr.get("raw_html") or ""))
             _comp_names.append(_nm)
 
         # Step 5: Corpus detection - segment and summarize long content
@@ -1212,11 +1242,14 @@ async def ai_execute(body: dict, user=Depends(get_current_user)):
     elif task == "diagnosis_report":
         extra_input = str(body.get("input") or "").strip()
         llm_name = str(body.get("llm_name") or body.get("model_name") or "").strip()
+        _req_id = str(body.get("req_id") or body.get("request_id") or f"diag_{int(time.time())}")
         # 自动解析官网 URL：优先 KB 表单"企业官网" -> 百度搜索公司名
         company_name = str(kb_base.get("企业全称") or kb_base.get("企业简称") or "").strip()
         website_url = auto_resolve_website_url(kb_base, company_name)
         if website_url:
             scraped = scrape_website_sync(website_url, timeout=15, max_chars=15000)
+            # Item 5: 保存自家官网爬取内容到 query_id/own/
+            save_scraped_content(_req_id, "own", company_name or "own_website", str(scraped.get("text") or ""))
             if scraped.get("ok"):
                 prompt = build_diagnosis_report_with_scrape_prompt(
                     kb, extra_input, llm_name, page_context, website_content=scraped
@@ -1227,6 +1260,30 @@ async def ai_execute(body: dict, user=Depends(get_current_user)):
             prompt = build_diagnosis_report_prompt(kb, extra_input, llm_name, page_context)
     elif task == "optimization_plan":
         prompt = build_optimization_plan_prompt(kb)
+        # Item 11: 多模型并行优化 — 调用 2 个不同视角的变体 + 汇总
+        variant2 = prompt + "\n\n【额外要求】请从「技术实现与落地可行性」角度重新审视以上分析，优先提出可量化、可操作的建议。"
+        import asyncio as _asyncio
+        results = await _asyncio.gather(
+            async_call_llm(prompt),
+            async_call_llm(variant2),
+            return_exceptions=True
+        )
+        texts = [str(r).strip() for r in results if r and not isinstance(r, Exception)]
+        if len(texts) >= 2:
+            summary_prompt = (
+                "你是一位资深企业GEO诊断与优化专家。以下是两位专家从不同角度给出的优化建议，"
+                "请将它们合并为一份统一的、去重排序的综合优化建议方案。\n\n"
+                "要求：\n"
+                "1. 去重合并相似建议\n"
+                "2. 按优先级排序（高→低）\n"
+                "3. 保留所有有价值的独特建议\n"
+                "4. 输出格式与原方案一致\n\n"
+                "=== 专家A（综合视角） ===\n" + texts[0] + "\n\n"
+                "=== 专家B（技术落地视角） ===\n" + (texts[1] if len(texts) > 1 else "")
+            )
+            text = str(await async_call_llm(summary_prompt)).strip()
+        else:
+            text = texts[0] if texts else ""
     elif task == "optimization_schedule":
         prompt = build_optimization_schedule_prompt(kb)
     elif task == "acceptance_score":
@@ -1308,8 +1365,18 @@ async def ai_execute(body: dict, user=Depends(get_current_user)):
     else:
         return fail("INVALID_TASK", "不支持的任务类型")
 
-    text = await async_call_llm(prompt)
-    return ok({"text": text})
+    if task != "optimization_plan":
+        text = await async_call_llm(prompt)
+    raw_text = str(text or "").strip()
+    # Item 8: 结构化输出 — 分离正文与优化建议
+    content = raw_text
+    suggestions = ""
+    sep_marker = "=====GEO_SEPARATOR====="
+    if sep_marker in raw_text:
+        parts = raw_text.split(sep_marker, 1)
+        content = parts[0].strip()
+        suggestions = parts[1].strip() if len(parts) > 1 else ""
+    return ok({"text": raw_text, "content": content, "suggestions": suggestions})
 
 
 @app.post("/api/v1/article-writing/init-chat")
@@ -1582,6 +1649,64 @@ async def article_writing_optimize(body: dict, user=Depends(get_current_user)):
         optimized = raw.strip()
 
     return ok({"suggestions": suggestions, "text": optimized})
+
+@app.post("/api/v1/article-writing/rewrite")
+async def article_writing_rewrite(body: dict, user=Depends(get_current_user)):
+    from backend.database import query_row
+    from backend.services.llm_service import async_call_llm
+    from backend.services.prompt_service import build_article_writing_rewrite_prompt
+
+    payload = dict(body or {})
+    lexicon_id = int(payload.get("lexicon_id") or payload.get("lexiconId") or 0)
+    task_tab = str(payload.get("tab") or "").strip()
+    question_text = str(payload.get("question_text") or payload.get("questionText") or "").strip()
+    platforms = str(payload.get("platforms") or "").strip()
+    user_input = str(payload.get("user_input") or payload.get("userInput") or "").strip()
+    article_text = str(payload.get("content") or payload.get("text") or "").strip()
+
+    if not article_text:
+        return fail("INVALID_PARAM", "content 不能为空")
+
+    enterprise = query_row("SELECT * FROM enterprise_base_info ORDER BY id DESC LIMIT 1") or {}
+    lexicon = query_row("SELECT * FROM lexicons WHERE id=%s", [lexicon_id]) if lexicon_id > 0 else None
+    lexicon = lexicon or {}
+
+    def load_kb_section(sec: str):
+        row = query_row(
+            "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
+            [user["id"], sec],
+        ) or {}
+        content = row.get("content")
+        if not content:
+            return None
+        try:
+            return json.loads(content)
+        except Exception:
+            return content
+
+    kb_base = load_kb_section("企业基础信息")
+    kb_docs = load_kb_section("docs")
+
+    prompt = build_article_writing_rewrite_prompt(
+        enterprise=enterprise,
+        lexicon=lexicon,
+        kb_base=kb_base,
+        kb_docs=kb_docs,
+        task_tab=task_tab,
+        task_question_text=question_text,
+        task_platforms=platforms,
+        task_user_input=user_input,
+        article_text=article_text,
+    )
+
+    if not prompt:
+        return fail("LLM_ERROR", "提示词模板缺失")
+
+    raw = str((await async_call_llm(prompt)) or "").strip()
+    if not raw:
+        return fail("LLM_ERROR", "大模型服务无返回，请稍后重试")
+
+    return ok({"text": raw, "suggestions": raw})
 
 @app.get("/api/v1/official-media")
 async def official_media_list(
@@ -1883,11 +2008,11 @@ async def knowledge_base_export_word(body: dict = Body(...), user=Depends(get_cu
 </html>"""
 
     from urllib.parse import quote
-    disp_name = quote(f"{filename}.doc")
+    disp_name = quote(f"{filename}.docx")
     headers = {"Content-Disposition": f"attachment; filename*=UTF-8''{disp_name}"}
     return Response(
         content=doc_html.encode("utf-8"),
-        media_type="application/msword; charset=utf-8",
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document; charset=utf-8",
         headers=headers,
     )
 
@@ -1934,11 +2059,11 @@ async def export_word(body: dict = Body(...), user=Depends(get_current_user)):
 </html>"""
 
     from urllib.parse import quote
-    disp_name = quote(f"{title}.doc")
+    disp_name = quote(f"{title}.docx")
     headers = {"Content-Disposition": f"attachment; filename*=UTF-8''{disp_name}"}
     return Response(
         content=doc_html.encode("utf-8"),
-        media_type="application/msword; charset=utf-8",
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document; charset=utf-8",
         headers=headers,
     )
 
@@ -2092,6 +2217,27 @@ async def tools_summarize_urls(body: dict = Body(...), user=Depends(get_current_
 
 _DIAG_UPLOAD_DIR = Path("uploads")
 _DIAG_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+_SCRAPED_DIR = _DIAG_UPLOAD_DIR / "scraped"
+_SCRAPED_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _scraped_query_dir(query_id: str, category: str) -> Path:
+    """返回 {query_id}/{category}/ 目录，不存在则自动创建"""
+    qid = _diag_safe_task(query_id) or "unknown"
+    cat = _diag_safe_task(category) or "own"
+    d = _SCRAPED_DIR / qid / cat
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def save_scraped_content(query_id: str, category: str, filename: str, content: str) -> None:
+    """保存爬取内容到 {query_id}/{category}/{filename}"""
+    import datetime as _dt
+    _d = _scraped_query_dir(query_id, category)
+    _ts = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    _safe_fn = str(filename or "scraped").replace("/", "_").replace("\\", "_")[:80]
+    _p = _d / f"{_ts}_{_safe_fn}.txt"
+    _p.write_text(str(content or ""), encoding="utf-8")
 
 
 def _diag_safe_task(v: str) -> str:
@@ -2188,40 +2334,16 @@ async def diagnosis_files_download(task: str, model: Optional[str] = None, user=
         f"{safe}"
         "</body></html>"
     )
-    tmp_name = f"diag_{int(user['id'])}_{t}_{m}_{uuid.uuid4().hex}.doc"
+    uid = user["id"]; tmp_name = f"diag_{int(uid)}_{t}_{m}_{uuid.uuid4().hex}.docx"
     tmp_path = _DIAG_UPLOAD_DIR / tmp_name
     tmp_path.write_text(doc_html, encoding="utf-8")
 
-    filename = f"{t}-{m}.doc"
+    filename = f"{t}-{m}.docx"
     return FileResponse(
         path=str(tmp_path),
-        media_type="application/msword",
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         filename=filename,
     )
-
-
-# ── 工作台数据看板 ──
-@app.get("/api/v1/dashboard/stats")
-async def dashboard_stats(user=Depends(get_current_user)):
-    from backend.services.dashboard_service import get_dashboard_stats
-    try:
-        uid = user.get("id") if isinstance(user, dict) else None
-        result = get_dashboard_stats(user_id=uid)
-        return ok(result)
-    except Exception as e:
-        return fail("DASHBOARD_ERROR", str(e))
-
-
-@app.get("/api/v1/dashboard/quick-stats")
-async def dashboard_quick_stats(user=Depends(get_current_user)):
-    from backend.services.dashboard_service import get_dashboard_quick_stats
-    try:
-        uid = user.get("id") if isinstance(user, dict) else None
-        result = get_dashboard_quick_stats(user_id=uid)
-        return ok(result)
-    except Exception as e:
-        return fail("DASHBOARD_ERROR", str(e))
-
 
 @app.get("/api/v1/health")
 def health_check():
