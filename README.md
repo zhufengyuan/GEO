@@ -27,6 +27,84 @@
 
 
 ## 最近更新
+
+> **2026-08-09** — 14项整改部署上线 + 诊断报告标准信息删除 + 优化方案Excel强制输出 + 知识图谱/企业定位修复
+
+### 14项整改全部部署上线（2026-08-09 21:01-21:30）
+- 整改项1：删除企业基础信息"创始人/团队介绍"默认信息
+- 整改项2：全站下载按钮可用（文本→Word，表格→Excel）
+- 整改项3：企业官网诊断删除5个大模型案例按钮，统一文心一言分析
+- 整改项4：官网诊断统一单一大模型爬取（自家/竞争对手）
+- 整改项5：爬取结果按查询ID存储，区分自家/竞争对手
+- 整改项6：文章创作与优化建议使用不同API分支
+- 整改项7：品牌创作自动从企业基础信息提取数据
+- 整改项8：产品宣传创作使用结构化输出分离正文与优化建议
+- 整改项9：删除企业诊断报告标准信息板块
+- 整改项10：修复自媒体/官媒发布未审核文章显示问题
+- 整改项11：优化建议多模型并行优化（子agent+总agent整合）
+- 整改项12：产品宣传创作产品选择由多选改为单选
+- 整改项13：问题词库列表列宽调整与日期简化
+- 整改项14：数据统计页面用户体验优化（空状态、CTA、成就机制、数据对比）
+- Python 3.6兼容性修复：f-string引号嵌套改为变量提取
+- 备份路径：`/srv/shiny-server/GEO/backup_deploy_20260809/`
+
+### 数据统计页面404修复（2026-08-09 21:28）
+- 问题：数据统计页面弹窗404，`/api/v1/dashboard/stats` 端点不存在
+- 修复：`backend/main.py` 新增 `@app.get("/api/v1/dashboard/stats")`，查询文章总数/类型分组/发布记录
+
+### 企业定位AI系统生成修复（2026-08-09 22:21）
+- 问题：企业知识库"企业定位"页面"系统生成"按钮无反应
+- 修复：`backend/main.py` 恢复 `build_kb_positioning_prompt` 导入和 task dispatch；`knowledge-base/page.js` 添加定位生成/保存/回显逻辑
+
+### 知识图谱功能修复（2026-08-09 22:00）
+- 问题：知识库"企业知识图谱"按钮无反应，JS无图谱渲染代码
+- 修复：`knowledge-base/page.js` 新增~220行图谱实现（SVG渲染、节点点击、缩放平移、空状态提示）
+
+### 诊断报告标准信息删除 + 格式约束（2026-08-09 22:55-23:00）
+- 删除5个诊断prompt中的"标准信息"section（企业全称/简称/官网/主营产品等）
+  - `diagnosis_report_prompt.txt`、`diagnosis_report_scrape_prompt.txt`、`website_diagnosis_prompt.txt`、`data_diagnosis_prompt.txt`、`agent_summary_prompt.txt`
+- 添加输出格式约束：纯文档禁止表格呈现文档类内容；Word仅限doc/docx，Excel仅限xlsx/xls；分析报告用Word格式
+- `prompt_service.py`：`build_data_diagnosis_prompt`/`build_website_diagnosis_prompt` 删除标准信息字段传递
+- `diagnosis-report/page.html`：删除"标准信息"card（企业全称/核心产品输入框）
+- `diagnosis-report/page.js`：清空 `prefillFields`/`saveFields` 数组（原引用已删除的input字段）
+
+### 问题词库分页 + 决策阶段中文映射（2026-08-09 22:55）
+- `question-bank-manager/page.js`：添加分页（每页12条）、决策阶段英文→中文映射（awareness→认知触发等）、全局序号、当前页全选
+- `question-bank-manager/page.html`：添加分页容器和样式
+
+### 企业知识库字段调整（2026-08-09 22:55）
+- `knowledge-base/page.html`：插入"客户类型"字段（placeholder="B端企业客户 / C端个人消费者"），"市场布局"改为"区域市场"
+- `knowledge-base/page.js`：SECTIONS数组同步更新
+
+### 优化建议方案Excel强制输出（2026-08-09 23:48）
+- `optimization-plan/page.js`：
+  - 新增 `rawTexts` 数组存储AI返回原始文本（解决表格渲染后 `textContent` 丢失分隔符问题）
+  - `getText` 改为返回原始文本而非 `el.textContent`
+  - `downloadExcel` 移除 `looksLikeTable` 检测和 Word 回退逻辑，直接调用 `window.geoDownloadExcel`
+  - 计划表和评分表强制生成Excel格式
+
+### 文章管理审核状态切换（2026-08-09 21:54）
+- 后端：`/api/v1/articles/{aid}/review` 改为 toggle 逻辑（已审核↔未审核）
+- 前端：审核按钮直接点击切换，已审核显示绿色样式；未审核状态点击发布无效
+
+### 变更文件（2026-08-09）
+| 文件 | 变更 |
+|------|------|
+| `backend/main.py` | 新增 dashboard/stats 路由 + 恢复 kb_positioning task dispatch + Python 3.6兼容性修复 |
+| `backend/services/prompt_service.py` | 删除诊断标准信息字段传递（build_data_diagnosis_prompt/build_website_diagnosis_prompt） |
+| `backend/prompts/diagnosis_report_prompt.txt` | 删除标准信息section + 添加格式约束 |
+| `backend/prompts/diagnosis_report_scrape_prompt.txt` | 删除标准信息section + 添加格式约束 |
+| `backend/prompts/website_diagnosis_prompt.txt` | 删除标准信息section + 添加格式约束 |
+| `backend/prompts/data_diagnosis_prompt.txt` | 删除标准信息section + 添加格式约束 |
+| `backend/prompts/agent_summary_prompt.txt` | 删除背景信息section + 添加格式约束 |
+| `www/pages/diagnosis-report/page.html` | 删除"标准信息"card |
+| `www/pages/diagnosis-report/page.js` | 清空 prefillFields/saveFields 数组 |
+| `www/pages/optimization-plan/page.js` | 新增rawTexts存储 + downloadExcel强制Excel输出 |
+| `www/pages/question-bank-manager/page.js` | 分页(12条/页) + 决策阶段中文映射 |
+| `www/pages/question-bank-manager/page.html` | 分页容器和样式 |
+| `www/pages/knowledge-base/page.html` | 新增"客户类型"字段 + "市场布局"→"区域市场" |
+| `www/pages/knowledge-base/page.js` | SECTIONS数组同步更新 + 知识图谱~220行 + 企业定位生成/保存/回显 |
+| `www/index.js` | geoReviewArticle返回review_status + 14项整改配套 |
 > **2026-08-07 (2)** — 竞品分析报告升级为9章节专业格式
 
 ### 报告模板重写
@@ -38,20 +116,6 @@
 - 所有表格规范化：竞品名单表、SEO对标表、横向对比总表、差距分析表均使用Markdown表格格式
 - 差异化策略细化：3-5个策略，每个附差异化指数/切入逻辑/具体打法/预期效果/资源需求/风险提示
 |  | 219行，完整9章+附录报告模板 |
-
-> **2026-08-07 (2)** — 竞品分析报告升级为9章节专业格式
-
-### 报告模板重写
--  从8章节升级为9章节+附录的专业报告结构
-- 新增【九、执行保障建议】：团队配置、工具推荐、复盘机制、竞品监控、风险预案
-- 新增【附录：待核查清单汇总】：统一汇总全报告中的待核查项，含核查方法与状态
-- 执行清单细化：第七节明确90天三个阶段（快速见效→深度优化→巩固超越），每项含负责人建议/完成标准/P级
-- 第八节拆分为品牌/流量/数据/生态四大壁垒，均附时间里程碑与关键指标
-- 所有表格规范化：竞品名单表、SEO对标表、横向对比总表、差距分析表均使用Markdown表格格式
-- 差异化策略细化：3-5个策略，每个附差异化指数/切入逻辑/具体打法/预期效果/资源需求/风险提示
-|  | 219行，完整9章+附录报告模板 |
-
-
 > **2026-08-07** — 竞品分析自动化 + 爬虫增强
 
 ### 竞品自动发现（competitor-analysis）
