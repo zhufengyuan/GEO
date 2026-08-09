@@ -25,12 +25,12 @@
           <th style="width: 60px; text-align:center;">
             <input type="checkbox" id="selectAll" />
           </th>
-          <th style="width: 70px;">序号</th>
-          <th style="width: 160px;">关键词</th>
-          <th style="width: 160px;">拓展词</th>
-          <th style="width: 140px;">决策阶段</th>
+          <th style="width: 60px;">序号</th>
+          <th style="width: 140px;">关键词</th>
+          <th style="width: 140px;">拓展词</th>
+          <th style="width: 120px;">决策阶段</th>
           <th>问题关键词</th>
-          <th style="width: 140px;">创建时间</th>
+          <th style="width: 120px;">创建时间</th>
           <th style="width: 120px;">状态</th>
           <th style="width: 90px;">去创作</th>
           <th style="width: 90px;">编辑</th>
@@ -41,6 +41,7 @@
       </tbody>
     </table>
   </div>
+  <div id="qbPagination"></div>
 </div>
 
 <style>
@@ -50,6 +51,51 @@
 
 .qb-mgr-table th {
   white-space: nowrap;
+}
+
+.qb-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 0;
+  margin-top: 4px;
+}
+.qb-page-info {
+  font-size: 13px;
+  color: #666;
+  margin-right: 8px;
+}
+.qb-page-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid #d0d7de;
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.qb-page-btn:hover:not(:disabled) {
+  background: #f0f4ff;
+  border-color: #4a6cf7;
+  color: #4a6cf7;
+}
+.qb-page-btn.active {
+  background: #4a6cf7;
+  border-color: #4a6cf7;
+  color: #fff;
+}
+.qb-page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.qb-page-ellipsis {
+  color: #999;
+  font-size: 13px;
+  padding: 0 4px;
 }
 </style>
 
