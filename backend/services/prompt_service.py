@@ -463,14 +463,6 @@ def build_kb_positioning_prompt(kb: dict, mode: str = "main", current_text: str 
 def build_data_diagnosis_prompt(kb: dict, manual: str, page_context: str = "") -> str:
     tpl = _read_template("data_diagnosis_prompt.txt")
     return render_prompt(tpl, {
-        "enterprise_full_name": kb.get("enterprise_full_name", ""),
-        "enterprise_short_name": kb.get("enterprise_short_name", ""),
-        "enterprise_website": kb.get("enterprise_website", ""),
-        "main_products": kb.get("main_products", ""),
-        "target_customers": kb.get("target_customers", ""),
-        "enterprise_advantage": kb.get("enterprise_advantage", ""),
-        "product_advantage": kb.get("product_advantage", ""),
-        "tech_advantage": kb.get("tech_advantage", ""),
         "company_profile": kb.get("company_profile", ""),
         "enterprise_library": kb.get("enterprise_library", ""),
         "timeline_text": kb.get("timeline_text", ""),
@@ -483,14 +475,7 @@ def build_data_diagnosis_prompt(kb: dict, manual: str, page_context: str = "") -
 def build_website_diagnosis_prompt(kb: dict, page_context: str = "") -> str:
     tpl = _read_template("website_diagnosis_prompt.txt")
     return render_prompt(tpl, {
-        "enterprise_full_name": kb.get("enterprise_full_name", ""),
-        "enterprise_short_name": kb.get("enterprise_short_name", ""),
         "enterprise_website": kb.get("enterprise_website", ""),
-        "main_products": kb.get("main_products", ""),
-        "target_customers": kb.get("target_customers", ""),
-        "enterprise_advantage": kb.get("enterprise_advantage", ""),
-        "product_advantage": kb.get("product_advantage", ""),
-        "tech_advantage": kb.get("tech_advantage", ""),
         "page_context": page_context or "",
         "extras": kb.get("extras", ""),
     })
@@ -582,14 +567,6 @@ def build_diagnosis_report_prompt(kb: dict, extra_input: str, llm_name: str, pag
     llm_instruction = f"请按照{llm}大模型的风格生成内容。\n\n" if llm else ""
     return render_prompt(tpl, {
         "llm_instruction": llm_instruction,
-        "enterprise_full_name": kb.get("enterprise_full_name", ""),
-        "enterprise_short_name": kb.get("enterprise_short_name", ""),
-        "enterprise_website": kb.get("enterprise_website", ""),
-        "main_products": kb.get("main_products", ""),
-        "target_customers": kb.get("target_customers", ""),
-        "enterprise_advantage": kb.get("enterprise_advantage", ""),
-        "product_advantage": kb.get("product_advantage", ""),
-        "tech_advantage": kb.get("tech_advantage", ""),
         "company_profile": kb.get("company_profile", ""),
         "enterprise_library": kb.get("enterprise_library", ""),
         "timeline_text": kb.get("timeline_text", ""),
@@ -650,14 +627,6 @@ def build_diagnosis_report_with_scrape_prompt(
 
     return render_prompt(tpl, {
         "llm_instruction": llm_instruction,
-        "enterprise_full_name": kb.get("enterprise_full_name", ""),
-        "enterprise_short_name": kb.get("enterprise_short_name", ""),
-        "enterprise_website": kb.get("enterprise_website", ""),
-        "main_products": kb.get("main_products", ""),
-        "target_customers": kb.get("target_customers", ""),
-        "enterprise_advantage": kb.get("enterprise_advantage", ""),
-        "product_advantage": kb.get("product_advantage", ""),
-        "tech_advantage": kb.get("tech_advantage", ""),
         "company_profile": kb.get("company_profile", ""),
         "enterprise_library": kb.get("enterprise_library", ""),
         "timeline_text": kb.get("timeline_text", ""),
@@ -804,6 +773,170 @@ def build_article_writing_suggestions_prompt(
         "task_product_json": _safe_json(task_product_json),
         "task_products_json": _safe_json(task_products_json),
         "task_images_json": _safe_json(task_images_json),
+        "article_text": str(article_text or ""),
+        "geo_general_rules": geo_general_rules,
+        "industry_identification_rules": industry_identification_rules,
+    })
+
+
+def build_article_writing_rewrite_prompt(
+    enterprise: dict,
+    lexicon: dict,
+    kb_base=None,
+    kb_docs=None,
+    task_tab: str = "",
+    task_question_text: str = "",
+    task_platforms: str = "",
+    task_user_input: str = "",
+    article_text: str = "",
+) -> str:
+    tpl = _read_template("article_writing_rewrite_prompt.txt")
+    if not tpl:
+        return ""
+
+    geo_general_rules = _read_template("geo_general_rules.txt")
+    industry_identification_rules = _read_template("industry_identification_rules.txt")
+
+    def _safe_json(v):
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return v
+        try:
+            return json.dumps(v, ensure_ascii=False)
+        except Exception:
+            return str(v)
+
+    return render_prompt(tpl, {
+        "task_tab": str(task_tab or ""),
+        "task_question_text": str(task_question_text or ""),
+        "task_platforms": str(task_platforms or ""),
+        "task_user_input": str(task_user_input or ""),
+        "kb_base_json": _safe_json(kb_base),
+        "kb_docs_json": _safe_json(kb_docs),
+        "article_text": str(article_text or ""),
+        "geo_general_rules": geo_general_rules,
+        "industry_identification_rules": industry_identification_rules,
+    })
+
+
+def build_article_writing_rewrite_prompt(
+    enterprise: dict,
+    lexicon: dict,
+    kb_base=None,
+    kb_docs=None,
+    task_tab: str = "",
+    task_question_text: str = "",
+    task_platforms: str = "",
+    task_user_input: str = "",
+    article_text: str = "",
+) -> str:
+    tpl = _read_template("article_writing_rewrite_prompt.txt")
+    if not tpl:
+        return ""
+
+    geo_general_rules = _read_template("geo_general_rules.txt")
+    industry_identification_rules = _read_template("industry_identification_rules.txt")
+
+    def _safe_json(v):
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return v
+        try:
+            return json.dumps(v, ensure_ascii=False)
+        except Exception:
+            return str(v)
+
+    return render_prompt(tpl, {
+        "task_tab": str(task_tab or ""),
+        "task_question_text": str(task_question_text or ""),
+        "task_platforms": str(task_platforms or ""),
+        "task_user_input": str(task_user_input or ""),
+        "kb_base_json": _safe_json(kb_base),
+        "kb_docs_json": _safe_json(kb_docs),
+        "article_text": str(article_text or ""),
+        "geo_general_rules": geo_general_rules,
+        "industry_identification_rules": industry_identification_rules,
+    })
+
+
+def build_article_writing_rewrite_prompt(
+    enterprise: dict,
+    lexicon: dict,
+    kb_base=None,
+    kb_docs=None,
+    task_tab: str = "",
+    task_question_text: str = "",
+    task_platforms: str = "",
+    task_user_input: str = "",
+    article_text: str = "",
+) -> str:
+    tpl = _read_template("article_writing_rewrite_prompt.txt")
+    if not tpl:
+        return ""
+
+    geo_general_rules = _read_template("geo_general_rules.txt")
+    industry_identification_rules = _read_template("industry_identification_rules.txt")
+
+    def _safe_json(v):
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return v
+        try:
+            return json.dumps(v, ensure_ascii=False)
+        except Exception:
+            return str(v)
+
+    return render_prompt(tpl, {
+        "task_tab": str(task_tab or ""),
+        "task_question_text": str(task_question_text or ""),
+        "task_platforms": str(task_platforms or ""),
+        "task_user_input": str(task_user_input or ""),
+        "kb_base_json": _safe_json(kb_base),
+        "kb_docs_json": _safe_json(kb_docs),
+        "article_text": str(article_text or ""),
+        "geo_general_rules": geo_general_rules,
+        "industry_identification_rules": industry_identification_rules,
+    })
+
+
+def build_article_writing_rewrite_prompt(
+    enterprise: dict,
+    lexicon: dict,
+    kb_base=None,
+    kb_docs=None,
+    task_tab: str = "",
+    task_question_text: str = "",
+    task_platforms: str = "",
+    task_user_input: str = "",
+    article_text: str = "",
+) -> str:
+    tpl = _read_template("article_writing_rewrite_prompt.txt")
+    if not tpl:
+        return ""
+
+    geo_general_rules = _read_template("geo_general_rules.txt")
+    industry_identification_rules = _read_template("industry_identification_rules.txt")
+
+    def _safe_json(v):
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return v
+        try:
+            return json.dumps(v, ensure_ascii=False)
+        except Exception:
+            return str(v)
+
+    return render_prompt(tpl, {
+        "task_tab": str(task_tab or ""),
+        "task_question_text": str(task_question_text or ""),
+        "task_platforms": str(task_platforms or ""),
+        "task_user_input": str(task_user_input or ""),
+        "kb_base_json": _safe_json(kb_base),
+        "kb_docs_json": _safe_json(kb_docs),
         "article_text": str(article_text or ""),
         "geo_general_rules": geo_general_rules,
         "industry_identification_rules": industry_identification_rules,
