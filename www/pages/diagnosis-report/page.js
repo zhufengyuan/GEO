@@ -20,15 +20,9 @@ const Page = {
       { id: 'wenxin', name: '文心' }
     ];
 
-    const prefillFields = [
-      { id: 'dr_enterprise_full_name', kbKey: '企业全称' },
-      { id: 'dr_main_products', kbKey: '主营产品' }
-    ];
+    const prefillFields = [];
 
-    const saveFields = [
-      { id: 'dr_enterprise_full_name', kbKey: '企业全称' },
-      { id: 'dr_main_products', kbKey: '主营产品' }
-    ];
+    const saveFields = [];
 
     const kb = await queryKnowledgeBaseSection('企业基础信息');
     applyEnterprisePrefill(prefillFields, kb);
