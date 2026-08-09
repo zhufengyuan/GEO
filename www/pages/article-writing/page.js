@@ -140,6 +140,10 @@ const Page = {
         p.classList.toggle('hidden', k !== key);
       });
       syncSuggestUi();
+      // Item 7: auto-fill brand form from enterprise base info in knowledge base
+      if (key === 'brand') {
+        window.geoQueryKnowledgeBase?.({ section: '企业基础信息', ts: Date.now() });
+      }
     };
 
     tabs.forEach((t) => {
@@ -641,7 +645,7 @@ const Page = {
       const count = Array.isArray(state.selectedProducts) ? state.selectedProducts.length : 0;
       productPickerBar.innerHTML = `
         <div style="display:flex;gap:10px;align-items:center;">
-          <button class="btn-solid" data-action="aw-product-done">完成选择（${count}/3）</button>
+          <button class="btn-solid" data-action="aw-product-done">完成选择</button>
           <button class="btn-primary" data-action="aw-product-cancel">取消</button>
         </div>
       `;
@@ -700,7 +704,7 @@ const Page = {
                 const feat = escapeHtml(r?.core_features || r?.craft || r?.advantages || '—');
                 return `
                   <tr>
-                    <td><input type="checkbox" data-idx="${idx}" ${checked} /></td>
+                    <td><input type="radio" name="awProductPick" data-idx="${idx}" ${checked} /></td>
                     <td>${idx + 1}</td>
                     <td>${name}</td>
                     <td>${material}</td>
@@ -831,6 +835,28 @@ const Page = {
           if (state.imagePickerOpen) renderImagesPicker();
           return;
         }
+        if (sec === '企业基础信息') {
+          const data = d.payload?.data;
+          if (data && typeof data === 'object') {
+            brandCompanyNameEl && (brandCompanyNameEl.value = String(data['企业全称'] || data['企业简称'] || ''));
+            brandIndustryEl && (brandIndustryEl.value = String(data['所在行业'] || ''));
+            brandMainProductsEl && (brandMainProductsEl.value = String(data['主营产品'] || ''));
+            brandCoreCapabilityEl && (brandCoreCapabilityEl.value = String(data['技术能力'] || data['服务经验'] || ''));
+            brandEnterpriseAdvantageEl && (brandEnterpriseAdvantageEl.value = String(data['企业优势'] || ''));
+            brandServiceProcessEl && (brandServiceProcessEl.value = String(data['服务流程'] || ''));
+            brandCertificationsEl && (brandCertificationsEl.value = String(data['企业资质证书、荣誉证书'] || ''));
+            brandSuccessCasesEl && (brandSuccessCasesEl.value = String(data['已合作的重要客户（最好是比较知名的企业）'] || data['产品/服务特点优势'] || ''));
+            brandTargetMarketEl && (brandTargetMarketEl.value = String(data['销售区域范围'] || data['目标客户'] || ''));
+            brandBrandPositioningEl && (brandBrandPositioningEl.value = String(data['主定位'] || data['子定位'] || ''));
+            if (brandCustomerModeEl) {
+              const target = String(data['目标客户'] || data['服务行业'] || '').toLowerCase();
+              if (/b端|企业|公司|工厂|tob|b2b/i.test(target)) brandCustomerModeEl.value = 'B端';
+              else if (/c端|个人|消费|toc|b2c|零售/i.test(target)) brandCustomerModeEl.value = 'C端';
+              else if (/b\+c|b2b2c|两端/i.test(target)) brandCustomerModeEl.value = 'B+C';
+            }
+          }
+          return;
+        }
       }
       if (d.type === 'geo_article_writing_suggestions_result') {
         const payload = d.payload || {};
@@ -914,12 +940,23 @@ const Page = {
         const title = String(payload.title || item.title || '').trim();
         const content = String(payload.content || '').trim();
         const articleId = payload.article_id;
+        // Item 8: store suggestions from structured response if available
+        const suggestions = String(payload.suggestions || '').trim();
         if (state.pendingGenerateItem) {
           const list = Array.isArray(state.articlesByTab[tab]) ? state.articlesByTab[tab] : [];
           state.articlesByTab[tab] = list.concat([{ article_id: articleId, title, content }]);
           state.pendingGenerateItem = null;
+          // Store suggestions from structured output if available
+          if (suggestions && tab !== 'brand') {
+            state.suggestionsByTab[tab] = suggestions;
+          }
           syncSuggestUi();
-          runNextGenerate();
+          // If suggestions were already provided, no need for separate API call
+          if (!suggestions) {
+            runNextGenerate();
+          } else {
+            runNextGenerate();
+          }
         } else {
           state.pendingSaveItem = null;
           runNextSave();
@@ -1189,7 +1226,7 @@ const Page = {
       const p = safeParse(localStorage.getItem('aw_selected_product_v1') || '');
       const imgs = safeParse(localStorage.getItem('aw_selected_images_v1') || '');
       if (Array.isArray(ps)) {
-        state.selectedProducts = ps.slice(0, 3).filter((x) => x && typeof x === 'object');
+        state.selectedProducts = ps.slice(0, 1).filter((x) => x && typeof x === 'object');
       } else if (p && typeof p === 'object') {
         state.selectedProducts = [p].slice(0, 3);
       } else {
@@ -1249,24 +1286,12 @@ const Page = {
       if (!state.productPickerOpen) return;
       const t = e.target;
       if (!(t instanceof HTMLInputElement)) return;
-      if (t.type !== 'checkbox') return;
+      if (t.type !== 'radio') return;
       const idx = parseInt(String(t.getAttribute('data-idx') || ''), 10);
       if (!Number.isFinite(idx)) return;
       const row = (Array.isArray(state.kbProducts) ? state.kbProducts : [])[idx] || null;
       if (!row) return;
-      const key = productKey(row, idx);
-      const list = Array.isArray(state.selectedProducts) ? state.selectedProducts : [];
-      const exists = list.some((p, i) => productKey(p, i) === key);
-      if (t.checked) {
-        if (list.length >= 3) {
-          t.checked = false;
-          alert('最多只能选择3个产品');
-          return;
-        }
-        if (!exists) state.selectedProducts = list.concat([row]).slice(0, 3);
-      } else {
-        state.selectedProducts = list.filter((p, i) => productKey(p, i) !== key);
-      }
+      state.selectedProducts = [row];
       updateProductPickerBar();
       syncSuggestUi();
     });
