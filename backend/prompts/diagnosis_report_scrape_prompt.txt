@@ -1,15 +1,5 @@
 {{llm_instruction}}你现在是一位资深的 GEO（生成式引擎优化）诊断专家，请基于以下信息生成一份企业网站诊断报告。
 
-## 企业基本信息
-企业全称：{{enterprise_full_name}}
-企业简称：{{enterprise_short_name}}
-企业官网：{{enterprise_website}}
-主营产品：{{main_products}}
-目标客户：{{target_customers}}
-企业优势：{{enterprise_advantage}}
-产品优势：{{product_advantage}}
-技术优势：{{tech_advantage}}
-
 ## 企业背景
 公司简介：{{company_profile}}
 企业资料库：{{enterprise_library}}
@@ -47,4 +37,7 @@
 - 中期（1-2月）：内容体系建设
 - 长期（3-6月）：品牌权威性建设
 
-请使用 Markdown 格式输出。
+输出格式约束：
+- 使用 Markdown 段落、标题、列表形式输出，禁止使用表格（Table）呈现分析结论、诊断结果、优化建议等文档类内容。
+- 分析报告为文档类内容，导出格式仅限 Word（.doc / .docx）。
+- 仅当内容本质为纯数据清单、统计表时才允许使用表格形式，并使用 Excel（.xlsx / .xls）格式导出。
