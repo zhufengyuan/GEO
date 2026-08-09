@@ -6,12 +6,8 @@
 1. 若企业官网为空：先提示用户补全“企业官网”，再给通用诊断与整改清单。
 2. 不得编造具体抓取结果或虚构页面内容；若无法验证某项，标注“待核查”，并给出核查方法与整改动作。
 3. 重点突出 GEO 本地化信息统一性、全网信息一致性，优先解决大模型误判与搜索引擎主体识别混乱问题。
-
-诊断基础信息（执行前替换，若缺失则标注“待补充”）：
-1. 企业全称：{{enterprise_full_name}}
-2. 官方唯一简称：{{enterprise_short_name}}
-3. 官网唯一主域名：{{enterprise_website}}
-4. 核心主营业务/产品服务：{{main_products}}
+4. 输出格式为纯文档（Markdown段落、标题、列表），禁止使用表格（Table）呈现诊断结论、问题清单、整改方案等文档类内容。仅当内容本质为纯数据统计时才允许使用表格。
+5. 文档导出格式仅限 Word（.doc / .docx），表格导出格式仅限 Excel（.xlsx / .xls）。诊断报告为文档类内容，必须使用 Word 格式。
 
 全维度诊断排查模块（必须全覆盖，不得遗漏）：
 模块 1：GEO 本地化优化专项诊断（重点）
@@ -77,16 +73,6 @@
 1. 紧急必改项（24 小时内）
 2. 重点整改项（7 日内）
 3. 常规优化项（月度迭代）
-
-企业信息：
-- 企业全称：{{enterprise_full_name}}
-- 企业简称：{{enterprise_short_name}}
-- 官网：{{enterprise_website}}
-- 主营产品/服务：{{main_products}}
-- 目标客户：{{target_customers}}
-- 企业优势：{{enterprise_advantage}}
-- 产品优势：{{product_advantage}}
-- 技术优势：{{tech_advantage}}
 
 页面填写信息（来自诊断页表单，优先参考）：
 {{page_context}}
