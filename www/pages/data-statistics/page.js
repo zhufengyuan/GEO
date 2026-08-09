@@ -470,7 +470,27 @@ const Page = {
 
     document.getElementById('exportBtn')?.addEventListener('click', () => {
       window.geoConsume?.({ event_type: 'ui', page: 'data-statistics', action: 'export', units: 1, amount: 0 });
-      alert('导出报告：后续接入数据后实现。');
+      const d = state.data;
+      if (!d) { alert('暂无数据可导出，请等待数据加载。'); return; }
+      const trend = filterTrendByRange(d?.trend || []);
+      const sum = (arr) => arr.reduce((acc, x) => acc + Number(x || 0), 0);
+      const articles = sum(trend.map((x) => Number(x.articles || 0)));
+      const indexed = sum(trend.map((x) => Number(x.indexed || 0)));
+      const k = d?.kpi || {};
+      const label = state.range === '7' ? '近7天' : state.range === '30' ? '近30天' : state.range === '90' ? '近90天' : '全部';
+      let report = 'GEO平台数据统计报告\n\n';
+      report += `统计周期：${label}\n`;
+      report += `生成时间：${new Date().toLocaleString()}\n\n`;
+      report += `=== KPI 总览 ===\n`;
+      report += `生成文章数：${articles}\n`;
+      report += `已收录数：${indexed}\n`;
+      report += `追踪链接数：${Number(k.links || 0)}\n`;
+      report += `AI引用次数：${Number(k.cited || 0)}\n\n`;
+      report += `=== 趋势数据 ===\n`;
+      if (trend.length) {
+        trend.forEach((t) => { report += `${t.date}  文章：${t.articles || 0}  收录：${t.indexed || 0}\n`; });
+      } else { report += '暂无趋势数据\n'; }
+      window.geoDownloadWord?.({ title: `数据统计报告_${new Date().toISOString().slice(0, 10)}`, text: report });
     });
 
     document.getElementById('refreshBtn')?.addEventListener('click', () => {
