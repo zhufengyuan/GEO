@@ -27,10 +27,43 @@ const Page = {
       filtered: [],
       keyword: '',
       stage: 'all',
-      selected: new Set()
+      selected: new Set(),
+      currentPage: 1,
+      pageSize: 12
     };
 
     const toText = (v) => String(v || '').replace(/\s+/g, ' ').trim();
+    const fmtDate = (v) => {
+      const s = String(v || '').trim();
+      if (!s) return '';
+      return s.slice(0, 10);
+    };
+
+    // 决策阶段英文值映射到中文显示
+    const stageMap = {
+      'awareness': '认知触发',
+      'cognition': '认知触发',
+      'cognitive': '认知触发',
+      'comparison': '对比筛选',
+      'compare': '对比筛选',
+      'locking': '锁定意向',
+      'lock': '锁定意向',
+      'intention': '锁定意向',
+      'verification': '求证决策',
+      'verify': '求证决策',
+      'decision': '求证决策',
+      'risk': '风险权衡犹豫',
+      'hesitation': '风险权衡犹豫',
+      'order': '最终下单履约',
+      'purchase': '最终下单履约'
+    };
+    const toStageCn = (v) => {
+      const s = toText(v).toLowerCase();
+      if (!s) return '-';
+      // 如果已经是中文，直接返回
+      if (/[\u4e00-\u9fa5]/.test(s)) return s;
+      return stageMap[s] || s;
+    };
 
     const toExpandWord = (words) => {
       const w = words && typeof words === 'object' ? words : {};
@@ -51,7 +84,7 @@ const Page = {
 
     const buildPreviewQuestion = (it) => {
       const kw = toText(it.industry_keyword);
-      const stage = toText(it.decision_stage);
+      const stage = toStageCn(it.decision_stage);
       const company = toText(it.company);
       if (stage.includes('认知')) return `想买${kw}，应该怎么选？`;
       if (stage.includes('对比')) return `${company}的${kw}和同类相比优势在哪里？`;
@@ -64,11 +97,41 @@ const Page = {
       const kw = toText(state.keyword);
       const stage = toText(state.stage);
       state.filtered = (state.items || []).filter((x) => {
-        if (stage && stage !== 'all' && toText(x.decision_stage) !== stage) return false;
+        const xStage = toStageCn(x.decision_stage);
+        if (stage && stage !== 'all' && xStage !== stage) return false;
         if (!kw) return true;
-        const hay = `${toText(x.name)} ${toText(x.company)} ${toText(x.industry_keyword)} ${toText(x.expand_words)} ${toText(x.decision_stage)} ${toText(x.question_keyword)} ${toExpandWord(x.words)}`.toLowerCase();
+        const hay = `${toText(x.name)} ${toText(x.company)} ${toText(x.industry_keyword)} ${toText(x.expand_words)} ${xStage} ${toText(x.question_keyword)} ${toExpandWord(x.words)}`.toLowerCase();
         return hay.includes(kw.toLowerCase());
       });
+      state.currentPage = 1;
+    };
+
+    const renderPagination = () => {
+      const paginationEl = document.getElementById('qbPagination');
+      if (!paginationEl) return;
+      const total = state.filtered.length;
+      const totalPages = Math.max(1, Math.ceil(total / state.pageSize));
+      const current = Math.min(state.currentPage, totalPages);
+      state.currentPage = current;
+
+      if (total <= state.pageSize) {
+        paginationEl.innerHTML = '';
+        return;
+      }
+
+      let html = `<div class="qb-pagination">`;
+      html += `<span class="qb-page-info">共 ${total} 条，第 ${current}/${totalPages} 页</span>`;
+      html += `<button class="qb-page-btn" data-page="prev" ${current <= 1 ? 'disabled' : ''}>上一页</button>`;
+      for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= current - 2 && i <= current + 2)) {
+          html += `<button class="qb-page-btn ${i === current ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        } else if (i === current - 3 || i === current + 3) {
+          html += `<span class="qb-page-ellipsis">...</span>`;
+        }
+      }
+      html += `<button class="qb-page-btn" data-page="next" ${current >= totalPages ? 'disabled' : ''}>下一页</button>`;
+      html += `</div>`;
+      paginationEl.innerHTML = html;
     };
 
     const render = () => {
@@ -80,25 +143,33 @@ const Page = {
           selectAll.checked = false;
           selectAll.indeterminate = false;
         }
+        renderPagination();
         return;
       }
-      const visibleIds = new Set(list.map((x) => String(x.id)));
+      const totalPages = Math.max(1, Math.ceil(list.length / state.pageSize));
+      const current = Math.min(state.currentPage, totalPages);
+      state.currentPage = current;
+      const start = (current - 1) * state.pageSize;
+      const pageItems = list.slice(start, start + state.pageSize);
+
+      const visibleIds = new Set(pageItems.map((x) => String(x.id)));
       Array.from(state.selected).forEach((id) => {
         if (!visibleIds.has(String(id))) state.selected.delete(id);
       });
-      table.innerHTML = list
+      table.innerHTML = pageItems
         .map((it, idx) => {
           const expandWord = toText(it.expand_words) || toExpandWord(it.words);
           const q = toText(it.question_keyword) || toText(it.industry_keyword);
           const checked = state.selected.has(String(it.id)) ? 'checked' : '';
+          const globalIdx = start + idx + 1;
           return `<tr data-id="${it.id}">
             <td style="text-align:center;"><input type="checkbox" data-role="row-select" ${checked} /></td>
-            <td style="text-align:center;">${idx + 1}</td>
+            <td style="text-align:center;">${globalIdx}</td>
             <td>${toText(it.industry_keyword)}</td>
             <td class="cell-wrap">${expandWord || '-'}</td>
-            <td>${toText(it.decision_stage)}</td>
+            <td>${toStageCn(it.decision_stage)}</td>
             <td>${q}</td>
-            <td>${toText(it.created_at)}</td>
+            <td>${fmtDate(it.created_at)}</td>
             <td>已保存</td>
             <td><button class="op" data-action="write">去创作</button></td>
             <td><button class="op" data-action="edit">编辑</button></td>
@@ -108,9 +179,10 @@ const Page = {
         .join('');
       const selCount = Array.from(state.selected).length;
       if (selectAll) {
-        selectAll.checked = selCount > 0 && selCount === list.length;
-        selectAll.indeterminate = selCount > 0 && selCount < list.length;
+        selectAll.checked = selCount > 0 && selCount === pageItems.length;
+        selectAll.indeterminate = selCount > 0 && selCount < pageItems.length;
       }
+      renderPagination();
     };
 
     const requestList = () => {
@@ -151,7 +223,7 @@ const Page = {
       const rows = list.map((it) => ({
         关键词: toText(it.industry_keyword),
         拓展词: toText(it.expand_words) || toExpandWord(it.words),
-        决策阶段: toText(it.decision_stage),
+        决策阶段: toStageCn(it.decision_stage),
         问题关键词: toText(it.question_keyword) || toText(it.industry_keyword),
         创建时间: toText(it.created_at),
         状态: '已保存'
@@ -239,12 +311,33 @@ const Page = {
 
     selectAll?.addEventListener('change', () => {
       const list = Array.isArray(state.filtered) ? state.filtered : [];
+      const start = (state.currentPage - 1) * state.pageSize;
+      const pageItems = list.slice(start, start + state.pageSize);
       if (selectAll.checked) {
-        list.forEach((x) => state.selected.add(String(x.id)));
+        pageItems.forEach((x) => state.selected.add(String(x.id)));
       } else {
-        list.forEach((x) => state.selected.delete(String(x.id)));
+        pageItems.forEach((x) => state.selected.delete(String(x.id)));
       }
       render();
+    });
+
+    // 分页控件点击事件（事件委托）
+    document.addEventListener('click', (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      const pageBtn = target.closest('.qb-page-btn');
+      if (!pageBtn) return;
+      const pageAttr = pageBtn.getAttribute('data-page');
+      if (!pageAttr) return;
+      const totalPages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+      let newPage = state.currentPage;
+      if (pageAttr === 'prev') newPage = Math.max(1, state.currentPage - 1);
+      else if (pageAttr === 'next') newPage = Math.min(totalPages, state.currentPage + 1);
+      else newPage = parseInt(pageAttr, 10) || 1;
+      if (newPage !== state.currentPage && newPage >= 1 && newPage <= totalPages) {
+        state.currentPage = newPage;
+        render();
+      }
     });
 
     bulkDeleteBtn?.addEventListener('click', () => {
