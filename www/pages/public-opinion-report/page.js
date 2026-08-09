@@ -74,6 +74,7 @@ const Page = {
     const refresh = async () => {
       try {
         const stats = await fetchStats();
+        _lastStats = stats;
 
         if (els.total) els.total.textContent = String(stats.total || 0);
         if (els.pos) els.pos.textContent = String(stats.positive || 0);
@@ -116,14 +117,44 @@ const Page = {
       refresh();
     });
 
+    let _lastStats = null;
+
     els.exportPdfBtn?.addEventListener('click', () => {
       window.geoConsume?.({ event_type: 'ui', page: 'public-opinion-report', action: 'export_pdf', units: 1, amount: 0 });
-      alert('导出PDF：后续接入后端导出。');
+      if (!_lastStats) { alert('暂无数据可导出，请先刷新数据。'); return; }
+      const s = _lastStats;
+      const kw = (els.kw?.value || '').trim() || '全部关键词';
+      let report = '舆情雷达分析报告\n\n';
+      report += `关键词：${kw}\n`;
+      report += `生成时间：${new Date().toLocaleString()}\n\n`;
+      report += `=== 情绪概况 ===\n`;
+      report += `总提及数：${s.total || 0}\n`;
+      report += `正面：${s.positive || 0}\n`;
+      report += `中性：${s.neutral || 0}\n`;
+      report += `负面：${s.negative || 0}\n\n`;
+      report += `=== 话题分布 ===\n`;
+      (s.topic_rows || []).forEach((r, i) => { report += `${i + 1}. ${r.name || '未知'}（${r.count || 0}次）\n`; });
+      report += `\n=== 来源分布 ===\n`;
+      (s.source_rows || []).forEach((r) => { report += `${r.name || '未知'}：${r.count || 0}次\n`; });
+      window.geoDownloadWord?.({ title: `舆情分析报告_${new Date().toISOString().slice(0, 10)}`, text: report });
     });
 
     els.exportExcelBtn?.addEventListener('click', () => {
       window.geoConsume?.({ event_type: 'ui', page: 'public-opinion-report', action: 'export_excel', units: 1, amount: 0 });
-      alert('导出Excel：后续接入后端导出。');
+      if (!_lastStats) { alert('暂无数据可导出，请先刷新数据。'); return; }
+      const s = _lastStats;
+      const kw = (els.kw?.value || '').trim() || '全部关键词';
+      let csv = '指标,数值\n';
+      csv += `关键词,${kw}\n`;
+      csv += `总提及数,${s.total || 0}\n`;
+      csv += `正面,${s.positive || 0}\n`;
+      csv += `中性,${s.neutral || 0}\n`;
+      csv += `负面,${s.negative || 0}\n\n`;
+      csv += '话题,提及次数\n';
+      (s.topic_rows || []).forEach((r) => { csv += `${r.name || '未知'},${r.count || 0}\n`; });
+      csv += '\n来源,提及次数\n';
+      (s.source_rows || []).forEach((r) => { csv += `${r.name || '未知'},${r.count || 0}\n`; });
+      window.geoDownloadExcel?.({ filename: `舆情数据_${new Date().toISOString().slice(0, 10)}`, sheet_name: '舆情报表', table_text: csv });
     });
 
     const now = new Date();
