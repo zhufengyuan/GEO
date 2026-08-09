@@ -15,6 +15,8 @@ const Page = {
         .replaceAll("'", '&#39;');
     };
 
+    const rawTexts = ['', '', ''];
+
     const toTableHtml = (text) => {
       const lines = String(text || '')
         .split(/\r?\n+/)
@@ -29,21 +31,22 @@ const Page = {
       if (colCount < 2) return '';
 
       const bodyRows = parsed.map((cells) => {
-        const tds = Array.from({ length: colCount }).map((_, i) => `<td>${escapeHtml(cells[i] ?? '')}</td>`).join('');
-        return `<tr>${tds}</tr>`;
+        const tds = Array.from({ length: colCount }).map((_, i) => '<td>' + escapeHtml(cells[i] != null ? cells[i] : '') + '</td>').join('');
+        return '<tr>' + tds + '</tr>';
       }).join('');
 
-      return `<div class="table-wrap square" style="overflow:auto;">
-        <table style="width:100%; table-layout:auto;">
-          <tbody>${bodyRows}</tbody>
-        </table>
-      </div>`;
+      return '<div class="table-wrap square" style="overflow:auto;">' +
+        '<table style="width:100%; table-layout:auto;">' +
+        '<tbody>' + bodyRows + '</tbody>' +
+        '</table>' +
+        '</div>';
     };
 
     const setText = (idx, text) => {
       const el = getBody(idx);
       if (!el) return;
       const t = String(text || '');
+      rawTexts[idx] = t;
       el.style.whiteSpace = 'pre-wrap';
       el.textContent = t;
       if (t === '生成中...') {
@@ -58,7 +61,9 @@ const Page = {
     const setTableOrText = (idx, text) => {
       const el = getBody(idx);
       if (!el) return;
-      const html = toTableHtml(text);
+      const t = String(text || '');
+      rawTexts[idx] = t;
+      const html = toTableHtml(t);
       if (html) {
         el.style.whiteSpace = 'normal';
         el.style.fontSize = '';
@@ -67,8 +72,8 @@ const Page = {
         return;
       }
       el.style.whiteSpace = 'pre-wrap';
-      el.textContent = String(text || '');
-      if (String(text || '') === '生成中...') {
+      el.textContent = t;
+      if (t === '生成中...') {
         el.style.fontSize = '12px';
         el.style.color = '#6b7280';
       } else {
@@ -82,7 +87,7 @@ const Page = {
       if (!btn) return;
       btn.addEventListener('click', () => {
         setText(idx, '生成中...');
-        window.geoAiExecute?.({ task, req_id: `${task}_${Date.now()}` });
+        window.geoAiExecute?.({ task, req_id: task + '_' + Date.now() });
       });
     };
 
@@ -91,9 +96,7 @@ const Page = {
     bind('genBtn3', 'acceptance_score', 2);
 
     const getText = (idx) => {
-      const el = getBody(idx);
-      if (!el) return '';
-      return String(el.textContent || '').trim();
+      return rawTexts[idx] || '';
     };
 
     const downloadWord = (idx, title) => {
@@ -109,11 +112,6 @@ const Page = {
       const text = getText(idx);
       if (!text) {
         alert('内容为空，无法下载');
-        return;
-      }
-      const looksLikeTable = /[|｜\t]/.test(text) && text.split(/\r?\n/).filter((x) => x.trim()).length >= 2;
-      if (!looksLikeTable) {
-        window.geoDownloadWord?.({ title: filename, text });
         return;
       }
       window.geoDownloadExcel?.({ filename, sheet_name, table_text: text });
