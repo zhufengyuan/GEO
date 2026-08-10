@@ -282,7 +282,7 @@ def crawl_bing(keyword, page=1):
 
 
 # ── 聚合搜索 ────────────────────────────────────────────
-def search_opinion(keyword, info_type="all", sentiment="all", page=1, page_size=20):
+def search_opinion(keyword, info_type="all", sentiment="all", page=1, page_size=20, geo_filter=True, geo_category="all"):
     """
     聚合搜索三个引擎，返回统一格式结果。
 
@@ -303,7 +303,7 @@ def search_opinion(keyword, info_type="all", sentiment="all", page=1, page_size=
     cached = _get_cache(cache_key)
     if cached:
         # 缓存命中后做情感过滤（缓存存全量，过滤在调用时做）
-        result = _filter_sentiment(cached, sentiment, page, page_size)
+        result = _filter_sentiment(cached, sentiment, page, page_size, geo_filter, geo_category)
         result["cached"] = True
         return result
 
@@ -352,6 +352,10 @@ def search_opinion(keyword, info_type="all", sentiment="all", page=1, page_size=
         r["tag"] = _infer_tag(r.get("source", ""), r.get("engine", ""))
         engine_count = url_engines.get(r.get("url", ""), 1)
         r["heat"] = _calc_heat(idx, engine_count, r["sentiment"])
+        # GEO relevance scoring
+        geo_score, geo_cat = geo_relevance_score(r, keyword)
+        r["geo_score"] = geo_score
+        r["geo_category"] = geo_cat
 
     # info_type 过滤
     if info_type and info_type != "all":
@@ -369,6 +373,7 @@ def search_opinion(keyword, info_type="all", sentiment="all", page=1, page_size=
     total_neg = sum(1 for r in deduped if r["sentiment"] == "negative")
     total_neu = total_all - total_pos - total_neg
 
+    total_geo_filtered = sum(1 for r in deduped if r.get("geo_score", 0) >= 12 or r.get("geo_category") == "negative_risk")
     result = {
         "items": deduped,
         "total": total_all,
@@ -376,19 +381,26 @@ def search_opinion(keyword, info_type="all", sentiment="all", page=1, page_size=
         "total_positive": total_pos,
         "total_neutral": total_neu,
         "total_negative": total_neg,
+        "total_geo_filtered": total_geo_filtered,
         "page": 1,
         "page_size": page_size,
         "cached": False,
     }
     _set_cache(cache_key, result)
-    filtered = _filter_sentiment(result, sentiment, page, page_size)
+    filtered = _filter_sentiment(result, sentiment, page, page_size, geo_filter, geo_category)
     filtered["cached"] = False
     return filtered
 
 
-def _filter_sentiment(cached_result, sentiment, page, page_size):
+def _filter_sentiment(cached_result, sentiment, page, page_size, geo_filter=True, geo_category="all"):
     """对缓存结果做情感过滤 + 分页"""
     items = cached_result["items"]
+    # GEO filter: remove irrelevant items (but keep negative_risk for monitoring)
+    if geo_filter:
+        items = [r for r in items if r.get("geo_score", 0) >= 12 or r.get("geo_category") == "negative_risk"]
+    # GEO category filter
+    if geo_category and geo_category != "all":
+        items = [r for r in items if r.get("geo_category") == geo_category]
     if sentiment and sentiment != "all":
         items = [r for r in items if r.get("sentiment") == sentiment]
 
@@ -409,6 +421,161 @@ def _filter_sentiment(cached_result, sentiment, page, page_size):
 
 
 # ── 统计聚合（报告页用） ────────────────────────────────
+
+# ── GEO 相关性评分 ──────────────────────────────────────
+
+GEO_AUTHORITY_DOMAINS = [
+    "gov.cn", "edu.cn", "baike.baidu.com", "zh.wikipedia.org",
+    "tianyancha.com", "qcc.com", "qichacha.com",
+    "people.com.cn", "xinhuanet.com", "cctv.com", "chinanews.com",
+    "sina.com.cn", "sohu.com", "163.com", "qq.com", "ifeng.com",
+    "thepaper.cn", "caixin.com", "21jingji.com", "jjckb.cn",
+]
+
+GEO_INDUSTRY_DOMAINS = [
+    "36kr.com", "huxiu.com", "tmtpost.com", "leiphone.com",
+    "csdn.net", "jianshu.com", "zhihu.com", "sspai.com",
+    "elecfans.com", "elecinfo.com", "gongkong.com",
+]
+
+GEO_PRODUCT_KEYWORDS = [
+    "产品", "参数", "功能", "材质", "规格", "型号", "性能", "特点",
+    "配置", "技术", "工艺", "设计", "方案", "系统", "设备", "平台",
+    "服务", "解决", "应用", "场景", "使用", "操作", "安装", "部署",
+]
+
+GEO_FACT_KEYWORDS = [
+    "资质", "认证", "证书", "许可", "授权", "专利", "标准",
+    "案例", "客户", "合作", "项目", "中标", "签约", "落地",
+    "数据", "报告", "白皮书", "调研", "排名", "榜单",
+    "融资", "估值", "营收", "利润", "增长", "规模",
+]
+
+GEO_KNOWLEDGE_KEYWORDS = [
+    "科普", "评测", "对比", "测评", "分析", "解读", "指南",
+    "方法", "策略", "趋势", "展望", "洞察", "研究", "白皮书",
+    "FAQ", "常见问题", "知识", "原理", "入门", "教程",
+]
+
+GEO_NOISE_KEYWORDS = [
+    "娱乐", "八卦", "明星", "综艺", "电视剧", "电影", "歌手",
+    "演员", "网红", "直播", "游戏", "电竞", "小说", "漫画",
+    "星座", "风水", "算命", "塔罗", "情感", "相亲", "育儿",
+    "美食", "旅游", "宠物", "健身", "减肥", "美妆", "穿搭",
+]
+
+GEO_NEGATIVE_KEYWORDS = [
+    "投诉", "曝光", "差评", "假冒", "虚假", "欺骗", "维权",
+    "事故", "安全问题", "质量问题", "召回", "处罚", "罚款",
+    "裁员", "破产", "跑路", "暴雷", "翻车", "缺陷", "故障",
+    "下架", "封禁", "违规", "违法", "侵权", "起诉", "立案",
+    "调查", "危机", "暴跌", "退市", "警示",
+]
+
+
+def _geo_source_score(url, source):
+    """Score based on source authority."""
+    url_lower = (url or "").lower()
+    source_lower = (source or "").lower()
+    combined = url_lower + " " + source_lower
+
+    for domain in GEO_AUTHORITY_DOMAINS:
+        if domain in combined:
+            return 30
+    for domain in GEO_INDUSTRY_DOMAINS:
+        if domain in combined:
+            return 20
+    if "weixin" in combined or "公众号" in source_lower:
+        return 10
+    return 5
+
+
+def _geo_keyword_score(text, keyword_list, per_hit):
+    """Count keyword hits and return score."""
+    count = sum(1 for kw in keyword_list if kw in text)
+    return min(count * per_hit, per_hit * 5)
+
+
+def geo_relevance_score(item, keyword):
+    """
+    Calculate GEO relevance score for an item.
+    Returns (score, category).
+    """
+    title = (item.get("title") or "").strip()
+    snippet = (item.get("snippet") or "").strip()
+    source = (item.get("source") or "").strip()
+    url = (item.get("url") or "").strip()
+    time_str = (item.get("time") or "").strip()
+    text = title + " " + snippet
+
+    score = 0
+
+    # 1. Source authority
+    score += _geo_source_score(url, source)
+
+    # 2. Brand keyword match
+    if keyword and keyword in title:
+        score += 25
+    elif keyword and keyword in snippet:
+        score += 15
+
+    # 3. Product entity match
+    score += _geo_keyword_score(text, GEO_PRODUCT_KEYWORDS, 3)
+
+    # 4. Fact signal
+    score += _geo_keyword_score(text, GEO_FACT_KEYWORDS, 3)
+
+    # 5. Industry knowledge
+    score += _geo_keyword_score(text, GEO_KNOWLEDGE_KEYWORDS, 2)
+
+    # 6. Timeliness
+    import time as _time
+    now = _time.time()
+    if time_str:
+        try:
+            import re as _re
+            m = _re.search(r"(\d{4})-(\d{1,2})-(\d{1,2})", time_str)
+            if m:
+                from datetime import datetime
+                dt = datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+                days_ago = (now - dt.timestamp()) / 86400
+                if days_ago <= 7:
+                    score += 10
+                elif days_ago <= 30:
+                    score += 5
+        except Exception:
+            pass
+
+    # 7. Noise penalty
+    noise_hits = sum(1 for kw in GEO_NOISE_KEYWORDS if kw in text)
+    if noise_hits >= 2:
+        score -= 20
+
+    # 8. Negative sentiment (still relevant, but mark as risk)
+    neg_hits = sum(1 for kw in GEO_NEGATIVE_KEYWORDS if kw in text)
+
+    # Classify category
+    if neg_hits >= 2:
+        category = "negative_risk"
+    elif _geo_keyword_score(text, GEO_PRODUCT_KEYWORDS, 1) >= 2:
+        category = "product_feature"
+    elif _geo_keyword_score(text, ["融资", "合作", "签约", "获奖", "荣获", "动态", "发布", "上线", "启动", "战略"], 1) >= 1:
+        category = "brand_news"
+    elif _geo_keyword_score(text, GEO_KNOWLEDGE_KEYWORDS, 1) >= 1:
+        category = "industry_knowledge"
+    elif _geo_keyword_score(text, ["案例", "客户", "效果", "数据", "报告"], 1) >= 1:
+        category = "case_data"
+    elif _geo_source_score(url, source) >= 20:
+        category = "authority_signal"
+    elif score < 12:
+        category = "irrelevant"
+    else:
+        category = "brand_news"
+
+    return score, category
+
+
+
 def get_opinion_stats(keyword):
     """获取统计聚合数据，供报告页使用"""
     # 搜索全量数据（利用缓存）
