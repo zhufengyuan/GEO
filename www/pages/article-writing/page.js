@@ -50,6 +50,7 @@ const Page = {
     const brandCertificationsEl = document.getElementById('brand_certifications');
     const brandSuccessCasesEl = document.getElementById('brand_success_cases');
     const brandTargetMarketEl = document.getElementById('brand_target_market');
+    const brandSupplementInfoEl = document.getElementById("brand_supplement_info");
     const brandBrandPositioningEl = document.getElementById('brand_brand_positioning');
     const brandForbiddenContentEl = document.getElementById('brand_forbidden_content');
     const brandCopyTypeRoot = document.getElementById('brandCopyType');
@@ -1393,6 +1394,7 @@ const Page = {
         ['资质认证', brandCertificationsEl],
         ['成功案例', brandSuccessCasesEl],
         ['目标市场', brandTargetMarketEl],
+        ["优化补充信息", { value: brandSupplementInfoEl?.value || "" }],
         ['品牌定位', brandBrandPositioningEl],
         ['禁止出现的内容', brandForbiddenContentEl],
         ['文案类型', { value: copyTypeText }],
@@ -1568,11 +1570,13 @@ const Page = {
         state.articlesByTab.product = [];
         state.suggestionsByTab.product = '';
         state.pendingRewrite = null;
+        const productSupplementInfo = String(document.getElementById("product_supplement_info")?.value || "").trim();
         const payload = {
           tab,
           lexicon_id: ctx.lexiconId,
           question_text: ctx.questionText,
-          user_input: '',
+          user_input: productSupplementInfo,
+          supplement_info: productSupplementInfo,
           activity_image: '',
           product: ctx.products[0] || null,
           products: ctx.products,
@@ -1604,6 +1608,7 @@ const Page = {
           question_text: copyTypeText,
           user_input: buildBrandUserInput(copyTypeText, ''),
           activity_image: state.brandImageDataUrl,
+          supplement_info: String(brandSupplementInfoEl?.value || "").trim(),
           product: null,
           products: [],
           images: [],
