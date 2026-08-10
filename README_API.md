@@ -3,6 +3,34 @@
 > 基于项目实际代码整理，与 backend/main.py 中路由注册完全一致。
 > 接口基础路径：`/api/v1`
 
+## 最近更新
+
+> **2026-08-09** — 新增数据看板/舆情搜索/官网爬取端点 + 文章审核切换为toggle + 文章创作端点补全
+
+### 新增端点
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/dashboard/stats` | 数据看板统计（文章总数、类型分组、发布记录按平台分组） |
+| GET | `/api/v1/public-opinion/search` | 舆情关键词搜索（搜狗微信/网页 + 必应三源聚合） |
+| POST | `/api/v1/diagnosis/scrape-website` | 官网内容爬取（用于官网诊断/竞品分析前置步骤） |
+| POST | `/api/v1/article-writing/init-chat` | 文章创作页 AI 初始化打招呼 |
+| POST | `/api/v1/article-writing/chat` | 文章创作页 AI 对话采集 |
+| POST | `/api/v1/article-writing/generate` | 文章创作页 AI 生成文章 |
+| POST | `/api/v1/article-writing/optimize` | 文章优化（基于已有文案生成优化版本） |
+| POST | `/api/v1/article-writing/suggestions` | AI 写作建议生成 |
+| POST | `/api/v1/article-writing/rewrite` | 文章重新优化/改稿 |
+
+### 变更端点
+| 方法 | 路径 | 变更 |
+|------|------|------|
+| POST | `/api/v1/articles/{aid}/review` | 改为 toggle 逻辑：查询当前 review_status，1→0（取消审核），0→1（通过审核） |
+
+### 其他变更
+- `generate_kb_positioning_main`/`generate_kb_positioning_sub` task dispatch 恢复（企业定位AI生成）
+- 诊断类 prompt 模板删除"标准信息"section + 添加输出格式约束（Word用于文档，Excel用于表格）
+
+---
+
 ## 配置项说明
 
 后端配置文件：backend/config.py（Settings 类）
@@ -298,6 +326,42 @@ POST /api/v1/tenants/1/switch
 
 ---
 
+## 2.5 数据看板 `/api/v1/dashboard`
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| GET | `/stats` | 是 | 数据看板统计（文章总数、类型分组、发布记录按平台分组） |
+
+### 2.5.1 数据看板统计
+
+```
+GET /api/v1/dashboard/stats
+Authorization: Bearer <accessToken>
+```
+
+响应：
+```json
+{
+  "success": true,
+  "data": {
+    "total_articles": 36,
+    "llm_stats": [
+      {"article_type": "产品宣传", "count": 15},
+      {"article_type": "企业品牌", "count": 12},
+      {"article_type": "主题活动创作", "count": 9}
+    ],
+    "publish_stats": [
+      {"platform_code": "知乎", "count": 8},
+      {"platform_code": "公众号", "count": 5}
+    ]
+  }
+}
+```
+
+> 说明：该端点查询 articles 表总数、按 article_type 分组统计、publish_records 按平台分组统计，用于数据统计页面仪表盘渲染。
+
+---
+
 ## 3. 问题词库 `/api/v1/question-words`
 
 | 方法 | 路径 | 认证 | 说明 |
@@ -441,7 +505,7 @@ GET /api/v1/question-words/suggest?q=关键词&limit=10
 | POST | `/` | 是 | 创建文章（调用 LLM 生成内容） |
 | GET | `/{aid}` | 是 | 文章详情 |
 | PUT | `/{aid}` | 是 | 编辑文章标题或正文 |
-| POST | `/{aid}/review` | 是 | 文章审核（设置 review_status 等字段） |
+| POST | `/{aid}/review` | 是 | 切换文章审核状态（toggle：已审核↔未审核） |
 | DELETE | `/{aid}` | 是 | 删除文章 |
 
 ### 4.1 文章列表
@@ -675,6 +739,186 @@ Content-Type: application/json
   ]
 }
 ```
+
+---
+
+### 5.5 文章创作模块 `/api/v1/article-writing`
+
+文章创作页（产品宣传/企业品牌/主题活动创作）专用 API，支持对话采集、内容生成、优化建议和改稿。
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| POST | `/init-chat` | 是 | AI 初始化打招呼（传入企业信息/产品/图片，AI 返回引导语） |
+| POST | `/chat` | 是 | 对话采集（多轮对话，AI 提问收集创作素材） |
+| POST | `/generate` | 是 | 基于对话历史生成文章正文 |
+| POST | `/suggestions` | 是 | 生成优化建议（基于输入完整性 + 文案完整性） |
+| POST | `/optimize` | 是 | 文章优化（基于已有文案生成优化版本） |
+| POST | `/rewrite` | 是 | 重新优化/改稿（基于原文案生成新版本） |
+
+#### 5.5.1 初始化打招呼
+
+```
+POST /api/v1/article-writing/init-chat
+Content-Type: application/json
+
+{
+  "lexicon_id": 1,
+  "question_text": "智能水表",
+  "products": [],
+  "images": []
+}
+```
+
+#### 5.5.2 对话采集
+
+```
+POST /api/v1/article-writing/chat
+Content-Type: application/json
+
+{
+  "lexicon_id": 1,
+  "question_text": "智能水表",
+  "history": [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}],
+  "products": [],
+  "images": []
+}
+```
+
+#### 5.5.3 生成文章
+
+```
+POST /api/v1/article-writing/generate
+Content-Type: application/json
+
+{
+  "lexicon_id": 1,
+  "question_text": "智能水表",
+  "history": [...],
+  "products": [],
+  "images": []
+}
+```
+
+#### 5.5.4 优化建议
+
+```
+POST /api/v1/article-writing/suggestions
+Content-Type: application/json
+
+{
+  "content": "已生成的文案正文..."
+}
+```
+
+响应：返回一段可直接展示的优化建议文本。
+
+#### 5.5.5 文章优化
+
+```
+POST /api/v1/article-writing/optimize
+Content-Type: application/json
+
+{
+  "content": "原文案正文..."
+}
+```
+
+#### 5.5.6 重新优化/改稿
+
+```
+POST /api/v1/article-writing/rewrite
+Content-Type: application/json
+
+{
+  "content": "原文案正文..."
+}
+```
+
+> 入库规则：文章生成与"确定"入库均使用 `POST /api/v1/articles`（写入 articles 表）。企业品牌创作一次生成 3 篇，改稿后可选 1 篇入库，标题前缀为【改稿1】/【改稿2】/【改稿3】。
+
+---
+
+### 5.6 舆情搜索 `/api/v1/public-opinion`
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| GET | `/search` | 是 | 舆情关键词搜索（搜狗微信/网页 + 必应三源聚合） |
+
+#### 5.6.1 舆情搜索
+
+```
+GET /api/v1/public-opinion/search?keyword=企业名称
+Authorization: Bearer <accessToken>
+```
+
+查询参数：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| keyword | string | 搜索关键词（企业名/产品名等） |
+
+响应：
+```json
+{
+  "success": true,
+  "data": {
+    "results": [
+      {
+        "source": "sogou_wechat",
+        "title": "文章标题",
+        "url": "https://...",
+        "summary": "内容摘要...",
+        "published_at": "2026-08-09"
+      }
+    ]
+  }
+}
+```
+
+> 数据来源：搜狗微信搜索 + 搜狗网页搜索 + 必应搜索，三源聚合后去重。实现在 `backend/crawlers/opinion.py`。
+
+---
+
+### 5.7 官网爬取 `/api/v1/diagnosis`
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| POST | `/scrape-website` | 是 | 爬取企业官网页面内容（用于官网诊断/竞品分析前置步骤） |
+
+#### 5.7.1 爬取官网
+
+```
+POST /api/v1/diagnosis/scrape-website
+Content-Type: application/json
+
+{
+  "url": "https://www.example.com",
+  "query_id": "scrape_20260809_001"
+}
+```
+
+请求参数：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| url | string | 是 | 要爬取的网站 URL |
+| query_id | string | 否 | 查询 ID，用于区分自家/竞争对手爬取结果 |
+
+响应：
+```json
+{
+  "success": true,
+  "data": {
+    "url": "https://www.example.com",
+    "scraped_at": "2026-08-09T12:00:00Z",
+    "content": "网页正文内容...",
+    "title": "网页标题",
+    "raw_html_fallback": false
+  }
+}
+```
+
+> 反爬回退：当爬取遇到 HTTP 403/429/503 时，自动下载原始 HTML 交由大模型解析提取有用文本。`scraped_at` 为 ISO 8601 UTC 时间戳。
 
 ---
 
@@ -1112,20 +1356,20 @@ Content-Type: application/json
 | 工作台 (home) | /api/v1/health、/api/v1/billing/balance |
 | 企业知识库 (knowledge-base) | /api/v1/knowledge-base/*（含 `/graph`）、/api/v1/files/*、/api/v1/products、/api/v1/enterprise-images |
 | 基础数据诊断 | /api/v1/ai/execute (task=data_diagnosis) |
-| 企业官网诊断 | /api/v1/ai/execute (task=website_diagnosis) |
+| 企业官网诊断 | /api/v1/ai/execute (task=website_diagnosis)、POST /api/v1/diagnosis/scrape-website |
 | 竞争对手分析 | /api/v1/ai/execute (task=competitor_analysis) |
 | 企业诊断报告 | /api/v1/ai/execute (task=diagnosis_report) |
-| 优化建议方案 | /api/v1/ai/execute (task=optimization_plan) |
+| 优化建议方案 | /api/v1/ai/execute (task=optimization_plan/schedule/score) |
 | 创建问题词库 (question-bank) | POST /api/v1/question-words |
 | 问题词库管理 (question-bank-manager) | GET /api/v1/question-words、DELETE /api/v1/question-words |
-| 文章创作 (article-writing) | POST /api/v1/articles（生成并入库）、POST /api/v1/article-writing/suggestions（生成优化建议）、POST /api/v1/article-writing/rewrite（重新优化/改稿） |
-| 文章管理 (article-manager) | GET/PUT/DELETE /api/v1/articles |
+| 文章创作 (article-writing) | POST /api/v1/article-writing/init-chat、/chat、/generate、/suggestions、/optimize、/rewrite、POST /api/v1/articles |
+| 文章管理 (article-manager) | GET/PUT/DELETE /api/v1/articles、POST /api/v1/articles/{id}/review（toggle审核状态） |
 | 自媒体发布 (media-publish) | GET /api/v1/articles、GET /api/v1/articles/{id}、POST /api/v1/publish-records |
-| 官媒发布 (official-publish) | GET /api/v1/articles、GET /api/v1/articles/{id}、GET /api/v1/official-media/*、POST /api/v1/official-publish/submit |
+| 官媒发布 (official-publish) | GET /api/v1/articles、GET /api/v1/articles/{id}、GET /api/v1/official-media/* |
 | 发布管理 (publish-manager) | GET /api/v1/publish-records |
-| 数据统计 (data-statistics) | /api/v1/articles (count)、/api/v1/publish-records (count) |
+| 数据统计 (data-statistics) | GET /api/v1/dashboard/stats、/api/v1/articles (count) |
 | 消耗明细 (config) | GET /api/v1/billing/transactions |
-| 舆情监控 (public-opinion) | /api/v1/monitor-tasks/* |
+| 舆情监控 (public-opinion) | GET /api/v1/public-opinion/search、/api/v1/monitor-tasks/* |
 | AI 工具箱 (ai-toolbox) | POST /api/v1/ai/execute |
 | 实名认证 (real-name) | PUT /api/v1/auth/me |
 | 联系我们 (contact) | 无 API 调用（静态页面） |
@@ -1193,4 +1437,4 @@ async def _startup():
 
 ---
 
-*文档版本：1.0.0 | 最后更新：2026-06-08*
+*文档版本：1.1.0 | 最后更新：2026-08-09*
