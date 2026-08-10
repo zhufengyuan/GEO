@@ -240,6 +240,23 @@ const Page = {
       const mediaName = String(state.selectedMedia.name || '').trim();
       const platformCode = String(platform || mediaName || 'official_media').trim().slice(0, 50);
 
+      // 打开官媒官网首页（从 URL 提取域名，没有则百度搜媒体名称）
+      const rawUrl = String(state.selectedMedia.url || '').trim();
+      let topDomain = '';
+      if (rawUrl) {
+        try {
+          const u = new URL(rawUrl);
+          topDomain = u.origin + '/';
+        } catch {
+          topDomain = rawUrl;
+        }
+      }
+      if (topDomain) {
+        window.open(topDomain, '_blank');
+      } else if (mediaName) {
+        window.open('https://www.baidu.com/s?wd=' + encodeURIComponent(mediaName), '_blank');
+      }
+
       const saveResult = await window.geoSaveOfficialPublishDraft?.({
         article_id: sel.id,
         article_title: String(sel.detail?.title || '').trim(),
