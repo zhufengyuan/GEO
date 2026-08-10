@@ -208,6 +208,7 @@ def build_article_prompt(
         "task_products_json": json.dumps(products, ensure_ascii=False),
         "task_images_json": json.dumps(images, ensure_ascii=False),
         "image_filename_context": extract_business_context_from_images(images),
+        "task_supplement_info": task.get("supplement_info", ""),
     })
 
 
