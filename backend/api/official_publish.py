@@ -8,6 +8,59 @@ from backend.utils.api_response import ok, fail
 router = APIRouter(prefix="/api/v1")
 
 
+
+
+@router.post("/official-publish/save")
+async def official_publish_save(body: dict, user=Depends(get_current_user)):
+    import os
+    import re
+    import time
+    from backend.database import query_row
+
+    article_id = body.get("article_id") or body.get("articleId")
+    article_title = str(body.get("article_title") or body.get("articleTitle") or "").strip()
+    content = str(body.get("content") or body.get("copy") or "").strip()
+    platform = str(body.get("platform") or "").strip()
+    media_name = str(body.get("media_name") or body.get("mediaName") or "").strip()
+    price = str(body.get("price") or "").strip()
+    note = str(body.get("note") or "").strip()
+
+    if not article_id or not content:
+        return fail("INVALID_PARAM", "article_id/content \u4e0d\u80fd\u4e3a\u7a7a")
+
+    try:
+        aid = int(article_id)
+    except Exception:
+        return fail("INVALID_PARAM", "article_id \u5fc5\u987b\u4e3a\u6570\u5b57")
+
+    upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+
+    safe_title = re.sub(r"[^\w\u4e00-\u9fff\-]", "_", article_title or f"article_{aid}")[:60]
+    filename = f"official_publish_{aid}_{safe_title}_{int(time.time())}.txt"
+    filepath = os.path.join(upload_dir, filename)
+
+    header_lines = []
+    if media_name:
+        header_lines.append(f"\u5a92\u4f53\u540d\u79f0\uff1a{media_name}")
+    if platform:
+        header_lines.append(f"\u5e73\u53f0/\u5730\u533a\uff1a{platform}")
+    if price:
+        header_lines.append(f"\u4ef7\u683c\uff1a{price}")
+    if note:
+        header_lines.append(f"\u5907\u6ce8\uff1a{note}")
+    header_lines.append(f"\u6587\u7ae0ID\uff1a{aid}")
+    if article_title:
+        header_lines.append(f"\u6807\u9898\uff1a{article_title}")
+    header_lines.append("")
+
+    file_content = "\n".join(header_lines) + content
+
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(file_content)
+
+    return ok({"saved": True, "url": filename, "path": filepath})
+
 @router.post("/official-publish/submit")
 async def official_publish_submit(body: dict, user=Depends(get_current_user)):
     from backend.database import execute, query_row
