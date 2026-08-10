@@ -384,6 +384,7 @@ async def articles_create(req: ArticleCreateRequest, user=Depends(get_current_us
         "tone": req.tone,
         "brand_embed": req.brand_embed,
         "user_input": req.user_input,
+        "supplement_info": req.supplement_info,
         "product": req.product,
         "products": req.products,
         "images": req.images,
@@ -922,6 +923,8 @@ async def public_opinion_search(
     sentiment: str = "all",
     page: int = 1,
     page_size: int = 20,
+    geo_filter: bool = True,
+    geo_category: str = "all",
     user=Depends(get_current_user),
 ):
     from backend.crawlers.opinion import search_opinion
@@ -936,6 +939,8 @@ async def public_opinion_search(
             sentiment=sentiment,
             page=page,
             page_size=page_size,
+            geo_filter=geo_filter,
+            geo_category=geo_category,
         )
         return ok(result)
     except Exception as e:
