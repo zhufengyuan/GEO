@@ -59,6 +59,7 @@ class ArticleCreateRequest(BaseModel):
     content: Optional[str] = ""
     activity_image: Optional[str] = ""
     user_input: Optional[str] = ""
+    supplement_info: Optional[str] = ""
     product: Optional[dict] = None
     products: List[dict] = Field(default_factory=list)
     images: List[dict] = Field(default_factory=list)
