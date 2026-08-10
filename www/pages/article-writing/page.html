@@ -56,6 +56,10 @@
           <div id="awImagePickerBar"></div>
         </div>
         <div class="aw-preview" id="awImagesPreview">未选择图片</div>
+        <div class="step-title" style="margin-top:14px;">第四步：补充信息</div>
+        <div class="aw-form-item" style="grid-column: 1 / -1;">
+          <textarea class="textarea" id="product_supplement_info" placeholder="可输入额外补充信息，如：产品卖点补充、目标客户画像、竞品对比信息、使用场景细节、价格策略等。信息越详细，AI生成的文案越精准、越容易被AI搜索引擎收录和推荐。" style="height: 100px; min-height: 100px; resize: vertical; width: 100%;"></textarea>
+        </div>
 
         <div class="aw-rules">
           <div class="step-title" style="margin-top:14px;">文章规则设置</div>
@@ -174,6 +178,10 @@
           <div class="aw-form-item">
             <div class="aw-label">目标市场</div>
             <input class="input" id="brand_target_market" placeholder="例如：国内 / 欧美 / 跨境电商" />
+          </div>
+          <div class="aw-form-item" style="grid-column: 1 / -1;">
+            <div class="aw-label">优化补充信息</div>
+            <textarea class="textarea" id="brand_supplement_info" placeholder="可输入额外补充信息，如：近期企业动态、新产品发布、重点市场计划、特殊优势说明等。信息越详细，AI生成的文案越精准、越容易被AI搜索引擎收录和推荐。" style="height: 120px; min-height: 120px; resize: vertical;"></textarea>
           </div>
           <div class="aw-form-item">
             <div class="aw-label">品牌定位</div>
@@ -362,7 +370,7 @@
           <div class="aw-result-section">
             <div class="aw-result-head">
               <div class="step-title aw-result-title" style="margin:0;">优化建议</div>
-              <div class="page-muted aw-result-desc">根据建议补充材料生成的文案更优质，更容易与 AI 读懂、引用</div>
+              <div class="page-muted aw-result-desc">请根据优化建议，可到"企业基础信息页面"或者本页的第四步"补充信息"补充相应材料信息，重新生成的文案更优质，更容易与 AI 读懂、推荐</div>
             </div>
             <div class="aw-result-box" id="awSuggestBox"></div>
           </div>
@@ -387,7 +395,7 @@
             <div class="aw-result-section">
               <div class="aw-result-head">
                 <div class="step-title aw-result-title" style="margin:0;">优化建议</div>
-                <div class="page-muted aw-result-desc">结合当前文案内容，给出可执行的优化方向</div>
+                <div class="page-muted aw-result-desc">请根据优化建议，可到"企业基础信息页面"或者本页的第一步"优化补充信息"补充相应材料信息，重新生成的文案更优质，更容易与 AI 读懂、推荐</div>
               </div>
               <div class="aw-result-box" id="awBrandSuggestBox0"></div>
             </div>
@@ -411,7 +419,7 @@
             <div class="aw-result-section">
               <div class="aw-result-head">
                 <div class="step-title aw-result-title" style="margin:0;">优化建议</div>
-                <div class="page-muted aw-result-desc">结合当前文案内容，给出可执行的优化方向</div>
+                <div class="page-muted aw-result-desc">请根据优化建议，可到"企业基础信息页面"或者本页的第一步"优化补充信息"补充相应材料信息，重新生成的文案更优质，更容易与 AI 读懂、推荐</div>
               </div>
               <div class="aw-result-box" id="awBrandSuggestBox1"></div>
             </div>
@@ -435,7 +443,7 @@
             <div class="aw-result-section">
               <div class="aw-result-head">
                 <div class="step-title aw-result-title" style="margin:0;">优化建议</div>
-                <div class="page-muted aw-result-desc">结合当前文案内容，给出可执行的优化方向</div>
+                <div class="page-muted aw-result-desc">请根据优化建议，可到"企业基础信息页面"或者本页的第一步"优化补充信息"补充相应材料信息，重新生成的文案更优质，更容易与 AI 读懂、推荐</div>
               </div>
               <div class="aw-result-box" id="awBrandSuggestBox2"></div>
             </div>
@@ -648,14 +656,14 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  gap: 20px;
 }
 
 .aw-result-head {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 14px;
-  margin-bottom: 10px;
-  min-height: 26px;
+  flex-wrap: wrap;
 }
 
 .aw-result-title {
@@ -668,6 +676,10 @@
 .aw-result-desc {
   color: #6b7280;
   line-height: 1.5;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .aw-result-box {
@@ -676,12 +688,13 @@
   background: #fff;
   flex: 1;
   min-height: 0;
-  padding: 14px;
+  padding: 18px 18px 24px 18px;
   overflow-x: hidden;
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.7;
+  box-sizing: border-box;
 }
 
 .aw-result-box--article:empty::before,
@@ -691,14 +704,14 @@
 }
 
 .aw-suggest-bottom {
-  margin-top: 12px;
+  padding-top: 24px;
   display: flex;
   justify-content: flex-end;
   gap: 12px;
 }
 
 .aw-suggest-bottom--single {
-  margin-top: 16px;
+  padding-top: 24px;
 }
 
 .aw-brand-suggest-wrap {
@@ -714,7 +727,7 @@
 .aw-brand-suggest-wrap > .card {
   flex: 0 0 auto;
   min-height: 0;
-  height: 520px;
+  height: 693px;
 }
 
 .aw-filter-row {
@@ -880,8 +893,8 @@
 }
 
 .aw-preview.aw-picker-open {
-  max-height: none;
-  overflow: visible;
+  max-height: 350px;
+  overflow: auto;
   white-space: normal;
 }
 
@@ -1000,7 +1013,7 @@
     gap: 6px;
   }
   .aw-brand-suggest-wrap > .card {
-    height: 560px;
+    height: 746px;
   }
 }
 </style>
