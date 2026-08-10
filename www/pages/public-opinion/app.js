@@ -36,7 +36,8 @@ export function initPublicOpinion(els, options = {}) {
       resultsByTask: new Map(),
       cacheByTask: new Map(),
       compareMode: false,
-      compareTaskIds: []
+      compareTaskIds: [],
+      geoCategory: 'all'
     };
 
     const GEO_BASE = window.GEO_BASE || '';
@@ -47,7 +48,9 @@ export function initPublicOpinion(els, options = {}) {
         info_type: task.infoType || 'all',
         sentiment: task.sentiment || 'all',
         page: '1',
-        page_size: '20'
+        page_size: '20',
+        geo_filter: 'true',
+        geo_category: state.geoCategory || 'all'
       });
       const url = `${GEO_BASE}/api/v1/public-opinion/search?${params}`;
       const resp = await fetch(url);
@@ -127,8 +130,20 @@ export function initPublicOpinion(els, options = {}) {
     const renderItemsHtml = (items) => {
       return (items || [])
         .map((r) => {
+          const geoCatMap = {
+            'product_feature': { label: '产品特性', cls: 'geo-product' },
+            'brand_news': { label: '品牌新闻', cls: 'geo-brand' },
+            'industry_knowledge': { label: '行业知识', cls: 'geo-knowledge' },
+            'case_data': { label: '案例数据', cls: 'geo-case' },
+            'authority_signal': { label: '权威信号', cls: 'geo-authority' },
+            'negative_risk': { label: '负面风险', cls: 'geo-negative' },
+            'irrelevant': { label: '无关', cls: 'geo-irrelevant' }
+          };
+          const geoInfo = geoCatMap[r.geo_category] || { label: '其他', cls: 'geo-other' };
+          const geoBadge = r.geo_category ? `<span class="po-geo-badge ${geoInfo.cls}">${geoInfo.label}</span>` : '';
+          const geoScoreBadge = r.geo_score != null ? `<span class="po-geo-score">GEO ${Number(r.geo_score)}</span>` : '';
           return `<div class="po-item">
-          <div class="po-item-title"><span class="tag">【${escapeHtml(r.tag)}】</span>${escapeHtml(r.title)}</div>
+          <div class="po-item-title">${geoBadge}<span class="tag">【${escapeHtml(r.tag)}】</span>${escapeHtml(r.title)}</div>
           <div class="po-item-desc">${escapeHtml(r.snippet)}</div>
           <div class="po-item-meta">
             <span>${escapeHtml(r.time)}</span>
@@ -136,6 +151,7 @@ export function initPublicOpinion(els, options = {}) {
             <span>${escapeHtml(r.source)}</span>
             <span>·</span>
             <span>热度 ${Number(r.heat || 0)}</span>
+            ${geoScoreBadge}
             <span style="margin-left:auto;" class="link" data-action="forward" data-id="${escapeHtml(r.url)}">转发</span>
           </div>
         </div>`;
@@ -200,7 +216,33 @@ export function initPublicOpinion(els, options = {}) {
         }
       }
 
-      els.results.innerHTML = cacheHtml + renderItemsHtml(items);
+      // GEO filter tag bar
+      const geoTags = [
+        { key: 'all', label: '全部' },
+        { key: 'product_feature', label: '产品特性' },
+        { key: 'brand_news', label: '品牌新闻' },
+        { key: 'industry_knowledge', label: '行业知识' },
+        { key: 'case_data', label: '案例数据' },
+        { key: 'authority_signal', label: '权威信号' },
+        { key: 'negative_risk', label: '负面风险' }
+      ];
+      const geoFilterHtml = `<div class="po-geo-filter">
+        <span class="po-geo-filter-label">GEO筛选：</span>
+        ${geoTags.map(t => `<button class="po-geo-tag ${state.geoCategory === t.key ? 'active' : ''}" data-geo-cat="${t.key}">${t.label}</button>`).join('')}
+      </div>`;
+
+      els.results.innerHTML = geoFilterHtml + cacheHtml + renderItemsHtml(items);
+
+      // Bind geo filter tag clicks
+      els.results.querySelectorAll('.po-geo-tag').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.geoCategory = btn.getAttribute('data-geo-cat') || 'all';
+          renderResults();
+          // Re-fetch with new filter
+          const task = state.tasks.find((x) => x.id === state.activeTaskId);
+          if (task) realScan();
+        });
+      });
     };
 
     const realScan = async () => {
