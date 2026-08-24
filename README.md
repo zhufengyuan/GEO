@@ -89,7 +89,7 @@ FastAPI + R Shiny + MySQL 构建的一站式 GEO 内容生产平台：企业知�
 - **后端**：Python 3.6+（兼容 3.6/3.8），FastAPI + PyMySQL + PyJWT
 - **前端**：原生 HTML/CSS/JS，Design Token 主题体系（theme.css v6）
 - **分析端**：R Shiny（geo.Rmd），与后端共享数据库
-- **LLM**：文心千帆（提示词模板 30+，行业专属提示词 12 个）
+- **LLM**：文心千帆（提示词模板 30+，行业专属提示词 25 个）
 
 ---
 
@@ -107,7 +107,7 @@ GEO/
 │  ├─ auth/                   # JWT 签发与校验
 │  ├─ services/               # prompt_service / llm_service / excel…
 │  ├─ crawlers/               # 官网/舆情爬取
-│  ├─ prompts/                # 提示词模板（含 industries/ 12 行业）
+│  ├─ prompts/                # 提示词模板（含 industries/ 25 行业）
 │  └─ migrations/             # 001~022 建表/变更 SQL
 ├─ www/                       # 前端 SPA（hash 路由）
 │  ├─ index.html / index.js

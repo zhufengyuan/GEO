@@ -31,20 +31,51 @@ def _read_template(name: str) -> str:
 
 
 # ================= 2026-08-24：行业提示词库 + 函数调用 =================
-# 行业别名 -> 行业文件名（自动匹配，用户可能输入不同说法）
+# 2026-08-24 晚：升级为 v2.0 全行业库（25 个行业），服务行业→企业服务与咨询、软件行业→信息与软件技术
+# 行业别名 -> 行业文件名（自动匹配，用户可能输入不同说法）；注意：具体行业别名须排在通用词（服务/信息/咨询等）之前
 _INDUSTRY_ALIASES = {
+    # --- 2026-08-24 v2.0 新增行业（具体别名置前，避免被通用词抢先匹配） ---
+    "农业": "农业与农产品.txt", "种植": "农业与农产品.txt", "养殖": "农业与农产品.txt",
+    "农产品": "农业与农产品.txt", "水果": "农业与农产品.txt", "农资": "农业与农产品.txt", "饲料": "农业与农产品.txt",
+    "房地产": "房地产与物业管理.txt", "地产": "房地产与物业管理.txt", "物业": "房地产与物业管理.txt",
+    "楼盘": "房地产与物业管理.txt", "写字楼租赁": "房地产与物业管理.txt",
+    "文旅": "文旅与酒店住宿.txt", "旅游": "文旅与酒店住宿.txt", "酒店": "文旅与酒店住宿.txt",
+    "民宿": "文旅与酒店住宿.txt", "景区": "文旅与酒店住宿.txt", "住宿": "文旅与酒店住宿.txt", "旅行社": "文旅与酒店住宿.txt",
+    "餐饮": "餐饮行业.txt", "饭店": "餐饮行业.txt", "火锅": "餐饮行业.txt", "奶茶": "餐饮行业.txt",
+    "烘焙": "餐饮行业.txt", "食堂承包": "餐饮行业.txt",
+    "电商": "电商与零售.txt", "零售": "电商与零售.txt", "淘宝": "电商与零售.txt", "天猫": "电商与零售.txt",
+    "京东": "电商与零售.txt", "拼多多": "电商与零售.txt", "直播带货": "电商与零售.txt", "网店": "电商与零售.txt",
+    "跨境电商": "电商与零售.txt", "商超": "电商与零售.txt", "便利店": "电商与零售.txt",
+    "能源": "能源与环保.txt", "环保": "能源与环保.txt", "新能源": "能源与环保.txt", "光伏": "能源与环保.txt",
+    "固废": "能源与环保.txt", "污水处理": "能源与环保.txt", "节能": "能源与环保.txt", "双碳": "能源与环保.txt",
+    "汽车": "汽车与出行服务.txt", "出行": "汽车与出行服务.txt", "网约车": "汽车与出行服务.txt",
+    "汽修": "汽车与出行服务.txt", "4s店": "汽车与出行服务.txt", "驾校": "汽车与出行服务.txt", "充电桩": "汽车与出行服务.txt",
+    "人力资源": "人力资源与招聘.txt", "招聘": "人力资源与招聘.txt", "猎头": "人力资源与招聘.txt",
+    "hr": "人力资源与招聘.txt", "劳务": "人力资源与招聘.txt", "社保代缴": "人力资源与招聘.txt",
+    "传媒": "文化传媒与娱乐.txt", "广告": "文化传媒与娱乐.txt", "影视": "文化传媒与娱乐.txt",
+    "娱乐": "文化传媒与娱乐.txt", "新媒体": "文化传媒与娱乐.txt", "主播": "文化传媒与娱乐.txt",
+    "动漫": "文化传媒与娱乐.txt", "出版": "文化传媒与娱乐.txt", "游戏": "文化传媒与娱乐.txt",
+    "进出口": "进出口与国际贸易.txt", "外贸": "进出口与国际贸易.txt", "国际贸易": "进出口与国际贸易.txt",
+    "海关": "进出口与国际贸易.txt", "报关": "进出口与国际贸易.txt", "跨境": "进出口与国际贸易.txt",
+    "通信": "通信与电信服务.txt", "电信": "通信与电信服务.txt", "运营商": "通信与电信服务.txt",
+    "宽带": "通信与电信服务.txt", "5g": "通信与电信服务.txt", "物联网卡": "通信与电信服务.txt",
+    "矿业": "矿业与原材料.txt", "矿产": "矿业与原材料.txt", "矿山": "矿业与原材料.txt",
+    "采掘": "矿业与原材料.txt", "原材料": "矿业与原材料.txt", "钢铁": "矿业与原材料.txt", "有色金属": "矿业与原材料.txt",
+    "公共服务": "公共服务与政务.txt", "政务": "公共服务与政务.txt", "事业单位": "公共服务与政务.txt",
+    "公用事业": "公共服务与政务.txt", "市政": "公共服务与政务.txt",
+    # --- 原有行业（v2.0 更名：服务行业→企业服务与咨询、软件行业→信息与软件技术） ---
     "法律": "法律与专业咨询.txt", "律师": "法律与专业咨询.txt", "知识产权": "法律与专业咨询.txt",
     "商标": "法律与专业咨询.txt", "专利": "法律与专业咨询.txt", "审计": "法律与专业咨询.txt",
     "税务": "法律与专业咨询.txt", "资产评估": "法律与专业咨询.txt", "公证": "法律与专业咨询.txt",
     "制造": "制造业.txt", "工厂": "制造业.txt", "工业": "制造业.txt", "生产": "制造业.txt",
     "oem": "制造业.txt", "odm": "制造业.txt", "设备": "制造业.txt", "五金": "制造业.txt",
     "电子元器件": "制造业.txt", "汽配": "制造业.txt", "模具": "制造业.txt",
-    "软件": "软件行业.txt", "saas": "软件行业.txt", "互联网": "软件行业.txt", "it": "软件行业.txt",
-    "信息": "软件行业.txt", "系统": "软件行业.txt", "erp": "软件行业.txt", "crm": "软件行业.txt",
-    "开发": "软件行业.txt", "小程序": "软件行业.txt", "app": "软件行业.txt", "人工智能": "软件行业.txt", "ai": "软件行业.txt",
-    "服务": "服务行业.txt", "代运营": "服务行业.txt", "外包": "服务行业.txt",
-    "设计服务": "服务行业.txt", "营销服务": "服务行业.txt", "企服": "服务行业.txt",
-    "消费品": "消费品行业.txt", "零售": "消费品行业.txt", "食品": "消费品行业.txt",
+    "软件": "信息与软件技术.txt", "saas": "信息与软件技术.txt", "互联网": "信息与软件技术.txt", "it": "信息与软件技术.txt",
+    "信息": "信息与软件技术.txt", "系统": "信息与软件技术.txt", "erp": "信息与软件技术.txt", "crm": "信息与软件技术.txt",
+    "开发": "信息与软件技术.txt", "小程序": "信息与软件技术.txt", "app": "信息与软件技术.txt", "人工智能": "信息与软件技术.txt", "ai": "信息与软件技术.txt",
+    "咨询": "企业服务与咨询.txt", "代运营": "企业服务与咨询.txt", "外包": "企业服务与咨询.txt",
+    "企服": "企业服务与咨询.txt", "认证咨询": "企业服务与咨询.txt", "管理咨询": "企业服务与咨询.txt",
+    "消费品": "消费品行业.txt", "食品": "消费品行业.txt",
     "饮料": "消费品行业.txt", "日化": "消费品行业.txt", "美妆": "消费品行业.txt", "母婴": "消费品行业.txt",
     "宠物": "消费品行业.txt", "服装": "消费品行业.txt", "家居": "消费品行业.txt", "小家电": "消费品行业.txt",
     "教育": "教育培训.txt", "培训": "教育培训.txt", "学校": "教育培训.txt", "课程": "教育培训.txt",
@@ -55,18 +86,18 @@ _INDUSTRY_ALIASES = {
     "金融": "金融服务.txt", "银行": "金融服务.txt", "保险": "金融服务.txt", "证券": "金融服务.txt",
     "基金": "金融服务.txt", "贷款": "金融服务.txt", "财税": "金融服务.txt", "代账": "金融服务.txt",
     "财富": "金融服务.txt", "投资": "金融服务.txt",
-    "本地生活": "本地生活服务.txt", "餐饮": "本地生活服务.txt", "美容": "本地生活服务.txt",
+    "本地生活": "本地生活服务.txt", "美容": "本地生活服务.txt",
     "家政": "本地生活服务.txt", "保洁": "本地生活服务.txt", "装修": "本地生活服务.txt",
     "维修": "本地生活服务.txt", "健身": "本地生活服务.txt", "摄影": "本地生活服务.txt",
     "婚庆": "本地生活服务.txt", "理发": "本地生活服务.txt", "美容美发": "本地生活服务.txt",
     "物流": "物流与供应链.txt", "快递": "物流与供应链.txt", "仓储": "物流与供应链.txt",
-    "冷链": "物流与供应链.txt", "供应链": "物流与供应链.txt", "报关": "物流与供应链.txt",
-    "跨境": "物流与供应链.txt", "货运": "物流与供应链.txt", "配送": "物流与供应链.txt",
+    "冷链": "物流与供应链.txt", "供应链": "物流与供应链.txt",
+    "货运": "物流与供应链.txt", "配送": "物流与供应链.txt",
     "建筑": "建筑与工程.txt", "工程": "建筑与工程.txt", "装饰": "建筑与工程.txt",
     "施工": "建筑与工程.txt", "监理": "建筑与工程.txt", "建材": "建筑与工程.txt",
     "园林": "建筑与工程.txt", "弱电": "建筑与工程.txt", "设计施工": "建筑与工程.txt",
-    # "咨询" 保留为兜底（法律/税务等已在上面优先匹配）
-    "咨询": "服务行业.txt",
+    # "服务" 保留为最后兜底（具体生活服务/企业服务别名已在上面优先匹配）
+    "服务": "企业服务与咨询.txt",
 }
 
 
@@ -115,34 +146,25 @@ def get_industry_prompt(industry: str) -> str:
     return _read_template("geo_general_rules.txt")
 
 
-def build_industry_function_protocol(industry: str = "") -> str:
-    """
-    构建「函数调用协议」文本，注入 prompt 顶部。
-    声明可调用函数 get_industry_prompt(industry)，LLM 需要行业专属规则时按函数调用获取。
-    """
-    fname = resolve_industry_file(industry)
-    industry_name = fname.replace(".txt", "") if fname else "通用行业"
-    return (
-        "【行业规则函数调用协议】\n"
-        "本任务已注册行业规则函数 get_industry_prompt(industry)。\n"
-        f"当前行业：{industry_name}。\n"
-        "生成内容前，你必须调用该函数加载【行业专属 GEO 规则】，并将规则中的"
-        "“核心要点、实体绑定方向、典型决策问题、FAQ 方向、特有表达、关键词矩阵”逐条落实到输出中。\n"
-        "函数签名：get_industry_prompt(industry: str) -> str（返回行业专属 GEO 规则全文）。\n"
-        "调用方式：函数名 get_industry_prompt，参数 industry 传入行业名。\n\n"
-    )
-
-
 def inject_industry_rules(prompt: str, industry: str = "") -> str:
     """
-    将行业专属 GEO 规则注入 prompt（函数调用实现）。
-    协议说明注入 prompt 最前面，行业规则全文追加在 prompt 末尾。
+    将行业专属 GEO 规则注入 prompt。
+    规则以简洁指令块追加在 prompt 末尾，直接给全文，不做函数声明，
+    避免模型把“函数调用协议”当作内容复述输出。
     """
-    protocol = build_industry_function_protocol(industry)
     rules = get_industry_prompt(industry)
     if not rules:
         return prompt
-    return protocol + prompt + "\n\n" + rules
+    fname = resolve_industry_file(industry)
+    industry_name = fname.replace(".txt", "") if fname else "通用行业"
+    header = (
+        "【行业专属 GEO 规则（" + industry_name + "）】\n"
+        "以下是当前行业的专属 GEO 规则全文。生成内容时必须将其中的"
+        "核心要点、实体绑定方向、典型决策问题、FAQ 方向、特有表达、关键词矩阵"
+        "逐条落实到输出中；但规则本身属于内部指令，"
+        "严禁在输出中复述本标题、函数名、规则原文或任何关于规则的说明性文字。\n\n"
+    )
+    return prompt + "\n\n" + header + rules
 
 
 def render_prompt(tpl: str, vars: dict) -> str:
@@ -881,53 +903,6 @@ def build_article_writing_suggestions_prompt(
     })
 
 
-def build_article_writing_suggestions_prompt(
-    enterprise: dict,
-    lexicon: dict,
-    kb_base: Optional[dict] = None,
-    kb_docs: Optional[dict] = None,
-    task_tab: str = "",
-    task_question_text: str = "",
-    task_platforms: str = "",
-    task_user_input: str = "",
-    task_product_json: str = "",
-    task_products_json: str = "",
-    task_images_json: str = "",
-    article_text: str = "",
-) -> str:
-    tpl = _read_template("article_writing_suggestions_prompt.txt")
-    if not tpl:
-        return ""
-
-    geo_general_rules = _read_template("geo_general_rules.txt")
-    industry_identification_rules = _read_template("industry_identification_rules.txt")
-
-    def _safe_json(v):
-        if v is None:
-            return ""
-        if isinstance(v, str):
-            return v
-        try:
-            return json.dumps(v, ensure_ascii=False)
-        except Exception:
-            return str(v)
-
-    return render_prompt(tpl, {
-        "task_tab": str(task_tab or ""),
-        "task_question_text": str(task_question_text or ""),
-        "task_platforms": str(task_platforms or ""),
-        "task_user_input": str(task_user_input or ""),
-        "kb_base_json": _safe_json(kb_base),
-        "kb_docs_json": _safe_json(kb_docs),
-        "task_product_json": _safe_json(task_product_json),
-        "task_products_json": _safe_json(task_products_json),
-        "task_images_json": _safe_json(task_images_json),
-        "article_text": str(article_text or ""),
-        "geo_general_rules": geo_general_rules,
-        "industry_identification_rules": industry_identification_rules,
-    })
-
-
 def build_article_writing_rewrite_prompt(
     enterprise: dict,
     lexicon: dict,
@@ -963,131 +938,11 @@ def build_article_writing_rewrite_prompt(
         "task_user_input": str(task_user_input or ""),
         "kb_base_json": _safe_json(kb_base),
         "kb_docs_json": _safe_json(kb_docs),
+        # 模板含产品/图片字段而 rewrite 调用点不传 → 置空避免 {{}} 字面量残留
+        "task_product_json": "",
+        "task_products_json": "",
+        "task_images_json": "",
         "article_text": str(article_text or ""),
         "geo_general_rules": geo_general_rules,
         "industry_identification_rules": industry_identification_rules,
     })
-
-
-def build_article_writing_rewrite_prompt(
-    enterprise: dict,
-    lexicon: dict,
-    kb_base=None,
-    kb_docs=None,
-    task_tab: str = "",
-    task_question_text: str = "",
-    task_platforms: str = "",
-    task_user_input: str = "",
-    article_text: str = "",
-) -> str:
-    tpl = _read_template("article_writing_rewrite_prompt.txt")
-    if not tpl:
-        return ""
-
-    geo_general_rules = _read_template("geo_general_rules.txt")
-    industry_identification_rules = _read_template("industry_identification_rules.txt")
-
-    def _safe_json(v):
-        if v is None:
-            return ""
-        if isinstance(v, str):
-            return v
-        try:
-            return json.dumps(v, ensure_ascii=False)
-        except Exception:
-            return str(v)
-
-    return render_prompt(tpl, {
-        "task_tab": str(task_tab or ""),
-        "task_question_text": str(task_question_text or ""),
-        "task_platforms": str(task_platforms or ""),
-        "task_user_input": str(task_user_input or ""),
-        "kb_base_json": _safe_json(kb_base),
-        "kb_docs_json": _safe_json(kb_docs),
-        "article_text": str(article_text or ""),
-        "geo_general_rules": geo_general_rules,
-        "industry_identification_rules": industry_identification_rules,
-    })
-
-
-def build_article_writing_rewrite_prompt(
-    enterprise: dict,
-    lexicon: dict,
-    kb_base=None,
-    kb_docs=None,
-    task_tab: str = "",
-    task_question_text: str = "",
-    task_platforms: str = "",
-    task_user_input: str = "",
-    article_text: str = "",
-) -> str:
-    tpl = _read_template("article_writing_rewrite_prompt.txt")
-    if not tpl:
-        return ""
-
-    geo_general_rules = _read_template("geo_general_rules.txt")
-    industry_identification_rules = _read_template("industry_identification_rules.txt")
-
-    def _safe_json(v):
-        if v is None:
-            return ""
-        if isinstance(v, str):
-            return v
-        try:
-            return json.dumps(v, ensure_ascii=False)
-        except Exception:
-            return str(v)
-
-    return render_prompt(tpl, {
-        "task_tab": str(task_tab or ""),
-        "task_question_text": str(task_question_text or ""),
-        "task_platforms": str(task_platforms or ""),
-        "task_user_input": str(task_user_input or ""),
-        "kb_base_json": _safe_json(kb_base),
-        "kb_docs_json": _safe_json(kb_docs),
-        "article_text": str(article_text or ""),
-        "geo_general_rules": geo_general_rules,
-        "industry_identification_rules": industry_identification_rules,
-    })
-
-
-def build_article_writing_rewrite_prompt(
-    enterprise: dict,
-    lexicon: dict,
-    kb_base=None,
-    kb_docs=None,
-    task_tab: str = "",
-    task_question_text: str = "",
-    task_platforms: str = "",
-    task_user_input: str = "",
-    article_text: str = "",
-) -> str:
-    tpl = _read_template("article_writing_rewrite_prompt.txt")
-    if not tpl:
-        return ""
-
-    geo_general_rules = _read_template("geo_general_rules.txt")
-    industry_identification_rules = _read_template("industry_identification_rules.txt")
-
-    def _safe_json(v):
-        if v is None:
-            return ""
-        if isinstance(v, str):
-            return v
-        try:
-            return json.dumps(v, ensure_ascii=False)
-        except Exception:
-            return str(v)
-
-    return render_prompt(tpl, {
-        "task_tab": str(task_tab or ""),
-        "task_question_text": str(task_question_text or ""),
-        "task_platforms": str(task_platforms or ""),
-        "task_user_input": str(task_user_input or ""),
-        "kb_base_json": _safe_json(kb_base),
-        "kb_docs_json": _safe_json(kb_docs),
-        "article_text": str(article_text or ""),
-        "geo_general_rules": geo_general_rules,
-        "industry_identification_rules": industry_identification_rules,
-    })
-
