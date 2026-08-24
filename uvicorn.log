@@ -1,8 +1,0 @@
-/usr/local/lib/python3.6/site-packages/pymysql/_auth.py:8: CryptographyDeprecationWarning: Python 3.6 is no longer supported by the Python core team. Therefore, support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.6.
-  from cryptography.hazmat.backends import default_backend
-INFO:     Started server process [3560640]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8123): address already in use
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.

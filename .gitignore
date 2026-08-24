@@ -51,3 +51,15 @@ data/*.xlsx
 
 # Debug
 .dbg/
+debug-*.md
+
+# Dated backup files/folders (only final versions are tracked)
+*.bak
+*.bak.*
+*.bak_*
+*_bak.*
+*_bak.py
+backup_*/
+
+# Runtime logs
+*.log
