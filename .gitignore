@@ -35,9 +35,6 @@ npm-debug.log
 Thumbs.db
 desktop.ini
 
-# Runtime uploads (user-generated files at runtime)
-data/uploads/
-
 # Business data files (contain confidential pricing/data)
 data/*.xls
 data/*.xlsx

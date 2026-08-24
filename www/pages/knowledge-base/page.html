@@ -5,6 +5,7 @@
       <div class="kb-tab active" data-tab="base">企业基础信息</div>
       <div class="kb-tab" data-tab="positioning">企业定位</div>
       <div class="kb-tab" data-tab="docs">企业介绍</div>
+      <div class="kb-tab" data-tab="cases">客户案例</div>
       <div class="kb-tab" data-tab="products">产品库</div>
       <div class="kb-tab" data-tab="images">企业图片库</div>
       <div class="kb-tab" data-tab="website">导入网址</div>
@@ -328,6 +329,106 @@
         <div class="kb-save-row" style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
           <button class="btn-primary" id="downloadLibraryBtn">下载企业介绍</button>
           <button class="btn-solid" id="saveLibraryBtn">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="kb-panel hidden" data-panel="cases">
+    <!-- ===== 客户案例 列表视图 ===== -->
+    <div class="page-center cc-view cc-view-list" style="max-width: 1100px;">
+      <div class="kb-block">
+        <div class="u-row" style="margin-bottom: 10px;">
+          <div class="u-left">
+            <div class="page-title" style="margin:0;">客户案例</div>
+          </div>
+          <div class="u-right">
+            <button class="btn-solid" id="ccAddCaseBtn">新增案例</button>
+          </div>
+        </div>
+        <div class="page-muted" style="margin:0 0 14px;">完善的客户成功案例，会为文案提供强有力的说明，提升文案可信度。</div>
+      </div>
+
+      <div class="kb-block">
+        <div class="kb-block-head">
+          <div class="kb-block-title">客户案例</div>
+        </div>
+        <div class="cc-case-list" id="ccCaseList">
+          <div class="cc-empty" id="ccEmptyTip">暂无客户案例，点击右上角"新增案例"开始创建。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 客户案例 编辑视图 ===== -->
+    <div class="page-center cc-view cc-view-edit hidden" style="max-width: 1100px;">
+      <div class="kb-block">
+        <div class="kb-block-head">
+          <div class="kb-block-title">基础信息</div>
+        </div>
+        <div class="cc-form">
+          <div class="cc-form-item">
+            <div class="kb-block-title cc-form-label">合作项目标题：</div>
+            <input class="kb-input cc-form-input" id="ccCaseTitle" placeholder="请输入合作项目标题" />
+          </div>
+          <div class="cc-form-item">
+            <div class="kb-block-title cc-form-label">合作客户名称：</div>
+            <input class="kb-input cc-form-input" id="ccCaseCustomer" placeholder="请输入合作客户名称" />
+          </div>
+        </div>
+      </div>
+
+      <div class="kb-block">
+        <div class="kb-block-head" style="display:flex; align-items:center; justify-content:space-between;">
+          <div class="kb-block-title">项目合作介绍</div>
+          <button class="btn-primary" id="ccGuideBtn" type="button">客户案例撰写示范说明</button>
+        </div>
+        <div class="kb-block-hint cc-write-hint">
+          介绍内容主要介绍项目合作的经过，重点突出客户背景→遇到什么痛点→我们怎么解决→取得什么结果→客户证言，可参考"客户案例撰写示范说明"。
+        </div>
+        <textarea class="kb-textarea cc-intro-textarea" id="ccCaseIntro" placeholder="请输入项目合作介绍，建议按：客户背景 → 遇到什么痛点 → 我们怎么解决 → 取得什么结果 → 客户证言 的顺序撰写"></textarea>
+        <div class="kb-save-row" style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
+          <button class="btn-primary" id="ccCancelBtn">返回列表</button>
+          <button class="btn-solid" id="ccSaveCaseBtn">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 撰写示范说明 弹窗 ===== -->
+    <div class="modal" id="ccGuideModal">
+      <div class="modal-card" style="width: 720px; max-height: 80vh;">
+        <div class="modal-head">
+          <div>客户案例撰写示范说明</div>
+          <button class="btn-icon" id="ccGuideClose" type="button">✕</button>
+        </div>
+        <div class="modal-body" style="overflow-y:auto;">
+          <div class="cc-guide-content">
+            <div class="cc-guide-section">
+              <div class="cc-guide-title">一、撰写总原则</div>
+              <div class="cc-guide-text">一篇有说服力的客户案例，本质上是一个"问题—解决—结果"的真实故事。建议按以下五个步骤顺序展开，层层递进：</div>
+            </div>
+            <div class="cc-guide-section">
+              <div class="cc-guide-title">二、五步结构法（建议顺序）</div>
+              <div class="cc-guide-text">
+                <p><b>1. 客户背景：</b>介绍客户是谁（行业、规模、区域），让读者产生"和我类似"的代入感。示例："广东某精密制造企业，员工500余人，产品出口欧美市场。"</p>
+                <p><b>2. 遇到什么痛点：</b>描述客户合作前面临的具体问题，尽量用数字量化。示例："订单交付周期长达45天，客户投诉率高达8%，每年因返工损失超过200万元。"</p>
+                <p><b>3. 我们怎么解决：</b>说明提供的方案与实施过程，突出专业性与针对性。示例："我们为客户定制了智能排产系统，分三期实施，2个月内完成全部产线改造与人员培训。"</p>
+                <p><b>4. 取得什么结果：</b>用数据对比展示合作成效，这是案例最有说服力的部分。示例："交付周期从45天缩短至18天，投诉率降至1%以下，当年节省成本超300万元。"</p>
+                <p><b>5. 客户证言：</b>引用客户负责人的真实评价，增强可信度。示例："'合作这两年，产能提升了60%，他们是真正懂制造业的伙伴。'——该企业生产总监王先生"</p>
+              </div>
+            </div>
+            <div class="cc-guide-section">
+              <div class="cc-guide-title">三、撰写注意事项</div>
+              <div class="cc-guide-text">
+                <p>1. 数据优先：能用数字描述的地方尽量用数字，避免"效果显著""大幅提升"等空泛表述。</p>
+                <p>2. 真实可查：案例内容须真实，涉及客户敏感信息时可做脱敏处理（如"某上市公司"）。</p>
+                <p>3. 篇幅建议：单个案例以300-800字为宜，重点突出痛点与结果。</p>
+                <p>4. 多案例积累：建议覆盖不同行业、不同规模的客户，文案创作时可有更多素材可选。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-solid" id="ccGuideOkBtn">我知道了</button>
         </div>
       </div>
     </div>
@@ -1126,6 +1227,145 @@
 
   .kb-graph-side {
     min-height: auto;
+  }
+}
+
+/* ==================== 客户案例 ==================== */
+.cc-view.hidden {
+  display: none;
+}
+
+.cc-case-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cc-case-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border: 1px solid rgba(59, 130, 246, 0.14);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.cc-case-item:hover {
+  border-color: rgba(96, 165, 250, 0.55);
+  transform: translateY(-1px);
+}
+
+.cc-case-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.cc-case-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 46%;
+}
+
+.cc-case-customer {
+  font-size: 13px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cc-case-date {
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.cc-case-del {
+  flex-shrink: 0;
+}
+
+.cc-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.cc-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.cc-form-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cc-form-label {
+  font-size: 13px;
+}
+
+.cc-form-input {
+  width: 100%;
+}
+
+.cc-write-hint {
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+.cc-intro-textarea {
+  min-height: 320px;
+}
+
+.cc-guide-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cc-guide-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 8px;
+}
+
+.cc-guide-text {
+  font-size: 13px;
+  color: #cbd5e1;
+  line-height: 1.8;
+}
+
+.cc-guide-text p {
+  margin: 0 0 8px;
+}
+
+@media (max-width: 780px) {
+  .cc-form {
+    grid-template-columns: 1fr;
+  }
+
+  .cc-case-main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .cc-case-title {
+    max-width: 100%;
   }
 }
 </style>

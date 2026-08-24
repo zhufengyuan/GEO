@@ -289,6 +289,7 @@ window.geoSave = function(payload) {
         company: String(d.company || ''),
         industry_keyword: String(d.industry_keyword || ''),
         decision_stage: String(d.decision_stage || ''),
+        customer_type: String(d.customer_type || ''),
         question_keyword: String(d.question_keyword || d.industry_keyword || ''),
         words: d.words && typeof d.words === 'object' ? d.words : {},
         keywords: Array.isArray(d.keywords) ? d.keywords : (d.industry_keyword ? [String(d.industry_keyword)] : [])

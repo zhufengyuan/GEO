@@ -150,6 +150,12 @@ if settings.DEBUG:
 @app.on_event("startup")
 async def _startup():
     apply_migrations()
+    # 2026-08-24：初始化 AI 爬取入口（llms.txt / robots.txt / ai-data）
+    try:
+        from backend.ai_export import init_ai_site
+        init_ai_site()
+    except Exception as e:
+        print(f"[startup] 初始化 AI 导出失败：{e}")
 
 from backend.auth.dependencies import get_current_user
 from backend.utils.api_response import ok, fail
@@ -798,6 +804,12 @@ async def geo_ui_saves_save(body: dict, user=Depends(get_current_user)):
     except Exception:
         payload_json = json.dumps({"raw": str(payload)}, ensure_ascii=False)
     sid = insert("INSERT INTO geo_ui_saves (page, payload_json) VALUES (%s, %s)", [p, payload_json])
+    # 2026-08-24：所有输入信息同步导出为 JSON（供 AI 爬取）
+    try:
+        from backend.ai_export import export_input
+        export_input("ui", p, payload, meta={"user_id": user.get("id"), "saved_id": sid})
+    except Exception as e:
+        print(f"[geo-ui-saves] AI JSON 导出失败：{e}")
     return ok({"id": sid, "page": p})
 
 
@@ -808,10 +820,28 @@ async def question_words_items(lexicon_id: int, user=Depends(get_current_user)):
 
 @app.post("/api/v1/question-words")
 async def question_words_create(req: LexiconCreateRequest, user=Depends(get_current_user)):
-    from backend.database import insert, execute
+    from backend.database import insert, execute, query_row
     from backend.services.llm_service import async_call_llm
-    from backend.services.prompt_service import build_expand_words_prompt
-    words_obj = req.words or {}
+    from backend.services.prompt_service import build_expand_words_prompt, build_question_words_prompt
+    words_obj = dict(req.words or {})
+    # 客户类型：优先取请求参数 → words 字段 → 企业知识库"企业基础信息"
+    customer_type = str(req.customer_type or "").strip()
+    if not customer_type:
+        customer_type = str(words_obj.get("customer_type") or "").strip()
+    if not customer_type:
+        try:
+            kb_row = query_row(
+                "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
+                [user["id"], "企业基础信息"],
+            )
+            if kb_row and kb_row.get("content"):
+                kb_data = json.loads(kb_row["content"])
+                if isinstance(kb_data, dict):
+                    customer_type = str(kb_data.get("客户类型") or "").strip()
+        except Exception as e:
+            print(f"[question-words] 读取知识库客户类型失败：{e}")
+    if customer_type:
+        words_obj["customer_type"] = customer_type
     lid = insert(
         """INSERT INTO lexicons (user_id, name, company, industry_keyword, decision_stage, words, question_keyword)
            VALUES (%s, %s, %s, %s, %s, %s, %s)""",
@@ -827,16 +857,9 @@ async def question_words_create(req: LexiconCreateRequest, user=Depends(get_curr
     )
     keywords = list(req.keywords or [])
     if not keywords:
-        region = str((words_obj or {}).get("region") or "").strip()
-        feature = str((words_obj or {}).get("feature") or "").strip()
-        scene = str((words_obj or {}).get("scene") or "").strip()
-        people = str((words_obj or {}).get("people") or "").strip()
-        keywords = [
-            str(req.industry_keyword or "").strip(),
-            region,
-            feature,
-            scene,
-            people,
+        fallback_keys = ["region", "feature", "attribute", "scene", "people", "pain", "price", "other"]
+        keywords = [str(req.industry_keyword or "").strip()] + [
+            str(words_obj.get(k) or "").strip() for k in fallback_keys
         ]
         keywords = [k for k in keywords if k]
     seen = set()
@@ -852,6 +875,46 @@ async def question_words_create(req: LexiconCreateRequest, user=Depends(get_curr
             "INSERT INTO question_words (lexicon_id, enterprise_id, seq_no, question_text, gen_date) VALUES (%s, %s, %s, %s, CURDATE())",
             [lid, None, i, w],
         )
+    # 2026-08-18：LLM 生成真实搜索问题，替代直接落库的原始关键词
+    questions = []
+    try:
+        prompt = build_question_words_prompt(
+            company=req.company or "",
+            keyword=req.industry_keyword or (keywords2[0] if keywords2 else ""),
+            main_keyword=req.question_keyword or req.industry_keyword or "",
+            customer_type=customer_type,
+            decision_stage=req.decision_stage or "",
+            words=words_obj,
+        )
+        out = await async_call_llm(prompt)
+        if out:
+            for line in str(out).splitlines():
+                s = line.strip()
+                if not s:
+                    continue
+                s = re.sub(r"^\s*\d+\s*[\.、\)．]\s*", "", s)
+                s = re.sub(r"^[-•·*]\s*", "", s).strip()
+                if not s or len(s) < 5:
+                    continue
+                if s in seen:
+                    continue
+                seen.add(s)
+                questions.append(s[:200])
+                if len(questions) >= 60:
+                    break
+    except Exception as e:
+        print(f"[question-words] LLM 生成问题失败：{e}")
+    if len(questions) >= 3:
+        try:
+            execute("DELETE FROM question_words WHERE lexicon_id=%s", [lid])
+            for i, q in enumerate(questions, 1):
+                insert(
+                    "INSERT INTO question_words (lexicon_id, enterprise_id, seq_no, question_text, gen_date) VALUES (%s, %s, %s, %s, CURDATE())",
+                    [lid, None, i, q],
+                )
+        except Exception as e:
+            print(f"[question-words] 写入生成问题失败：{e}")
+    final_count = len(questions) if len(questions) >= 3 else len(keywords2)
     kw = req.industry_keyword or ""
     if kw:
         try:
@@ -861,7 +924,22 @@ async def question_words_create(req: LexiconCreateRequest, user=Depends(get_curr
                 execute("UPDATE lexicons SET expand_words=%s WHERE id=%s", [expand[:500], lid])
         except Exception as e:
             print(f"[expand] 生成失败：{e}")
-    return ok({"id": lid, "question_count": len(keywords2)})
+    # 2026-08-24：问题词库输入同步导出为 JSON（供 AI 爬取）
+    try:
+        from backend.ai_export import export_input
+        export_input("lexicon", "question-bank", {
+            "id": lid,
+            "name": req.name or "",
+            "company": req.company or "",
+            "industry_keyword": req.industry_keyword or "",
+            "decision_stage": req.decision_stage or "",
+            "question_keyword": req.question_keyword or req.industry_keyword or "",
+            "words": words_obj,
+            "questions": questions[:30],
+        }, meta={"user_id": user.get("id")})
+    except Exception as e:
+        print(f"[question-words] AI JSON 导出失败：{e}")
+    return ok({"id": lid, "question_count": final_count, "generated": len(questions)})
 
 
 @app.delete("/api/v1/question-words")
@@ -1095,6 +1173,8 @@ async def ai_execute(body: dict, user=Depends(get_current_user)):
     keyword = body.get("keyword", "")
     hint = body.get("hint", "")
     page_context = str(body.get("page_context") or "").strip()
+    # 2026-08-24：行业参数（前端传入 industry 或从企业知识库"所在行业"自动识别）
+    industry = str(body.get("industry") or "").strip()
 
     enterprise = query_row("SELECT * FROM enterprise_base_info ORDER BY id DESC LIMIT 1") or {}
     lexicon = {}
@@ -1265,6 +1345,14 @@ async def ai_execute(body: dict, user=Depends(get_current_user)):
             prompt = build_diagnosis_report_prompt(kb, extra_input, llm_name, page_context)
     elif task == "optimization_plan":
         prompt = build_optimization_plan_prompt(kb)
+        # 2026-08-24：行业规则函数调用注入（两个变体同步注入）
+        try:
+            from backend.services.prompt_service import inject_industry_rules
+            _ind = industry or str(kb_base.get("所在行业") or "").strip()
+            if _ind:
+                prompt = inject_industry_rules(prompt, _ind)
+        except Exception as e:
+            print(f"[ai-execute] optimization_plan 行业注入失败：{e}")
         # Item 11: 多模型并行优化 — 调用 2 个不同视角的变体 + 汇总
         variant2 = prompt + "\n\n【额外要求】请从「技术实现与落地可行性」角度重新审视以上分析，优先提出可量化、可操作的建议。"
         import asyncio as _asyncio
@@ -1369,6 +1457,16 @@ async def ai_execute(body: dict, user=Depends(get_current_user)):
         )
     else:
         return fail("INVALID_TASK", "不支持的任务类型")
+
+    # 2026-08-24：行业规则函数调用注入（除 optimization_plan 已在分支内处理）
+    try:
+        if task != "optimization_plan":
+            _ind = industry or str(kb_base.get("所在行业") or "").strip()
+            if _ind:
+                from backend.services.prompt_service import inject_industry_rules
+                prompt = inject_industry_rules(prompt, _ind)
+    except Exception as e:
+        print(f"[ai-execute] 行业规则注入失败：{e}")
 
     if task != "optimization_plan":
         text = await async_call_llm(prompt)
@@ -1916,6 +2014,13 @@ async def knowledge_base_save(body: dict, user=Depends(get_current_user)):
             placeholders = ",".join(["%s"] * len(cols))
             insert(f"INSERT INTO enterprise_base_info ({', '.join(cols)}) VALUES ({placeholders})", params)
 
+    # 2026-08-24：知识库输入同步导出为 JSON（供 AI 爬取）
+    try:
+        from backend.ai_export import export_input
+        export_input("kb", sec, data, meta={"user_id": user.get("id")})
+    except Exception as e:
+        print(f"[knowledge-base/save] AI JSON 导出失败：{e}")
+
     return ok({"saved": True, "section": sec})
 
 
@@ -2354,6 +2459,34 @@ async def diagnosis_files_download(task: str, model: Optional[str] = None, user=
 def health_check():
     return api_response({"status": "ok", "version": "2026-06-04-reform-2"})
 
+# ================= 2026-08-24：AI 数据导出（供 AI 爬取）=================
+@app.get("/api/v1/ai/inputs")
+async def ai_inputs_get():
+    """聚合所有用户输入信息（JSON，无需认证，AI 爬虫可直接调用）"""
+    from backend.ai_export import get_all_inputs
+    return api_response(get_all_inputs())
+
+
+@app.post("/api/v1/ai/rebuild")
+async def ai_inputs_rebuild(user=Depends(get_current_user)):
+    """从数据库全量重建 ai-data（认证后调用）"""
+    from backend.database import query
+    from backend.ai_export import rebuild_from_db
+    result = rebuild_from_db(lambda sql, params: query(sql, params))
+    return api_response(result)
+
+
+@app.get("/api/v1/ai/industries")
+async def ai_industries_get():
+    """行业提示词库列表（JSON，无需认证，AI 可查）"""
+    from backend.services.prompt_service import list_industry_prompts
+    items = list_industry_prompts()
+    return api_response({
+        "description": "GEO 行业专属规则提示词库。每个行业一个 txt，生成内容时通过函数 get_industry_prompt(industry) 调用获取。",
+        "count": len(items),
+        "industries": items,
+    })
+
 @app.get("/api/v1/plans")
 def get_plans():
     """套餐列表（无需认证，白名单）"""
@@ -2381,3 +2514,4 @@ if _uploads_dir.exists():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=settings.DEBUG)
+

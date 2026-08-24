@@ -19,6 +19,7 @@ from backend.utils.filename_parser import extract_business_context_from_images
 
 # 模板目录（相对于 backend-py/）
 _PROMPT_DIR = Path(__file__).parent.parent / "prompts"
+_INDUSTRY_PROMPT_DIR = _PROMPT_DIR / "industries"
 
 
 def _read_template(name: str) -> str:
@@ -27,6 +28,121 @@ def _read_template(name: str) -> str:
     if not path.exists():
         return ""
     return path.read_text(encoding="utf-8")
+
+
+# ================= 2026-08-24：行业提示词库 + 函数调用 =================
+# 行业别名 -> 行业文件名（自动匹配，用户可能输入不同说法）
+_INDUSTRY_ALIASES = {
+    "法律": "法律与专业咨询.txt", "律师": "法律与专业咨询.txt", "知识产权": "法律与专业咨询.txt",
+    "商标": "法律与专业咨询.txt", "专利": "法律与专业咨询.txt", "审计": "法律与专业咨询.txt",
+    "税务": "法律与专业咨询.txt", "资产评估": "法律与专业咨询.txt", "公证": "法律与专业咨询.txt",
+    "制造": "制造业.txt", "工厂": "制造业.txt", "工业": "制造业.txt", "生产": "制造业.txt",
+    "oem": "制造业.txt", "odm": "制造业.txt", "设备": "制造业.txt", "五金": "制造业.txt",
+    "电子元器件": "制造业.txt", "汽配": "制造业.txt", "模具": "制造业.txt",
+    "软件": "软件行业.txt", "saas": "软件行业.txt", "互联网": "软件行业.txt", "it": "软件行业.txt",
+    "信息": "软件行业.txt", "系统": "软件行业.txt", "erp": "软件行业.txt", "crm": "软件行业.txt",
+    "开发": "软件行业.txt", "小程序": "软件行业.txt", "app": "软件行业.txt", "人工智能": "软件行业.txt", "ai": "软件行业.txt",
+    "服务": "服务行业.txt", "代运营": "服务行业.txt", "外包": "服务行业.txt",
+    "设计服务": "服务行业.txt", "营销服务": "服务行业.txt", "企服": "服务行业.txt",
+    "消费品": "消费品行业.txt", "零售": "消费品行业.txt", "食品": "消费品行业.txt",
+    "饮料": "消费品行业.txt", "日化": "消费品行业.txt", "美妆": "消费品行业.txt", "母婴": "消费品行业.txt",
+    "宠物": "消费品行业.txt", "服装": "消费品行业.txt", "家居": "消费品行业.txt", "小家电": "消费品行业.txt",
+    "教育": "教育培训.txt", "培训": "教育培训.txt", "学校": "教育培训.txt", "课程": "教育培训.txt",
+    "考研": "教育培训.txt", "考公": "教育培训.txt", "语言培训": "教育培训.txt", "在线教育": "教育培训.txt",
+    "医疗": "医疗健康.txt", "健康": "医疗健康.txt", "医药": "医疗健康.txt", "医疗器械": "医疗健康.txt",
+    "体检": "医疗健康.txt", "口腔": "医疗健康.txt", "医美": "医疗健康.txt", "中医": "医疗健康.txt",
+    "养生": "医疗健康.txt", "保健": "医疗健康.txt", "康复": "医疗健康.txt", "心理": "医疗健康.txt",
+    "金融": "金融服务.txt", "银行": "金融服务.txt", "保险": "金融服务.txt", "证券": "金融服务.txt",
+    "基金": "金融服务.txt", "贷款": "金融服务.txt", "财税": "金融服务.txt", "代账": "金融服务.txt",
+    "财富": "金融服务.txt", "投资": "金融服务.txt",
+    "本地生活": "本地生活服务.txt", "餐饮": "本地生活服务.txt", "美容": "本地生活服务.txt",
+    "家政": "本地生活服务.txt", "保洁": "本地生活服务.txt", "装修": "本地生活服务.txt",
+    "维修": "本地生活服务.txt", "健身": "本地生活服务.txt", "摄影": "本地生活服务.txt",
+    "婚庆": "本地生活服务.txt", "理发": "本地生活服务.txt", "美容美发": "本地生活服务.txt",
+    "物流": "物流与供应链.txt", "快递": "物流与供应链.txt", "仓储": "物流与供应链.txt",
+    "冷链": "物流与供应链.txt", "供应链": "物流与供应链.txt", "报关": "物流与供应链.txt",
+    "跨境": "物流与供应链.txt", "货运": "物流与供应链.txt", "配送": "物流与供应链.txt",
+    "建筑": "建筑与工程.txt", "工程": "建筑与工程.txt", "装饰": "建筑与工程.txt",
+    "施工": "建筑与工程.txt", "监理": "建筑与工程.txt", "建材": "建筑与工程.txt",
+    "园林": "建筑与工程.txt", "弱电": "建筑与工程.txt", "设计施工": "建筑与工程.txt",
+    # "咨询" 保留为兜底（法律/税务等已在上面优先匹配）
+    "咨询": "服务行业.txt",
+}
+
+
+def list_industry_prompts() -> list:
+    """列出行业提示词库中所有行业（文件名 -> 行业名）"""
+    out = []
+    if _INDUSTRY_PROMPT_DIR.exists():
+        for p in sorted(_INDUSTRY_PROMPT_DIR.glob("*.txt")):
+            out.append({"file": p.name, "industry": p.stem})
+    return out
+
+
+def resolve_industry_file(industry: str) -> Optional[str]:
+    """
+    将用户输入的行业名解析为行业 txt 文件名。
+    优先级：精确文件名 > 别名包含匹配 > 通用行业兜底。
+    """
+    if not industry:
+        return "通用行业.txt"
+    s = str(industry).strip()
+    # 1) 精确匹配文件名
+    if _INDUSTRY_PROMPT_DIR.exists():
+        for p in _INDUSTRY_PROMPT_DIR.glob("*.txt"):
+            if p.stem == s:
+                return p.name
+    # 2) 别名包含匹配
+    for kw, fname in _INDUSTRY_ALIASES.items():
+        if kw and kw in s:
+            return fname
+    # 3) 通用兜底
+    return "通用行业.txt"
+
+
+def get_industry_prompt(industry: str) -> str:
+    """
+    【特定函数】获取指定行业的专属 GEO 规则文本。
+    供 prompt 构建与 LLM function-calling 调用：根据行业名读取 prompts/industries/<行业>.txt。
+    """
+    fname = resolve_industry_file(industry)
+    path = _INDUSTRY_PROMPT_DIR / fname
+    if path.exists():
+        try:
+            return path.read_text(encoding="utf-8")
+        except Exception as e:
+            print(f"[industry-prompt] 读取 {fname} 失败：{e}")
+    return _read_template("geo_general_rules.txt")
+
+
+def build_industry_function_protocol(industry: str = "") -> str:
+    """
+    构建「函数调用协议」文本，注入 prompt 顶部。
+    声明可调用函数 get_industry_prompt(industry)，LLM 需要行业专属规则时按函数调用获取。
+    """
+    fname = resolve_industry_file(industry)
+    industry_name = fname.replace(".txt", "") if fname else "通用行业"
+    return (
+        "【行业规则函数调用协议】\n"
+        "本任务已注册行业规则函数 get_industry_prompt(industry)。\n"
+        f"当前行业：{industry_name}。\n"
+        "生成内容前，你必须调用该函数加载【行业专属 GEO 规则】，并将规则中的"
+        "“核心要点、实体绑定方向、典型决策问题、FAQ 方向、特有表达、关键词矩阵”逐条落实到输出中。\n"
+        "函数签名：get_industry_prompt(industry: str) -> str（返回行业专属 GEO 规则全文）。\n"
+        "调用方式：函数名 get_industry_prompt，参数 industry 传入行业名。\n\n"
+    )
+
+
+def inject_industry_rules(prompt: str, industry: str = "") -> str:
+    """
+    将行业专属 GEO 规则注入 prompt（函数调用实现）。
+    协议说明注入 prompt 最前面，行业规则全文追加在 prompt 末尾。
+    """
+    protocol = build_industry_function_protocol(industry)
+    rules = get_industry_prompt(industry)
+    if not rules:
+        return prompt
+    return protocol + prompt + "\n\n" + rules
 
 
 def render_prompt(tpl: str, vars: dict) -> str:
@@ -47,6 +163,38 @@ def render_prompt(tpl: str, vars: dict) -> str:
 def build_expand_words_prompt(keyword: str) -> str:
     tpl = _read_template("expand_words_prompt.txt")
     return render_prompt(tpl, {"keyword": keyword})
+
+
+def build_question_words_prompt(
+    company: str,
+    keyword: str,
+    main_keyword: str = "",
+    customer_type: str = "",
+    decision_stage: str = "",
+    words: Optional[dict] = None,
+) -> str:
+    """构建问题词库生成提示词（2026-08-18 接线既有六阶段模板，新增客户类型）"""
+    tpl = _read_template("question_words_prompt.txt")
+    w = words or {}
+    ct = str(customer_type or "").strip()
+    ct = ct if ct else "未指定"
+    return render_prompt(tpl, {
+        "company": company or "",
+        "industry_keyword": keyword or "",
+        "question_keyword": main_keyword or keyword or "",
+        "decision_stage": (decision_stage or "").strip() or "认知触发",
+        "customer_type": ct,
+        "region": str(w.get("region") or "").strip(),
+        "feature": str(w.get("feature") or "").strip(),
+        "attribute": str(w.get("attribute") or "").strip(),
+        "scene": str(w.get("scene") or "").strip(),
+        "people": str(w.get("people") or "").strip(),
+        "pain": str(w.get("pain") or "").strip(),
+        "price": str(w.get("price") or "").strip(),
+        "other": str(w.get("other") or "").strip(),
+        "enterprise_library_content": "",
+        "seed_keywords": "",
+    })
 
 
 def build_title_prompt(
@@ -942,3 +1090,4 @@ def build_article_writing_rewrite_prompt(
         "geo_general_rules": geo_general_rules,
         "industry_identification_rules": industry_identification_rules,
     })
+

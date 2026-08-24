@@ -20,6 +20,7 @@ cfg_candidates <- unique(Filter(
   nzchar,
   c(
     file.path(rmd_dir, "config.R"),
+    file.path(rmd_dir, "GEO", "config.R"),
     file.path(getwd(), "config.R"),
     file.path(rmd_dir, "geo_config.R"),
     file.path(getwd(), "geo_config.R")
@@ -43,7 +44,7 @@ if (is.null(geo_config) || !is.list(geo_config)) {
 }
 
 geo_root_cfg <- as.character(geo_config$app_dir %||% "")
-api_base_url <- as.character(geo_config$api_base_url %||% "http://127.0.0.1:8000/api/v1")
+api_base_url <- as.character(geo_config$api_base_url %||% "http://YOUR_SERVER_IP:8123/api/v1")
 
 candidates <- unique(Filter(
   nzchar,
@@ -85,13 +86,20 @@ if (dir.exists(data_dir)) {
   shiny::addResourcePath("data", data_dir)
 }
 
-llm_svg_dir <- as.character(geo_config$llm_svg_dir %||% file.path(geo_root, "svg"))
+llm_svg_dir <- as.character(geo_config$llm_svg_dir %||% "")
+if (!nzchar(llm_svg_dir) || !dir.exists(llm_svg_dir)) {
+  llm_svg_dir <- file.path(geo_root, "svg")
+}
 llm_svg_dir <- normalizePath(llm_svg_dir, winslash = "/", mustWork = FALSE)
 llm_svg_files <- character(0)
 if (dir.exists(llm_svg_dir)) {
   shiny::addResourcePath("llm-svg", llm_svg_dir)
   llm_svg_files <- list.files(llm_svg_dir, pattern = "\\.svg$", ignore.case = TRUE)
 }
+# 诊断：在Shiny Server日志中输出SVG路径和文件列表
+message(paste0("GEO SVG debug: geo_root=", geo_root,
+               ", llm_svg_dir=", llm_svg_dir,
+               ", svg_files=", paste(llm_svg_files, collapse = ",")))
 ```
 
 ```{r, echo=FALSE}
@@ -124,7 +132,7 @@ db_ready <- function(cfg) {
 schema_ready <- FALSE
 
 sql_file_path <- function(name) {
-  file.path(getwd(), "rmd", "sql", name)
+  file.path(geo_root, "rmd", "sql", name)
 }
 
 exec_sql_file <- function(con, name) {
@@ -772,6 +780,7 @@ shiny::tags$script(shiny::HTML(paste0(
   "if(d.type === 'geo_article_generate'){Shiny.setInputValue('geo_article_generate', d.payload, {priority:'event'});}\n",
   "if(d.type === 'geo_query_articles'){Shiny.setInputValue('geo_query_articles', d.payload, {priority:'event'});}\n",
   "if(d.type === 'geo_query_article_detail'){Shiny.setInputValue('geo_query_article_detail', d.payload, {priority:'event'});}\n",
+  "if(d.type === 'geo_request_data_statistics_data'){Shiny.setInputValue('geo_request_data_statistics_data', d.payload || {}, {priority:'event'});}\n",
   "}\n",
   "}, false);\n",
   "if(window.Shiny && Shiny.addCustomMessageHandler){\n",
@@ -807,7 +816,9 @@ shiny::tags$script(shiny::HTML(paste0(
   "postToIframe('geo_official_publish_data', msg);\n",
   "});\n",
   "Shiny.addCustomMessageHandler('geo_data_statistics_data', function(msg){\n",
-  "lastDataStats = msg;\n",
+  "console.log('[DIAG-PARENT] geo_data_statistics_data RECEIVED keys=' + Object.keys(msg).join(','));
+lastDataStats = msg;
+",
   "postToIframe('geo_data_statistics_data', msg);\n",
   "});\n",
   "Shiny.addCustomMessageHandler('geo_public_opinion_config', function(msg){\n",
@@ -1128,12 +1139,12 @@ shiny::observeEvent(TRUE, {
 
 session$onFlushed(function() {
   if (!requireNamespace("readxl", quietly = TRUE)) {
-    shiny::showNotification("缺少依赖包：请安装 readxl", type = "error")
+# #     shiny::showNotification("缺少依赖包：请安装 readxl", type = "error")
     return()
   }
   xls_path <- file.path(geo_config$app_dir, "data", "2026年网站媒体及官方自媒体报价-Q2.xls")
   if (!file.exists(xls_path)) {
-    shiny::showNotification("未找到报价表文件：2026年网站媒体及官方自媒体报价-Q2.xls", type = "warning")
+# #     shiny::showNotification("未找到报价表文件：2026年网站媒体及官方自媒体报价-Q2.xls", type = "warning")
     return()
   }
   xls_name <- basename(xls_path)
@@ -1144,7 +1155,7 @@ session$onFlushed(function() {
   sheets <- NULL
   try(sheets <- readxl::excel_sheets(xls_path), silent = TRUE)
   if (is.null(sheets) || length(sheets) == 0) {
-    shiny::showNotification("报价表没有可读取的sheet", type = "warning")
+# #     shiny::showNotification("报价表没有可读取的sheet", type = "warning")
     return()
   }
   type_of <- function(name) {
@@ -1174,13 +1185,13 @@ session$onFlushed(function() {
     }
   }
   if (length(rows) == 0) {
-    shiny::showNotification("报价表解析结果为空", type = "warning")
+# #     shiny::showNotification("报价表解析结果为空", type = "warning")
     return()
   }
-  shiny::showNotification(
-    paste0("报价表已读取：", length(rows), " 条（", paste(sheets, collapse = "、"), "）"),
-    type = "message"
-  )
+# #   shiny::showNotification(
+# #     paste0("报价表已读取：", length(rows), " 条（", paste(sheets, collapse = "、"), "）"),
+# #     type = "message"
+# #   )
   session$sendCustomMessage(
     "geo_official_publish_data",
     list(ts = as.numeric(Sys.time()) * 1000, rows = rows)
@@ -1189,23 +1200,35 @@ session$onFlushed(function() {
 ```
 
 ```{r, echo=FALSE}
-session$onFlushed(function() {
+# 统一的数据统计载荷计算函数：供初始 onFlushed 推送与按需重发共用，
+# 避免一次性推送与 iframe 就绪时序竞态导致数据丢失。
+geo_compute_data_stats_payload <- function(app_dir) {
   if (!requireNamespace("readxl", quietly = TRUE)) {
-    shiny::showNotification("缺少依赖包：请安装 readxl", type = "error")
-    return()
+    return(NULL)
   }
 
-  xlsx_path <- file.path(geo_config$app_dir, "data", "数据统计_测试数据.xlsx")
+  # 主路径 + fallback：geo.Rmd 在 /srv/shiny-server/ 但数据在 /srv/shiny-server/GEO/data/
+  xlsx_path <- file.path(app_dir, "data", "数据统计_测试数据.xlsx")
   if (!file.exists(xlsx_path)) {
-    shiny::showNotification("未找到测试数据：数据统计_测试数据.xlsx", type = "warning")
-    return()
+    # fallback: 尝试 GEO 子目录
+    xlsx_fallback <- file.path(app_dir, "GEO", "data", "数据统计_测试数据.xlsx")
+    if (file.exists(xlsx_fallback)) {
+      xlsx_path <- xlsx_fallback
+    } else {
+      # 再尝试上级目录的 GEO
+      xlsx_fallback2 <- file.path(dirname(app_dir), "GEO", "data", "数据统计_测试数据.xlsx")
+      if (file.exists(xlsx_fallback2)) {
+        xlsx_path <- xlsx_fallback2
+      } else {
+        return(NULL)
+      }
+    }
   }
 
   sheets <- NULL
   try(sheets <- readxl::excel_sheets(xlsx_path), silent = TRUE)
   if (is.null(sheets) || length(sheets) == 0) {
-    shiny::showNotification("测试数据没有可读取的sheet", type = "warning")
-    return()
+    return(NULL)
   }
 
   to_scalar <- function(x) {
@@ -1345,7 +1368,7 @@ session$onFlushed(function() {
     }
   }
 
-  payload <- list(
+  list(
     ts = as.numeric(Sys.time()) * 1000,
     file = "数据统计_测试数据.xlsx",
     sheets = sheet_out,
@@ -1359,11 +1382,29 @@ session$onFlushed(function() {
     ),
     trend = trend_rows
   )
+}
+```
 
-  shiny::showNotification(
-    paste0("数据统计测试数据已读取：", length(payload$sheets), " 个sheet"),
-    type = "message"
+```{r, echo=FALSE}
+session$onFlushed(function() {
+  p <- tryCatch(
+    geo_compute_data_stats_payload(geo_config$app_dir),
+    error = function(e) { NULL }
   )
-  session$sendCustomMessage("geo_data_statistics_data", payload)
+  if (!is.null(p)) {
+    session$sendCustomMessage("geo_data_statistics_data", p)
+  }
 }, once = TRUE)
+```
+
+```{r, echo=FALSE}
+# 按需重发：前端 data-statistics 页面在 iframe 就绪后通过 postMessage 请求
+# geo_request_data_statistics_data，父页面将其转发为 Shiny 输入，此处重新
+# 计算并推送，彻底消除 onFlushed 一次性推送与 iframe 就绪时序的竞态。
+shiny::observeEvent(session$input$geo_request_data_statistics_data, {
+  p <- tryCatch(geo_compute_data_stats_payload(geo_config$app_dir), error = function(e) NULL)
+  if (!is.null(p)) {
+    session$sendCustomMessage("geo_data_statistics_data", p)
+  }
+})
 ```

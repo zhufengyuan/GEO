@@ -34,6 +34,7 @@ class LexiconCreateRequest(BaseModel):
     words: Optional[dict] = None
     keywords: List[str] = []
     question_keyword: Optional[str] = ""
+    customer_type: Optional[str] = ""
 
 class LexiconResponse(BaseModel):
     id: int

@@ -1,5 +1,7 @@
 import { initTemplate } from '../_shared/page-template.js';
 
+let onQbKbMessageRef = null;
+
 const Page = {
   async init() {
     initTemplate('创建问题词库');
@@ -25,6 +27,29 @@ const Page = {
       companyInput.style.color = '#374151';
       if (companyAutoHint) companyAutoHint.textContent = '（已从企业知识库自动带出）';
     }
+
+    /* 客户类型：自动从企业知识库带出，参与问题生成 */
+    const customerTypeInput = document.getElementById('customerTypeInput');
+    const fillCustomerType = (data) => {
+      if (!data || typeof data !== 'object') return;
+      const v = String(data['客户类型'] || '').trim();
+      if (v && customerTypeInput) {
+        customerTypeInput.value = v;
+        localStorage.setItem('kb_customer_type', v);
+      }
+    };
+    const onQbKbMessage = (event) => {
+      const d = event?.data;
+      if (!d || typeof d !== 'object') return;
+      if (d.type !== 'geo_knowledge_base_data') return;
+      if (String(d.payload?.section || '').trim() !== '企业基础信息') return;
+      fillCustomerType(d.payload?.data);
+    };
+    onQbKbMessageRef = onQbKbMessage;
+    window.addEventListener('message', onQbKbMessage);
+    const cachedCustomerType = localStorage.getItem('kb_customer_type') || '';
+    if (customerTypeInput && cachedCustomerType) customerTypeInput.value = cachedCustomerType;
+    window.geoQueryKnowledgeBase?.({ section: '企业基础信息', ts: Date.now() });
 
     const singleKeyword = (v) => {
       const s = String(v || '').trim();
@@ -84,12 +109,18 @@ const Page = {
         other: (otherWord?.value || '').trim()
       };
 
+      const customerType = (customerTypeInput?.value || '').trim();
+
       const keywordList = [
         industry,
         words.region,
         words.feature,
+        words.attribute,
         words.scene,
-        words.people
+        words.people,
+        words.pain,
+        words.price,
+        words.other
       ]
         .map((x) => singleKeyword(x))
         .filter(Boolean);
@@ -110,6 +141,7 @@ const Page = {
             industry_keyword: kw,
             question_keyword: industry,
             decision_stage: stageText,
+            customer_type: customerType,
             words
           },
           ts: Date.now() + i
@@ -118,7 +150,7 @@ const Page = {
       });
 
       window.geoConsume?.({ event_type: 'ai_generate', page: 'question-bank', action: 'create', units: keywordList.length, amount: 0 });
-      alert(`已生成 ${keywordList.length} 条关键词，正在同步到“问题词库管理”。`);
+      alert(`已生成 ${keywordList.length} 个问题词库（含区域/功能/属性/场景/人群/痛点/价格等关键词${customerType ? '，客户类型：' + customerType : ''}），AI 正在生成问题，稍后请在"问题词库管理"查看。`);
       setTimeout(() => window.navigateTo?.('question-bank-manager'), 900);
     });
 
@@ -127,6 +159,7 @@ const Page = {
     });
   },
   destroy() {
+    window.removeEventListener('message', onQbKbMessageRef);
   }
 };
 

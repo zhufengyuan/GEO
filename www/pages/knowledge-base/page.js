@@ -1374,6 +1374,159 @@ const Page = {
       renderImageList();
     };
 
+    /* ==================== 客户案例 ==================== */
+    const ccState = {
+      cases: [],
+      editingId: null
+    };
+    const ccListView = root.querySelector('.kb-panel[data-panel="cases"] .cc-view-list');
+    const ccEditView = root.querySelector('.kb-panel[data-panel="cases"] .cc-view-edit');
+    const ccCaseList = document.getElementById('ccCaseList');
+    const ccEmptyTip = document.getElementById('ccEmptyTip');
+    const ccGuideModal = document.getElementById('ccGuideModal');
+
+    const ccShowList = () => {
+      ccListView?.classList.remove('hidden');
+      ccEditView?.classList.add('hidden');
+    };
+    const ccShowEdit = () => {
+      ccListView?.classList.add('hidden');
+      ccEditView?.classList.remove('hidden');
+    };
+
+    const renderCases = () => {
+      if (!ccCaseList) return;
+      ccCaseList.innerHTML = '';
+      if (!ccState.cases.length) {
+        const empty = document.createElement('div');
+        empty.className = 'cc-empty';
+        empty.textContent = '暂无客户案例，点击右上角"新增案例"开始创建。';
+        ccCaseList.appendChild(empty);
+        return;
+      }
+      ccState.cases.forEach((c) => {
+        const item = document.createElement('div');
+        item.className = 'cc-case-item';
+        const main = document.createElement('div');
+        main.className = 'cc-case-main';
+        const title = document.createElement('div');
+        title.className = 'cc-case-title';
+        title.textContent = String(c.title || '未命名案例');
+        const customer = document.createElement('div');
+        customer.className = 'cc-case-customer';
+        customer.textContent = `客户：${String(c.customer || '—')}`;
+        main.appendChild(title);
+        main.appendChild(customer);
+        const right = document.createElement('div');
+        right.style.cssText = 'display:flex; align-items:center; gap:14px; flex-shrink:0;';
+        const date = document.createElement('div');
+        date.className = 'cc-case-date';
+        date.textContent = String(c.updated_at || c.created_at || '');
+        const del = document.createElement('button');
+        del.className = 'btn-primary cc-case-del';
+        del.type = 'button';
+        del.textContent = '删除';
+        right.appendChild(date);
+        right.appendChild(del);
+        item.appendChild(main);
+        item.appendChild(right);
+
+        item.addEventListener('click', (e) => {
+          if (e.target instanceof HTMLElement && e.target.closest('.cc-case-del')) return;
+          ccOpenEdit(c.id);
+        });
+        del.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const ok = confirm(`确认删除案例「${String(c.title || '未命名案例')}」？`);
+          if (!ok) return;
+          ccState.cases = ccState.cases.filter((x) => x.id !== c.id);
+          ccPersistCases();
+          renderCases();
+          window.geoConsume?.({ event_type: 'ui', page: 'knowledge-base', action: 'cc_delete', units: 1, amount: 0 });
+        });
+        ccCaseList.appendChild(item);
+      });
+    };
+
+    const ccPersistCases = () => {
+      window.geoSave?.(savePanelPayload('cases', { action: 'save', rows: ccState.cases }));
+    };
+
+    const ccOpenEdit = (id) => {
+      ccState.editingId = id || null;
+      const c = id ? ccState.cases.find((x) => x.id === id) : null;
+      const titleEl = document.getElementById('ccCaseTitle');
+      const customerEl = document.getElementById('ccCaseCustomer');
+      const introEl = document.getElementById('ccCaseIntro');
+      if (titleEl) titleEl.value = c ? String(c.title || '') : '';
+      if (customerEl) customerEl.value = c ? String(c.customer || '') : '';
+      if (introEl) introEl.value = c ? String(c.intro || '') : '';
+      ccShowEdit();
+    };
+
+    document.getElementById('ccAddCaseBtn')?.addEventListener('click', () => {
+      ccOpenEdit(null);
+      window.geoConsume?.({ event_type: 'ui', page: 'knowledge-base', action: 'cc_add', units: 1, amount: 0 });
+    });
+    document.getElementById('ccCancelBtn')?.addEventListener('click', ccShowList);
+    document.getElementById('ccSaveCaseBtn')?.addEventListener('click', () => {
+      const titleEl = document.getElementById('ccCaseTitle');
+      const customerEl = document.getElementById('ccCaseCustomer');
+      const introEl = document.getElementById('ccCaseIntro');
+      const title = String(titleEl?.value || '').trim();
+      const customer = String(customerEl?.value || '').trim();
+      const intro = String(introEl?.value || '').trim();
+      if (!title) {
+        alert('请填写合作项目标题。');
+        return;
+      }
+      if (!customer) {
+        alert('请填写合作客户名称。');
+        return;
+      }
+      const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      if (ccState.editingId) {
+        const c = ccState.cases.find((x) => x.id === ccState.editingId);
+        if (c) {
+          c.title = title;
+          c.customer = customer;
+          c.intro = intro;
+          c.updated_at = now;
+        }
+      } else {
+        ccState.cases.push({
+          id: `case_${Date.now()}`,
+          title,
+          customer,
+          intro,
+          created_at: now,
+          updated_at: now
+        });
+      }
+      ccPersistCases();
+      renderCases();
+      ccShowList();
+      window.geoConsume?.({ event_type: 'save', page: 'knowledge-base', action: 'cc_save', units: 1, amount: 0 });
+    });
+    document.getElementById('ccGuideBtn')?.addEventListener('click', () => {
+      ccGuideModal?.classList.add('show');
+    });
+    const ccCloseGuide = () => ccGuideModal?.classList.remove('show');
+    document.getElementById('ccGuideClose')?.addEventListener('click', ccCloseGuide);
+    document.getElementById('ccGuideOkBtn')?.addEventListener('click', ccCloseGuide);
+    ccGuideModal?.addEventListener('click', (e) => {
+      if (e.target === ccGuideModal) ccCloseGuide();
+    });
+
+    const fillCases = (data) => {
+      if (!data || typeof data !== 'object') return;
+      if (Array.isArray(data.rows)) {
+        ccState.cases = data.rows;
+        renderCases();
+      }
+    };
+    /* ==================== /客户案例 ==================== */
+
     const onKbMessage = (event) => {
       const d = event?.data;
       if (!d || typeof d !== 'object') return;
@@ -1396,6 +1549,9 @@ const Page = {
       }
       if (sec === 'products') {
         fillProducts(d.payload?.data);
+      }
+      if (sec === 'cases') {
+        fillCases(d.payload?.data);
       }
     };
     window.addEventListener('message', onKbMessage);
@@ -1835,6 +1991,7 @@ const Page = {
     window.geoQueryKnowledgeBase?.({ section: '企业基础信息', ts: Date.now() });
     window.geoQueryKnowledgeBase?.({ section: 'images', ts: Date.now() });
     window.geoQueryKnowledgeBase?.({ section: 'docs', ts: Date.now() });
+    window.geoQueryKnowledgeBase?.({ section: 'cases', ts: Date.now() });
     window.geoQueryKnowledgeBase?.({ section: 'products', ts: Date.now() });
     window.geoQueryKnowledgeBase?.({ section: 'website', ts: Date.now() });
     window.geoQueryKnowledgeBase?.({ section: 'files', ts: Date.now() });

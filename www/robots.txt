@@ -1,0 +1,30 @@
+User-agent: GPTBot
+Allow: /geo/ai-data/
+Allow: /geo/llms.txt
+Allow: /geo/ai-data/inputs/all.json
+
+User-agent: ClaudeBot
+Allow: /geo/ai-data/
+Allow: /geo/llms.txt
+
+User-agent: PerplexityBot
+Allow: /geo/ai-data/
+Allow: /geo/llms.txt
+
+User-agent: Google-Extended
+Allow: /geo/ai-data/
+Allow: /geo/llms.txt
+
+User-agent: Baiduspider
+Allow: /geo/ai-data/
+Allow: /geo/llms.txt
+
+User-agent: Bytespider
+Allow: /geo/ai-data/
+Allow: /geo/llms.txt
+
+User-agent: CCBot
+Allow: /geo/ai-data/
+
+User-agent: *
+Allow: /
