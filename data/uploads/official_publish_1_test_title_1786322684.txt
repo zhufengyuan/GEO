@@ -1,4 +1,0 @@
-媒体名称：test_media
-文章ID：1
-标题：test title
-test content
