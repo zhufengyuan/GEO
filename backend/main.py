@@ -876,8 +876,26 @@ async def question_words_create(req: LexiconCreateRequest, user=Depends(get_curr
             [lid, None, i, w],
         )
     # 2026-08-18：LLM 生成真实搜索问题，替代直接落库的原始关键词
+    # 2026-08-25 P0修复：从知识库读取企业资料库内容，传入种子关键词
     questions = []
     try:
+        # P0-2: 从知识库读取企业统一规范介绍（enterprise_library）
+        _elib_content = ""
+        try:
+            _kb_docs_row = query_row(
+                "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
+                [user["id"], "docs"],
+            ) or {}
+            if _kb_docs_row and _kb_docs_row.get("content"):
+                _kb_docs_data = json.loads(_kb_docs_row["content"])
+                if isinstance(_kb_docs_data, dict):
+                    _elib_content = str(_kb_docs_data.get("enterprise_library") or "").strip()
+        except Exception as _e:
+            print(f"[question-words] 读取企业资料库失败：{_e}")
+
+        # P0-3: 种子关键词 = 用户传入的 keywords 去重列表
+        _seed_kw = ", ".join(keywords2) if keywords2 else ""
+
         prompt = build_question_words_prompt(
             company=req.company or "",
             keyword=req.industry_keyword or (keywords2[0] if keywords2 else ""),
@@ -885,9 +903,21 @@ async def question_words_create(req: LexiconCreateRequest, user=Depends(get_curr
             customer_type=customer_type,
             decision_stage=req.decision_stage or "",
             words=words_obj,
+            enterprise_library_content=_elib_content,
+            seed_keywords=_seed_kw,
         )
+        # 2026-08-25 P1-1修复：为问题词端点注入行业规则（与ai-execute通用注入保持一致）
+        try:
+            from backend.services.prompt_service import inject_industry_rules
+            _ind_qw = str(req.industry_keyword or "").strip()
+            if _ind_qw:
+                prompt = inject_industry_rules(prompt, _ind_qw)
+        except Exception as _e:
+            print(f"[question-words] 行业规则注入失败：{_e}")
+
         out = await async_call_llm(prompt)
         if out:
+
             for line in str(out).splitlines():
                 s = line.strip()
                 if not s:
@@ -1757,7 +1787,10 @@ async def article_writing_optimize(body: dict, user=Depends(get_current_user)):
 async def article_writing_rewrite(body: dict, user=Depends(get_current_user)):
     from backend.database import query_row
     from backend.services.llm_service import async_call_llm
-    from backend.services.prompt_service import build_article_writing_rewrite_prompt
+    from backend.services.prompt_service import (
+        build_article_writing_rewrite_prompt,
+        build_article_writing_rewrite_with_suggestions_prompt,
+    )
 
     payload = dict(body or {})
     lexicon_id = int(payload.get("lexicon_id") or payload.get("lexiconId") or 0)
@@ -1766,6 +1799,15 @@ async def article_writing_rewrite(body: dict, user=Depends(get_current_user)):
     platforms = str(payload.get("platforms") or "").strip()
     user_input = str(payload.get("user_input") or payload.get("userInput") or "").strip()
     article_text = str(payload.get("content") or payload.get("text") or "").strip()
+    # 第二阶段（2026-08-25）：按优化建议重新生成文案 —— suggestions 必填走新模板输出全文
+    suggestions = str(payload.get("suggestions") or payload.get("previous_suggestions") or "").strip()
+    article_id = payload.get("article_id")
+    article_ids = payload.get("article_ids")
+    brand_idx = payload.get("brand_idx")
+
+    # 未直接传全文时，按 article_id / article_ids 后端自动取文
+    if not article_text:
+        article_text = _fetch_rerun_article_text(article_id, article_ids)
 
     if not article_text:
         return fail("INVALID_PARAM", "content 不能为空")
@@ -1790,16 +1832,236 @@ async def article_writing_rewrite(body: dict, user=Depends(get_current_user)):
     kb_base = load_kb_section("企业基础信息")
     kb_docs = load_kb_section("docs")
 
-    prompt = build_article_writing_rewrite_prompt(
+    if suggestions:
+        # 按优化建议重写：结合建议 + 知识库 + 用户关键信息，输出完整新文案
+        try:
+            b_idx = int(brand_idx)
+        except Exception:
+            b_idx = None
+        prompt = build_article_writing_rewrite_with_suggestions_prompt(
+            enterprise=enterprise,
+            lexicon=lexicon,
+            kb_base=kb_base,
+            kb_docs=kb_docs,
+            task_tab=task_tab,
+            task_question_text=question_text,
+            task_platforms=platforms,
+            task_user_input=user_input,
+            article_text=article_text,
+            suggestions=suggestions,
+            brand_idx=b_idx,
+        )
+    else:
+        # 旧行为：无优化建议时保持原 rewrite 流程（仅兼容，不推荐走此路径）
+        prompt = build_article_writing_rewrite_prompt(
+            enterprise=enterprise,
+            lexicon=lexicon,
+            kb_base=kb_base,
+            kb_docs=kb_docs,
+            task_tab=task_tab,
+            task_question_text=question_text,
+            task_platforms=platforms,
+            task_user_input=user_input,
+            article_text=article_text,
+        )
+
+    if not prompt:
+        return fail("LLM_ERROR", "提示词模板缺失")
+
+    raw = str((await async_call_llm(prompt)) or "").strip()
+    if not raw:
+        return fail("LLM_ERROR", "大模型服务无返回，请稍后重试")
+
+    # 第三阶段（2026-08-25）：按优化建议重写结果自动保存回 articles 表
+    saved = False
+    save_error = ""
+    title = ""
+    if suggestions:
+        from backend.database import execute
+
+        title = _extract_article_title(raw, lexicon)
+        aid = _resolve_rewrite_target_id(article_id, article_ids, brand_idx)
+        if aid:
+            try:
+                execute(
+                    "UPDATE articles SET title=%s, content=%s, updated_at=NOW() WHERE id=%s",
+                    [title, raw, aid],
+                )
+                saved = True
+            except Exception as e:  # noqa: BLE001
+                save_error = f"重写结果已生成，但自动保存失败：{e}"
+        else:
+            save_error = "未提供 article_id，重写结果仅更新页面初稿，未写入文章库"
+
+    return ok({"text": raw, "suggestions": raw, "title": title, "saved": saved, "save_error": save_error})
+
+
+# ================= 优化建议 Rerun（5 个独立接口，三场景五按钮） =================
+# 2026-08-25：product / brand×3 / activity 各一个独立 rerun 接口。
+# 提示词三段式：文案优化原文提示词（{{text}} 占位符）+ 第一次优化内容 + 重新优化指令。
+# 原文获取：前端传 text 直接给全文；或传 article_id/article_ids，后端自动从 articles 表取文。
+
+def _extract_article_title(raw, lexicon=None):
+    """从 LLM 输出提取标题：优先显式 '标题：xxx' 行；否则取第一个非空行并去除 Markdown '#' 前缀。空则用词库公司+行业关键词兜底。"""
+    text = str(raw or "").strip()
+    title = ""
+    for line in text.split("\n"):
+        s = line.strip()
+        if not s:
+            continue
+        if s.startswith("标题：") or s.startswith("标题:"):
+            title = s.replace("标题：", "").replace("标题:", "").strip()
+            break
+        title = s.lstrip("#").strip()
+        break
+    title = title[:120]
+    if not title:
+        lexicon = lexicon or {}
+        title = (
+            str(lexicon.get("company", "") or "") + " " + str(lexicon.get("industry_keyword", "") or "")
+        ).strip()[:120]
+    return title
+
+
+def _resolve_rewrite_target_id(article_id, article_ids, brand_idx):
+    """解析重写结果要保存回的文章记录 ID：article_id 优先；否则 article_ids（brand 多版本）按 brand_idx 取对应。"""
+    if article_id is not None:
+        try:
+            v = int(article_id)
+        except Exception:
+            v = 0
+        return v if v > 0 else None
+    if article_ids is None:
+        return None
+    raw_ids = article_ids if isinstance(article_ids, list) else [article_ids]
+    ids = []
+    for x in raw_ids:
+        try:
+            v = int(x)
+        except Exception:
+            continue
+        if v > 0:
+            ids.append(v)
+    if not ids:
+        return None
+    if brand_idx is not None:
+        try:
+            b = int(brand_idx)
+        except Exception:
+            b = None
+        if b is not None and 0 <= b < len(ids):
+            return ids[b]
+    return ids[0]
+
+
+def _fetch_rerun_article_text(article_id, article_ids):
+    """按 article_id / article_ids 从 articles 表取回已生成文案原文（标题 + 正文）。"""
+    from backend.database import query_row
+    ids = []
+    if article_ids is not None:
+        raw_ids = article_ids if isinstance(article_ids, list) else [article_ids]
+        for x in raw_ids:
+            try:
+                v = int(x)
+            except Exception:
+                continue
+            if v > 0:
+                ids.append(v)
+    elif article_id is not None:
+        try:
+            v = int(article_id)
+        except Exception:
+            v = 0
+        if v > 0:
+            ids.append(v)
+    if not ids:
+        return ""
+    parts = []
+    for aid in ids:
+        row = query_row("SELECT title, content FROM articles WHERE id=%s", [aid]) or {}
+        c = str(row.get("content") or "").strip()
+        if not c:
+            continue
+        t = str(row.get("title") or "").strip()
+        parts.append((f"标题：{t}" if t else "") + "\n" + c)
+    return "\n\n".join(parts)
+
+
+async def _article_suggestions_rerun(body: dict, user, scene: str, brand_idx=None):
+    from backend.database import query_row
+    from backend.services.llm_service import async_call_llm
+    from backend.services.prompt_service import build_article_writing_suggestions_rerun_prompt
+
+    payload = dict(body or {})
+    lexicon_id = int(payload.get("lexicon_id") or payload.get("lexiconId") or 0)
+    question_text = str(payload.get("question_text") or payload.get("questionText") or "").strip()
+    platforms = str(payload.get("platforms") or "").strip()
+    user_input = str(payload.get("user_input") or payload.get("userInput") or "").strip()
+    product = payload.get("product")
+    products = payload.get("products") if isinstance(payload.get("products"), list) else []
+    images = payload.get("images") if isinstance(payload.get("images"), list) else []
+    text = str(payload.get("text") or payload.get("content") or "").strip()
+    article_id = payload.get("article_id")
+    article_ids = payload.get("article_ids")
+    previous_suggestions = str(
+        payload.get("previous_suggestions") or payload.get("previousSuggestions") or ""
+    ).strip()
+    rerun_round = int(payload.get("rerun_round") or 2)
+
+    if not previous_suggestions:
+        return fail("INVALID_PARAM", "previous_suggestions 不能为空（请先完成一次创作生成优化建议）")
+
+    if not text:
+        text = _fetch_rerun_article_text(article_id, article_ids)
+    if not text:
+        return fail("INVALID_PARAM", "text 或 article_id 不能为空")
+
+    enterprise = query_row("SELECT * FROM enterprise_base_info ORDER BY id DESC LIMIT 1") or {}
+    lexicon = query_row("SELECT * FROM lexicons WHERE id=%s", [lexicon_id]) if lexicon_id > 0 else None
+    lexicon = lexicon or {}
+
+    def load_kb_section(sec: str):
+        row = query_row(
+            "SELECT content FROM knowledge_base_sections WHERE user_id=%s AND section=%s",
+            [user["id"], sec],
+        ) or {}
+        content = row.get("content")
+        if not content:
+            return None
+        try:
+            return json.loads(content)
+        except Exception:
+            return content
+
+    kb_base = load_kb_section("企业基础信息")
+    kb_docs = load_kb_section("docs")
+
+    def _safe_json(v):
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return v
+        try:
+            return json.dumps(v, ensure_ascii=False)
+        except Exception:
+            return str(v)
+
+    prompt = build_article_writing_suggestions_rerun_prompt(
         enterprise=enterprise,
         lexicon=lexicon,
         kb_base=kb_base,
         kb_docs=kb_docs,
-        task_tab=task_tab,
+        task_tab=scene if scene in ("product", "brand", "activity") else str(payload.get("tab") or ""),
         task_question_text=question_text,
         task_platforms=platforms,
         task_user_input=user_input,
-        article_text=article_text,
+        task_product_json=_safe_json(product),
+        task_products_json=_safe_json(products),
+        task_images_json=_safe_json(images),
+        text=text,
+        previous_suggestions=previous_suggestions,
+        rerun_round=rerun_round,
+        brand_idx=brand_idx,
     )
 
     if not prompt:
@@ -1809,7 +2071,32 @@ async def article_writing_rewrite(body: dict, user=Depends(get_current_user)):
     if not raw:
         return fail("LLM_ERROR", "大模型服务无返回，请稍后重试")
 
-    return ok({"text": raw, "suggestions": raw})
+    return ok({"text": raw})
+
+
+@app.post("/api/v1/article-writing/suggestions/rerun/product")
+async def article_suggestions_rerun_product(body: dict, user=Depends(get_current_user)):
+    return await _article_suggestions_rerun(body, user, scene="product")
+
+
+@app.post("/api/v1/article-writing/suggestions/rerun/brand/0")
+async def article_suggestions_rerun_brand0(body: dict, user=Depends(get_current_user)):
+    return await _article_suggestions_rerun(body, user, scene="brand", brand_idx=0)
+
+
+@app.post("/api/v1/article-writing/suggestions/rerun/brand/1")
+async def article_suggestions_rerun_brand1(body: dict, user=Depends(get_current_user)):
+    return await _article_suggestions_rerun(body, user, scene="brand", brand_idx=1)
+
+
+@app.post("/api/v1/article-writing/suggestions/rerun/brand/2")
+async def article_suggestions_rerun_brand2(body: dict, user=Depends(get_current_user)):
+    return await _article_suggestions_rerun(body, user, scene="brand", brand_idx=2)
+
+
+@app.post("/api/v1/article-writing/suggestions/rerun/activity")
+async def article_suggestions_rerun_activity(body: dict, user=Depends(get_current_user)):
+    return await _article_suggestions_rerun(body, user, scene="activity")
 
 @app.get("/api/v1/official-media")
 async def official_media_list(

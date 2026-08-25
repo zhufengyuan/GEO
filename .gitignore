@@ -35,10 +35,8 @@ npm-debug.log
 Thumbs.db
 desktop.ini
 
-# Runtime uploads (user-generated / diagnosis outputs at runtime)
+# Runtime uploads (user-generated files at runtime)
 data/uploads/
-backend/uploads/
-uploads/
 
 # Business data files (contain confidential pricing/data)
 data/*.xls
@@ -51,15 +49,3 @@ data/*.xlsx
 
 # Debug
 .dbg/
-debug-*.md
-
-# Dated backup files/folders (only final versions are tracked)
-*.bak
-*.bak.*
-*.bak_*
-*_bak.*
-*_bak.py
-backup_*/
-
-# Runtime logs
-*.log

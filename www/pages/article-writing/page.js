@@ -56,8 +56,7 @@ const Page = {
     const brandCopyTypeRoot = document.getElementById('brandCopyType');
     const articleBox = document.getElementById('awArticleBox');
     const suggestBox = document.getElementById('awSuggestBox');
-    const copyConfirmBtn = document.getElementById('awCopyConfirmBtn');
-    const copyReoptBtn = document.getElementById('awCopyReoptBtn');
+    const copyRewriteBtn = document.getElementById('awCopyRewriteBtn');
     const suggestHint = document.getElementById('awSuggestHint');
     const suggestSingle = document.getElementById('awSuggestSingle');
     const brandSuggestWrap = document.getElementById('awBrandSuggestWrap');
@@ -71,9 +70,12 @@ const Page = {
       document.getElementById('awBrandSuggestBox1'),
       document.getElementById('awBrandSuggestBox2'),
     ];
-    const brandReoptBtns = Array.from(root.querySelectorAll('.aw-brand-reopt-btn'));
-    const brandConfirmBtns = Array.from(root.querySelectorAll('.aw-brand-confirm-btn'));
+    const brandRewriteBtns = Array.from(root.querySelectorAll('.aw-brand-rewrite-btn'));
     const brandSuggestHints = Array.from(root.querySelectorAll('.aw-brand-suggest-hint'));
+    const awRewriteModal = document.getElementById('awRewriteModal');
+    const awRewriteGoKb = document.getElementById('awRewriteGoKb');
+    const awRewriteProceed = document.getElementById('awRewriteProceed');
+    const awRewriteClose = document.getElementById('awRewriteClose');
     const startBtns = {
       product: root.querySelector('.aw-start-create[data-tab="product"]'),
       brand: root.querySelector('.aw-start-create[data-tab="brand"]'),
@@ -113,6 +115,15 @@ const Page = {
       suggestReqId: '',
       suggestTab: '',
       suggestReqMap: {},
+      rerunReqId: '',
+      rerunTab: '',
+      rerunBrandIdx: null,
+      // 第二阶段（2026-08-25）：按优化建议重新生成文案（替换初稿输出框）
+      rewriteBySuggestReqId: '',
+      rewriteBySuggestTab: '',
+      rewriteBySuggestIdx: null,
+      rewriteModalTab: '',
+      rewriteModalIdx: null,
       rewriteQueue: [],
       pendingRewriteItem: null,
       rewriteReqId: '',
@@ -198,11 +209,7 @@ const Page = {
     };
 
     const setRewriteEnabled = (enabled) => {
-      if (copyReoptBtn) copyReoptBtn.disabled = !enabled;
-    };
-
-    const setConfirmEnabled = (enabled) => {
-      if (copyConfirmBtn) copyConfirmBtn.disabled = !enabled;
+      if (copyRewriteBtn) copyRewriteBtn.disabled = !enabled;
     };
 
     const getProductContext = () => {
@@ -338,30 +345,28 @@ const Page = {
 
       if (tab !== 'brand') {
       } else {
-        brandReoptBtns.forEach((btn) => (btn.disabled = !(hasBase && !state.generating)));
-        brandConfirmBtns.forEach((btn) => (btn.disabled = !(hasPendingRewrite && !state.generating)));
+        brandRewriteBtns.forEach((btn) => (btn.disabled = !(hasBase && !state.generating)));
         brandSuggestHints.forEach((el) => {
           if (!(el instanceof HTMLElement)) return;
-          el.textContent = hasPendingRewrite ? '已生成改稿版本，请点击“确定”写入文章管理。' : '';
+          el.textContent = '';
         });
       }
 
       setRewriteEnabled(hasBase && !state.generating);
-      setConfirmEnabled(hasPendingRewrite && !state.generating);
       renderArticleBox();
       renderSuggestBox();
       renderBrandArticleBoxes();
       renderBrandSuggestBoxes();
-      if (suggestHint) suggestHint.textContent = tab === 'brand' ? '' : (hasPendingRewrite ? '已生成改稿版本，请点击“确定”写入文章管理。' : '');
+      if (suggestHint) suggestHint.textContent = tab === 'brand' ? '' : '';
     }
 
-    brandReoptBtns.forEach((btn) => {
-      btn.addEventListener('click', () => startRewriteForActiveTab());
-    });
-    brandConfirmBtns.forEach((btn) => {
+    brandRewriteBtns.forEach((btn) => {
       btn.addEventListener('click', () => {
-        const idx = parseInt(String(btn.getAttribute('data-idx') || ''), 10);
-        confirmRewriteSave(Number.isFinite(idx) ? idx : undefined);
+        // 每个"按优化建议重新生成"按钮按卡片 data-idx 独立重写对应版本
+        const card = btn.closest?.('.aw-suggest-card');
+        const rawIdx = card?.getAttribute?.('data-idx');
+        const idx = parseInt(String(rawIdx || ''), 10);
+        startRewriteBySuggestions('brand', Number.isFinite(idx) ? idx : 0);
       });
     });
 
@@ -899,26 +904,84 @@ const Page = {
       if (d.type === 'geo_article_writing_rewrite_result') {
         const payload = d.payload || {};
         const reqId = String(payload.req_id || '');
-        const item = state.pendingRewriteItem;
-        if (!item || (reqId && reqId !== String(item.reqId || ''))) return;
         const ok = payload && payload.ok === true;
         const text = String(payload.text || '').trim();
+        // 第二阶段：按优化建议重新生成（单次请求，结果替换"初稿"输出框）
+        if (reqId && reqId !== String(state.rewriteBySuggestReqId || '')) return;
+        const tab = String(state.rewriteBySuggestTab || state.activeTab || 'product');
+        const idx = typeof state.rewriteBySuggestIdx === 'number' ? state.rewriteBySuggestIdx : null;
+        state.generating = false;
+        state.rewriteBySuggestReqId = '';
+        setStartBtnState(tab, false, '开启创作');
         if (!ok || !text) {
-          state.generating = false;
-          state.rewriteQueue = [];
-          state.pendingRewriteItem = null;
-          state.rewriteResults = [];
-          setStartBtnState(state.rewriteTab || state.activeTab, false, '开启创作');
-          if (copyReoptBtn) copyReoptBtn.disabled = false;
-          if (suggestHint) suggestHint.textContent = payload?.error || '重新优化失败';
+          const msg = payload?.error || '按优化建议重新生成失败';
+          if (tab === 'brand') {
+            if (idx !== null && brandSuggestHints[idx]) brandSuggestHints[idx].textContent = msg;
+          } else if (suggestHint) {
+            suggestHint.textContent = msg;
+          }
           return;
         }
-        state.rewriteResults = (Array.isArray(state.rewriteResults) ? state.rewriteResults : []).concat([{
-          title: item.title || '',
-          content: text
-        }]);
-        state.pendingRewriteItem = null;
-        runNextRewrite();
+        // 用重写结果替换对应版本的初稿
+        const list = Array.isArray(state.articlesByTab?.[tab]) ? state.articlesByTab[tab] : [];
+        const targetIdx = tab === 'brand' ? (idx ?? 0) : 0;
+        if (list[targetIdx]) {
+          list[targetIdx].content = text;
+          const newTitle = String(payload.title || '').trim();
+          if (newTitle) list[targetIdx].title = newTitle;
+        }
+        renderArticleBox();
+        renderBrandArticleBoxes();
+        const saved = payload?.saved === true;
+        const saveError = String(payload?.save_error || '').trim();
+        const doneMsg = saved
+          ? '已按优化建议重新生成，初稿已更新，并已自动保存到文章库。'
+          : (saveError
+            ? '已按优化建议重新生成，初稿已更新。' + saveError
+            : '已按优化建议重新生成，初稿已更新。');
+        if (tab === 'brand') {
+          if (idx !== null && brandSuggestHints[idx]) brandSuggestHints[idx].textContent = doneMsg;
+        } else if (suggestHint) {
+          suggestHint.textContent = doneMsg;
+        }
+        return;
+      }
+      // ===== 优化建议 Rerun 结果（5 个独立接口，三场景五按钮） =====
+      const rerunMeta = {
+        geo_article_writing_suggestions_rerun_product_result: { tab: 'product', idx: null },
+        geo_article_writing_suggestions_rerun_brand0_result: { tab: 'brand', idx: 0 },
+        geo_article_writing_suggestions_rerun_brand1_result: { tab: 'brand', idx: 1 },
+        geo_article_writing_suggestions_rerun_brand2_result: { tab: 'brand', idx: 2 },
+        geo_article_writing_suggestions_rerun_activity_result: { tab: 'activity', idx: null }
+      }[d.type];
+      if (rerunMeta) {
+        const payload = d.payload || {};
+        const reqId = String(payload.req_id || '');
+        if (reqId && reqId !== String(state.rerunReqId || '')) return;
+        const ok = payload && payload.ok === true;
+        const text = String(payload.text || '').trim();
+        state.generating = false;
+        setStartBtnState(rerunMeta.tab, false, '开启创作');
+        if (!ok || !text) {
+          const msg = payload?.error || '重新优化失败';
+          if (rerunMeta.tab === 'brand') {
+            if (brandSuggestHints[rerunMeta.idx]) brandSuggestHints[rerunMeta.idx].textContent = msg;
+          } else if (suggestHint) {
+            suggestHint.textContent = msg;
+          }
+          return;
+        }
+        if (rerunMeta.tab === 'brand') {
+          const arr = Array.isArray(state.suggestionsByTab.brand) ? state.suggestionsByTab.brand.slice(0, 3) : ['', '', ''];
+          arr[rerunMeta.idx] = text;
+          state.suggestionsByTab.brand = arr;
+          renderBrandSuggestBoxes();
+          if (brandSuggestHints[rerunMeta.idx]) brandSuggestHints[rerunMeta.idx].textContent = '';
+        } else {
+          state.suggestionsByTab[rerunMeta.tab] = text;
+          if (rerunMeta.tab === state.activeTab) renderSuggestBox();
+          if (suggestHint) suggestHint.textContent = '';
+        }
         return;
       }
       if (d.type === 'geo_article_generate_result') {
@@ -1001,48 +1064,29 @@ const Page = {
     lexiconSelect?.addEventListener('change', requestQuestions);
     show('product');
 
-    function confirmRewriteSave(onlyIdx) {
+    // ===== 第二阶段：按优化建议重新生成（弹窗 + 重写） =====
+    const openRewriteModal = () => awRewriteModal?.classList.add('show');
+    const closeRewriteModal = () => awRewriteModal?.classList.remove('show');
+    awRewriteClose?.addEventListener('click', closeRewriteModal);
+    awRewriteModal?.addEventListener('click', (e) => {
+      if (e.target === awRewriteModal) closeRewriteModal();
+    });
+    awRewriteGoKb?.addEventListener('click', () => {
+      closeRewriteModal();
+      // 去完善：跳转企业知识库页面
+      window.navigateTo?.('knowledge-base');
+    });
+    awRewriteProceed?.addEventListener('click', () => {
+      closeRewriteModal();
+      doRewriteBySuggestions();
+    });
+
+    // product / activity 共用按钮，按当前 tab 触发"按优化建议重新生成"流程
+    copyRewriteBtn?.addEventListener('click', () => {
       const tab = String(state.activeTab || 'product');
-      const pending = state.pendingRewrite;
-      if (!pending || pending.tab !== tab || !Array.isArray(pending.contents) || !pending.contents.length) {
-        alert('请先点击“重新优化”生成改稿版本，再点击确定。');
-        return;
-      }
-      const baseTask = state.lastTaskByTab?.[tab];
-      if (!baseTask) {
-        alert('缺少创作上下文，请先点击“开启创作”。');
-        return;
-      }
-      state.saveMode = 'rewrite_save';
-      state.saveNavAfter = true;
-      const picked = (tab === 'brand' && Number.isFinite(onlyIdx))
-        ? [pending.contents[onlyIdx]]
-        : pending.contents;
-      state.saveQueue = picked
-        .filter((x) => x && typeof x === 'object')
-        .map((it, idx) => {
-        const originalIdx = (tab === 'brand' && Number.isFinite(onlyIdx)) ? Number(onlyIdx) : idx;
-        const t = String(it?.title || '').trim();
-        const c = String(it?.content || '').trim();
-        const prefix = tab === 'brand' ? `【改稿${originalIdx + 1}】` : '【改稿】';
-        return {
-          tab,
-          payload: {
-            ...baseTask,
-            title: `${prefix}${t || (baseTask.title || '')}`.slice(0, 120),
-            content: c,
-            ts: Date.now()
-          }
-        };
-      });
-      state.pendingRewrite = null;
-      setConfirmEnabled(false);
-      runNextSave();
-    }
-
-    copyConfirmBtn?.addEventListener('click', () => confirmRewriteSave());
-
-    copyReoptBtn?.addEventListener('click', () => startRewriteForActiveTab());
+      if (tab === 'brand') return;
+      startRewriteBySuggestions(tab, null);
+    });
 
     lexiconSearchBtn?.addEventListener('click', () => {
       state.lexiconKeyword = String(lexiconKeywordEl?.value || '').trim();
@@ -1483,58 +1527,130 @@ const Page = {
       invokeGeoAction('geoArticleGenerate', item.payload, '文章生成接口尚未就绪，请刷新页面后重试。');
     }
 
-    function startRewriteForActiveTab() {
+    // 优化建议 Rerun：5 个"重新优化"按钮各自独立调用对应接口（product / brand×3 / activity）
+    // previous_suggestions 取右侧已生成的优化建议；原文取文章列表的 article_id，后端自动取文（无需从对话框复制）
+    function startSuggestionsRerun(tab, brandIdx) {
       if (state.generating) return;
-      const tab = String(state.activeTab || 'product');
+      tab = String(tab || state.activeTab || 'product');
       const baseTask = state.lastTaskByTab?.[tab];
-      const baseArticles = Array.isArray(state.articlesByTab?.[tab]) ? state.articlesByTab[tab] : [];
-      if (!baseTask || !baseArticles.length) {
+      const list = Array.isArray(state.articlesByTab?.[tab]) ? state.articlesByTab[tab] : [];
+      if (!baseTask || !list.length) {
         alert('请先点击“开启创作”生成文章后再重新优化。');
         return;
       }
-      state.pendingRewrite = null;
-      state.rewriteResults = [];
-      state.rewriteQueue = baseArticles.map((it, idx) => {
-        const reqId = String(Date.now() + idx);
-        const title = String(it?.title || `文案${idx + 1}`).trim();
-        const content = String(it?.content || '').trim();
-        const userInput = String(baseTask.user_input || '').trim();
-        const enhancedUserInput = userInput
-          ? `${userInput}\n\n- 改稿要求：输出第${idx + 1}个改稿版本，与原文差异明显，但事实保持一致。`
-          : `- 改稿要求：输出第${idx + 1}个改稿版本，与原文差异明显，但事实保持一致。`;
-        return {
-          reqId,
-          tab,
-          title,
-          payload: { ...baseTask, req_id: reqId, content, user_input: enhancedUserInput, ts: Date.now() }
-        };
-      });
-      state.rewriteTab = tab;
-      state.generating = true;
-      if (copyReoptBtn) copyReoptBtn.disabled = true;
-      if (suggestHint) suggestHint.textContent = '重新优化中...';
-      runNextRewrite();
-    }
-
-    function runNextRewrite() {
-      if (state.pendingRewriteItem) return;
-      const item = Array.isArray(state.rewriteQueue) && state.rewriteQueue.length ? state.rewriteQueue.shift() : null;
-      if (!item) {
-        state.generating = false;
-        if (copyReoptBtn) copyReoptBtn.disabled = false;
-        const tab = String(state.rewriteTab || state.activeTab || 'product');
-        const results = Array.isArray(state.rewriteResults) ? state.rewriteResults : [];
-        if (results.length) {
-          state.pendingRewrite = { tab, contents: results };
-          requestSuggestionsForTab(tab, results);
-          syncSuggestUi();
-        } else {
-          syncSuggestUi();
-        }
+      let previousSuggestions = '';
+      if (tab === 'brand') {
+        const arr = Array.isArray(state.suggestionsByTab?.brand) ? state.suggestionsByTab.brand : [];
+        previousSuggestions = String(arr[brandIdx] || '').trim();
+      } else {
+        previousSuggestions = String(state.suggestionsByTab?.[tab] || '').trim();
+      }
+      if (!previousSuggestions) {
+        alert('暂无可重新优化的优化建议，请先完成一次创作生成优化建议。');
         return;
       }
-      state.pendingRewriteItem = item;
-      invokeGeoAction('geoArticleWritingRewrite', item.payload, '重新优化接口尚未就绪，请刷新页面后重试。');
+      const articleIds = list.map((it) => it?.article_id).filter((v) => v !== undefined && v !== null && v !== '');
+      const reqId = String(Date.now());
+      state.rerunReqId = reqId;
+      state.rerunTab = tab;
+      state.rerunBrandIdx = typeof brandIdx === 'number' ? brandIdx : null;
+      const payload = {
+        ...baseTask,
+        req_id: reqId,
+        previous_suggestions: previousSuggestions,
+        rerun_round: 2,
+        ts: Date.now()
+      };
+      if (articleIds.length) {
+        if (tab === 'brand') {
+          const v = articleIds[brandIdx] !== undefined ? articleIds[brandIdx] : articleIds[0];
+          if (v !== undefined) payload.article_id = v;
+        } else {
+          payload.article_ids = articleIds;
+        }
+      }
+      state.generating = true;
+      setStartBtnState(tab, true, '生成中...');
+      if (tab === 'brand') {
+        if (brandSuggestHints[brandIdx]) brandSuggestHints[brandIdx].textContent = '重新优化中...';
+      } else if (suggestHint) {
+        suggestHint.textContent = '重新优化中...';
+      }
+      const fnName = tab === 'brand'
+        ? ['geoArticleWritingSuggestionsRerunBrand0', 'geoArticleWritingSuggestionsRerunBrand1', 'geoArticleWritingSuggestionsRerunBrand2'][brandIdx]
+        : (tab === 'product' ? 'geoArticleWritingSuggestionsRerunProduct' : 'geoArticleWritingSuggestionsRerunActivity');
+      invokeGeoAction(fnName, payload, '重新优化接口尚未就绪，请刷新页面后重试。');
+    }
+
+    // ===== 第二阶段：按优化建议重新生成文案（单次请求，替换初稿输出框） =====
+    function startRewriteBySuggestions(tab, brandIdx) {
+      if (state.generating) return;
+      tab = String(tab || state.activeTab || 'product');
+      const baseTask = state.lastTaskByTab?.[tab];
+      const list = Array.isArray(state.articlesByTab?.[tab]) ? state.articlesByTab[tab] : [];
+      if (!baseTask || !list.length) {
+        alert('请先点击“开启创作”生成文章后再按优化建议重新生成。');
+        return;
+      }
+      // 取已生成的优化建议（只生成一次，保存显示，不反复重新生成）
+      let suggestions = '';
+      if (tab === 'brand') {
+        const arr = Array.isArray(state.suggestionsByTab?.brand) ? state.suggestionsByTab.brand : [];
+        suggestions = String(arr[brandIdx] || '').trim();
+      } else {
+        suggestions = String(state.suggestionsByTab?.[tab] || '').trim();
+      }
+      if (!suggestions) {
+        alert('暂无可用的优化建议，请先完成一次创作生成优化建议。');
+        return;
+      }
+      // 弹窗：是否先去企业知识库完善材料
+      state.rewriteModalTab = tab;
+      state.rewriteModalIdx = typeof brandIdx === 'number' ? brandIdx : null;
+      openRewriteModal();
+    }
+
+    function doRewriteBySuggestions() {
+      const tab = String(state.rewriteModalTab || state.activeTab || 'product');
+      const idx = typeof state.rewriteModalIdx === 'number' ? state.rewriteModalIdx : null;
+      if (state.generating) return;
+      const baseTask = state.lastTaskByTab?.[tab];
+      const list = Array.isArray(state.articlesByTab?.[tab]) ? state.articlesByTab[tab] : [];
+      if (!baseTask || !list.length) return;
+      let suggestions = '';
+      if (tab === 'brand') {
+        const arr = Array.isArray(state.suggestionsByTab?.brand) ? state.suggestionsByTab.brand : [];
+        suggestions = String(arr[idx] || '').trim();
+      } else {
+        suggestions = String(state.suggestionsByTab?.[tab] || '').trim();
+      }
+      if (!suggestions) {
+        alert('暂无可用的优化建议，请先完成一次创作生成优化建议。');
+        return;
+      }
+      const targetIdx = tab === 'brand' ? (typeof idx === 'number' ? idx : 0) : 0;
+      const articleId = list[targetIdx]?.article_id;
+      const reqId = String(Date.now());
+      state.rewriteBySuggestReqId = reqId;
+      state.rewriteBySuggestTab = tab;
+      state.rewriteBySuggestIdx = typeof idx === 'number' ? idx : null;
+      const payload = {
+        ...baseTask,
+        req_id: reqId,
+        suggestions,
+        ts: Date.now()
+      };
+      // 优先传 article_id 让后端自动取文；取不到才直接传原文
+      if (articleId) payload.article_id = articleId;
+      else payload.content = String(list[targetIdx]?.content || '').trim();
+      state.generating = true;
+      setStartBtnState(tab, true, '生成中...');
+      if (tab === 'brand') {
+        if (idx !== null && brandSuggestHints[idx]) brandSuggestHints[idx].textContent = '按优化建议重新生成中...';
+      } else if (suggestHint) {
+        suggestHint.textContent = '按优化建议重新生成中...';
+      }
+      invokeGeoAction('geoArticleWritingRewrite', payload, '按优化建议重新生成接口尚未就绪，请刷新页面后重试。');
     }
 
     function runNextSave() {

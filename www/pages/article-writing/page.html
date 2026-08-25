@@ -363,7 +363,7 @@
           <div class="aw-result-section">
             <div class="aw-result-head">
               <div class="step-title aw-result-title" style="margin:0;">初稿文案</div>
-              <div class="page-muted aw-result-desc">初稿满意后，点击确认保存，或者根据优化建议，补充材料后重新生成</div>
+              <div class="page-muted aw-result-desc">初稿不满意？点击"按优化建议重新生成"，结合优化建议重新生成文案</div>
             </div>
             <div class="aw-result-box aw-result-box--article" id="awArticleBox"></div>
           </div>
@@ -376,8 +376,7 @@
           </div>
         </div>
         <div class="aw-suggest-bottom aw-suggest-bottom--single">
-          <button class="btn-solid" id="awCopyReoptBtn" disabled>重新优化</button>
-          <button class="btn-primary" id="awCopyConfirmBtn" disabled>确定</button>
+          <button class="btn-solid" id="awCopyRewriteBtn" disabled>按优化建议重新生成</button>
         </div>
         <div class="page-muted" id="awSuggestHint" style="margin-top:10px;"></div>
       </div>
@@ -401,8 +400,7 @@
             </div>
           </div>
           <div class="aw-suggest-bottom">
-            <button class="btn-solid aw-brand-reopt-btn" disabled>重新优化</button>
-            <button class="btn-primary aw-brand-confirm-btn" data-idx="0" disabled>确定</button>
+            <button class="btn-solid aw-brand-rewrite-btn" data-idx="0" disabled>按优化建议重新生成</button>
           </div>
           <div class="page-muted aw-brand-suggest-hint" style="margin-top:10px;"></div>
         </div>
@@ -425,8 +423,7 @@
             </div>
           </div>
           <div class="aw-suggest-bottom">
-            <button class="btn-solid aw-brand-reopt-btn" disabled>重新优化</button>
-            <button class="btn-primary aw-brand-confirm-btn" data-idx="1" disabled>确定</button>
+            <button class="btn-solid aw-brand-rewrite-btn" data-idx="1" disabled>按优化建议重新生成</button>
           </div>
           <div class="page-muted aw-brand-suggest-hint" style="margin-top:10px;"></div>
         </div>
@@ -449,8 +446,7 @@
             </div>
           </div>
           <div class="aw-suggest-bottom">
-            <button class="btn-solid aw-brand-reopt-btn" disabled>重新优化</button>
-            <button class="btn-primary aw-brand-confirm-btn" data-idx="2" disabled>确定</button>
+            <button class="btn-solid aw-brand-rewrite-btn" data-idx="2" disabled>按优化建议重新生成</button>
           </div>
           <div class="page-muted aw-brand-suggest-hint" style="margin-top:10px;"></div>
         </div>
@@ -480,6 +476,22 @@
     <div class="modal-actions">
       <button class="btn-primary" id="awImgInsertBtn">插入</button>
       <button class="btn-solid" id="awImgCancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="awRewriteModal">
+  <div class="modal-card" style="width: min(460px, calc(100vw - 32px));">
+    <div class="modal-head">
+      <div id="awRewriteModalTitle">按优化建议重新生成</div>
+      <button class="op" id="awRewriteClose" style="color:#fff;">关闭</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:14px;line-height:1.8;color:#1f2937;">是否先去企业知识库完善材料，这样的文案更优质</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-solid" id="awRewriteGoKb">去完善</button>
+      <button class="btn-primary" id="awRewriteProceed">先不完善</button>
     </div>
   </div>
 </div>

@@ -1,95 +1,374 @@
-# GEO 智能优化平台
+# GEO 优化后台管理系统
 
-> 生成式引擎优化（Generative Engine Optimization）——让企业品牌出现在 AI 的回答里。
-
-FastAPI + R Shiny + MySQL 构建的一站式 GEO 内容生产平台：企业知识库沉淀 → AI 文案创作 → 多渠道发布 → 效果数据统计，并为 AI 爬虫提供标准化的 `llms.txt` / `ai-data` 数据出口。
+> 生成式引擎优化（Generative Engine Optimization）——让您的企业品牌出现在 AI 的回答里。
 
 ---
 
 ## 目录
 
+- [项目简介](#项目简介)
 - [核心功能](#核心功能)
 - [技术架构](#技术架构)
 - [目录结构](#目录结构)
 - [环境要求](#环境要求)
 - [快速开始](#快速开始)
-- [生产环境部署](#生产环境部署)
+- [API 文档](#api-文档)
+- [本地开发部署](#本地开发部署)
+- [生产环境部署（CentOS 8 + Nginx + systemd）](#生产环境部署centos-8--nginx--systemd)
 - [数据库结构](#数据库结构)
-- [配置说明](#配置说明)
-- [前端页面一览](#前端页面一览)
-- [AI 数据出口](#ai-数据出口)
+- [前端路由与页面映射](#前端路由与页面映射)
+- [认证机制详解](#认证机制详解)
+- [提示词模板系统](#提示词模板系统)
+- [工作流程](#工作流程)
+- [注意事项](#注意事项)
+
+---
+
+
+
+## 最近更新
+
+> **2026-08-09** — 14项整改部署上线 + 诊断报告标准信息删除 + 优化方案Excel强制输出 + 知识图谱/企业定位修复
+
+### 14项整改全部部署上线（2026-08-09 21:01-21:30）
+- 整改项1：删除企业基础信息"创始人/团队介绍"默认信息
+- 整改项2：全站下载按钮可用（文本→Word，表格→Excel）
+- 整改项3：企业官网诊断删除5个大模型案例按钮，统一文心一言分析
+- 整改项4：官网诊断统一单一大模型爬取（自家/竞争对手）
+- 整改项5：爬取结果按查询ID存储，区分自家/竞争对手
+- 整改项6：文章创作与优化建议使用不同API分支
+- 整改项7：品牌创作自动从企业基础信息提取数据
+- 整改项8：产品宣传创作使用结构化输出分离正文与优化建议
+- 整改项9：删除企业诊断报告标准信息板块
+- 整改项10：修复自媒体/官媒发布未审核文章显示问题
+- 整改项11：优化建议多模型并行优化（子agent+总agent整合）
+- 整改项12：产品宣传创作产品选择由多选改为单选
+- 整改项13：问题词库列表列宽调整与日期简化
+- 整改项14：数据统计页面用户体验优化（空状态、CTA、成就机制、数据对比）
+- Python 3.6兼容性修复：f-string引号嵌套改为变量提取
+- 备份路径：`/srv/shiny-server/GEO/backup_deploy_20260809/`
+
+### 数据统计页面404修复（2026-08-09 21:28）
+- 问题：数据统计页面弹窗404，`/api/v1/dashboard/stats` 端点不存在
+- 修复：`backend/main.py` 新增 `@app.get("/api/v1/dashboard/stats")`，查询文章总数/类型分组/发布记录
+
+### 企业定位AI系统生成修复（2026-08-09 22:21）
+- 问题：企业知识库"企业定位"页面"系统生成"按钮无反应
+- 修复：`backend/main.py` 恢复 `build_kb_positioning_prompt` 导入和 task dispatch；`knowledge-base/page.js` 添加定位生成/保存/回显逻辑
+
+### 知识图谱功能修复（2026-08-09 22:00）
+- 问题：知识库"企业知识图谱"按钮无反应，JS无图谱渲染代码
+- 修复：`knowledge-base/page.js` 新增~220行图谱实现（SVG渲染、节点点击、缩放平移、空状态提示）
+
+### 诊断报告标准信息删除 + 格式约束（2026-08-09 22:55-23:00）
+- 删除5个诊断prompt中的"标准信息"section（企业全称/简称/官网/主营产品等）
+  - `diagnosis_report_prompt.txt`、`diagnosis_report_scrape_prompt.txt`、`website_diagnosis_prompt.txt`、`data_diagnosis_prompt.txt`、`agent_summary_prompt.txt`
+- 添加输出格式约束：纯文档禁止表格呈现文档类内容；Word仅限doc/docx，Excel仅限xlsx/xls；分析报告用Word格式
+- `prompt_service.py`：`build_data_diagnosis_prompt`/`build_website_diagnosis_prompt` 删除标准信息字段传递
+- `diagnosis-report/page.html`：删除"标准信息"card（企业全称/核心产品输入框）
+- `diagnosis-report/page.js`：清空 `prefillFields`/`saveFields` 数组（原引用已删除的input字段）
+
+### 问题词库分页 + 决策阶段中文映射（2026-08-09 22:55）
+- `question-bank-manager/page.js`：添加分页（每页12条）、决策阶段英文→中文映射（awareness→认知触发等）、全局序号、当前页全选
+- `question-bank-manager/page.html`：添加分页容器和样式
+
+### 企业知识库字段调整（2026-08-09 22:55）
+- `knowledge-base/page.html`：插入"客户类型"字段（placeholder="B端企业客户 / C端个人消费者"），"市场布局"改为"区域市场"
+- `knowledge-base/page.js`：SECTIONS数组同步更新
+
+### 优化建议方案Excel强制输出（2026-08-09 23:48）
+- `optimization-plan/page.js`：
+  - 新增 `rawTexts` 数组存储AI返回原始文本（解决表格渲染后 `textContent` 丢失分隔符问题）
+  - `getText` 改为返回原始文本而非 `el.textContent`
+  - `downloadExcel` 移除 `looksLikeTable` 检测和 Word 回退逻辑，直接调用 `window.geoDownloadExcel`
+  - 计划表和评分表强制生成Excel格式
+
+### 文章管理审核状态切换（2026-08-09 21:54）
+- 后端：`/api/v1/articles/{aid}/review` 改为 toggle 逻辑（已审核↔未审核）
+- 前端：审核按钮直接点击切换，已审核显示绿色样式；未审核状态点击发布无效
+
+### 变更文件（2026-08-09）
+| 文件 | 变更 |
+|------|------|
+| `backend/main.py` | 新增 dashboard/stats 路由 + 恢复 kb_positioning task dispatch + Python 3.6兼容性修复 |
+| `backend/services/prompt_service.py` | 删除诊断标准信息字段传递（build_data_diagnosis_prompt/build_website_diagnosis_prompt） |
+| `backend/prompts/diagnosis_report_prompt.txt` | 删除标准信息section + 添加格式约束 |
+| `backend/prompts/diagnosis_report_scrape_prompt.txt` | 删除标准信息section + 添加格式约束 |
+| `backend/prompts/website_diagnosis_prompt.txt` | 删除标准信息section + 添加格式约束 |
+| `backend/prompts/data_diagnosis_prompt.txt` | 删除标准信息section + 添加格式约束 |
+| `backend/prompts/agent_summary_prompt.txt` | 删除背景信息section + 添加格式约束 |
+| `www/pages/diagnosis-report/page.html` | 删除"标准信息"card |
+| `www/pages/diagnosis-report/page.js` | 清空 prefillFields/saveFields 数组 |
+| `www/pages/optimization-plan/page.js` | 新增rawTexts存储 + downloadExcel强制Excel输出 |
+| `www/pages/question-bank-manager/page.js` | 分页(12条/页) + 决策阶段中文映射 |
+| `www/pages/question-bank-manager/page.html` | 分页容器和样式 |
+| `www/pages/knowledge-base/page.html` | 新增"客户类型"字段 + "市场布局"→"区域市场" |
+| `www/pages/knowledge-base/page.js` | SECTIONS数组同步更新 + 知识图谱~220行 + 企业定位生成/保存/回显 |
+| `www/index.js` | geoReviewArticle返回review_status + 14项整改配套 |
+> **2026-08-07 (2)** — 竞品分析报告升级为9章节专业格式
+
+### 报告模板重写
+-  从8章节升级为9章节+附录的专业报告结构
+- 新增【九、执行保障建议】：团队配置、工具推荐、复盘机制、竞品监控、风险预案
+- 新增【附录：待核查清单汇总】：统一汇总全报告中的待核查项，含核查方法与状态
+- 执行清单细化：第七节明确90天三个阶段（快速见效→深度优化→巩固超越），每项含负责人建议/完成标准/P级
+- 第八节拆分为品牌/流量/数据/生态四大壁垒，均附时间里程碑与关键指标
+- 所有表格规范化：竞品名单表、SEO对标表、横向对比总表、差距分析表均使用Markdown表格格式
+- 差异化策略细化：3-5个策略，每个附差异化指数/切入逻辑/具体打法/预期效果/资源需求/风险提示
+|  | 219行，完整9章+附录报告模板 |
+> **2026-08-07** — 竞品分析自动化 + 爬虫增强
+
+### 竞品自动发现（competitor-analysis）
+- 竞品分析不再需要手动输入竞品名称。系统自动从企业知识库（产品 + 行业 + 销售区域）构建查询，交由大模型推荐竞争对手公司。
+- 对每个发现的竞品，自动通过百度搜索定位其官网并爬取页面内容。
+- 爬取的竞品官网内容实时注入分析提示词，实现**真正的多维度竞品对比**（无需人工调研）。
+
+### 爬虫反爬回退
+- 当官网爬取遇到反爬措施（HTTP 403 / 429 / 503）时，自动下载原始 HTML 并**交由大模型直接解析**提取有用文本，避免爬虫彻底失败。
+
+### 语料检测机制
+- 新增 `segment_and_summarize_long_content()` 函数：当竞品爬取内容过长（单个竞品 > 6000 字或总计 > 35000 字），自动分段调用大模型进行摘要提取，整合后再注入分析 prompt。
+- 防止超长内容导致 LLM 上下文溢出或分析质量下降。
+
+### 爬取时间标注
+- 所有诊断报告的官网爬取结果中新增 `scraped_at` 字段（ISO 8601 UTC 时间戳），明确标注内容获取时间，提升报告可信度。
+
+### 变更文件
+| 文件 | 变更 |
+|------|------|
+| `backend/crawlers/website.py` | 新增 `scraped_at`、反爬回退（raw_html）、`compose_competitor_discovery_query()`、`search_baidu_for_company()`、`segment_and_summarize_long_content()` |
+| `backend/services/prompt_service.py` | `build_diagnosis_report_with_scrape_prompt()` 使用真实 `scraped_at`；新增 `build_competitor_discovery_prompt()`；`build_competitor_analysis_prompt()` 接受 `competitor_scraped` 参数 |
+| `backend/main.py` | `competitor_analysis` handler 重写为 6 步自动发现流程 |
+| `backend/prompts/competitor_discovery_prompt.txt` | **新增**：竞品发现 prompt 模板 |
+| `backend/prompts/competitor_analysis_prompt.txt` | 新增 `{{competitor_scraped_block}}` 占位符 |
+
+
+---
+
+
+
+### 图片文件名业务信息提取
+- 上传图片时自动从文件名识别企业/产品/业务关键词，注入 LLM 提示词上下文
+- 智能过滤噪音词（IMG_、微信图片、截图、纯数字日期），中英文双语支持
+- 4 个文章创作相关的 prompt 模板均已集成 `image_filename_context` 变量
+
+### 文章优化 + 写作建议 + 舆情搜索 端点补全
+- 新增 `POST /api/v1/article-writing/suggestions` — AI 写作建议生成（已有模板和 prompt 函数，补全路由）
+- 修复 `POST /api/v1/article-writing/optimize` — 文章优化端点（此前误删函数体导致 405）
+- 新增 `GET /api/v1/public-opinion/search` — 舆情关键词搜索（调用已有 `crawlers/opinion.py` 三源聚合）
+
+### 前端 Bug 修复
+- 产品库数据格式兼容：文章创作页和知识库页同时支持 `{rows}` 和 `{products}` 两种格式
+- 企业诊断汇总：移除无效的 `/agent-summary` 调用，改为直接拼接多模型输出
+- AI 内容溢出修复：诊断报告/文章管理/品牌表单增加 x/y 轴滚轮
+- 数据统计页 `const` → `let` 修复
+
+
+### 工作台仪表台数据链路打通（AI 引用 / AI 统计）
+- 新增 `GET /api/v1/dashboard/stats` 和 `GET /api/v1/dashboard/quick-stats` 两个后端路由（`main.py`）
+- `dashboard_service.py` 新增 `AI_PLATFORMS`（8 个 AI 平台：豆包/千问/元宝/DeepSeek/文心/纳米360/KIMI/智谱）和 `PLATFORM_NAME_MAP`（发布平台中文映射）；`llm_stats` 返回正确结构
+- `index.js` 新增 `window.geoApiGet` / `window.geoApiPost` 辅助函数
+- `home.js` 重写：`init()` 调用 dashboard API → `renderDashboard()` 填充 AI 收录 / AI 引用 / 发布统计三个面板
+- 当前 `indexed` / `citations` 值为 0（`monitor_tasks` 表待填充），链路已打通，后续接入 AI 监控后自动生效
+
+### 变更文件（服务器 vs GitHub 差异）
+| 文件 | 服务器状态 |
+|------|-----------|
+| `backend/crawlers/website.py` | **新增**（竞品自动发现 + 反爬回退 + 语料分段） |
+| `backend/services/dashboard_service.py` | **新增**（数据看板服务） |
+| `backend/utils/filename_parser.py` | **新增**（图片文件名业务信息提取） |
+| `backend/utils/kb_helpers.py` | **新增**（知识库公共工具函数） |
+| `backend/utils/sanitize.py` | **新增**（通用数据清洗工具） |
+| `backend/prompts/agent_summary_prompt.txt` | **新增** |
+| `backend/prompts/article_product_optimize_prompt.txt` | **新增** |
+| `backend/prompts/article_writing_rewrite_prompt.txt` | **新增** |
+| `backend/prompts/article_writing_suggestions_prompt.txt` | **新增** |
+| `backend/prompts/competitor_discovery_prompt.txt` | **新增** |
+| `backend/prompts/diagnosis_report_scrape_prompt.txt` | **新增** |
+| `backend/prompts/industry_identification_rules.txt` | **新增** |
+| `backend/prompts/kb_positioning_prompt.txt` | **新增** |
+| `backend/prompts/question_words_prompt.txt` | **新增** |
+| `backend/main.py` | **修改**（新增 3 个路由 + 竞品自动发现流程 + 诊断汇总重构） |
+| `backend/services/prompt_service.py` | **修改**（新增 9 个 build_* 函数 + image_filename_context） |
+| `backend/crawlers/opinion.py` | **修改**（GitHub 已有空壳，服务器补充完整搜狗+必应三源聚合实现） |
+| `backend/requirements.txt` | **修改**（新增 beautifulsoup4>=4.12.0） |
+| `www/pages/article-writing/page.js` | **修改**（产品库格式兼容 + 写作建议集成） |
+| `www/pages/diagnosis-report/page.js` | **修改**（移除无效 agent-summary 调用） |
+| `www/pages/knowledge-base/page.js` | **修改**（产品库格式兼容） |
+| `www/pages/data-statistics/page.js` | **修改**（const→let 修复 + API 语料补全） |
+| `www/styles/theme.css` | **修改**（AI 内容溢出 y 轴滚轮） |
+| `www/pages/diag-common.js` | **修改**（防长字符串撑破） |
+
+### GitHub 仓库对比（zhufengyuan/GEO, 最后一次提交 Jul 29）
+
+| 维度 | GitHub (v1.0.0) | 服务器 (当前) |
+|------|----------------|--------------|
+| 提示词模板 | 26 个 | 29 个（+9） |
+| 后端路由 | ~40 个 | ~45 个（+5） |
+| 爬虫模块 | opinion.py | opinion.py + website.py |
+| 工具模块 | 3 个 | 6 个（+kb_helpers + filename_parser + sanitize） |
+| 服务模块 | 5 个 | 6 个（+dashboard_service） |
+| 依赖包 | 15 个 | 16 个（+beautifulsoup4） |
+| 竞品分析 | 手动输入竞品名 | 自动发现 + 爬取 + 多维对比 |
+
+> **说明**：服务器版本领先 GitHub 约 9 天开发进度。GitHub 仓库的 `opinion.py` 仅有爬虫框架，服务器版本已补充完整的搜狗微信/网页 + 必应三源聚合实现。上述 `新增` 表示 GitHub 仓库中没有该文件。
+
+## 项目简介
+
+本项目是一套面向企业的 GEO（Generative Engine Optimization，生成式引擎优化）全流程作业平台。
+
+GEO 是什么？
+
+GEO 是 SEO 在 AI 时代的进化版。传统 SEO 优化网站在搜索引擎中的排名，而 GEO 的目标是优化企业内容在豆包、Kimi、通义千问、智谱、DeepSeek、文心一言等主流 AI 大模型中的收录率和引用率——让用户向 AI 提问时，AI 的回答中包含您企业的品牌、产品和服务信息。
+
+平台目标：
+
+通过系统化地建立企业知识库 → 批量生成 AI 友好型内容 → 广泛投放到各大媒体平台，形成完整的 GEO 优化闭环，持续提升企业在 AI 生态中的曝光度和影响力。
 
 ---
 
 ## 核心功能
 
-### 1. 企业知识库
-- **企业基础信息**：全称/简称/主营产品/目标客户/客户类型（B端/C端）/区域市场/企业优势等结构化字段
-- **企业介绍**：公司简介、企业资料库、发展大事记（时间线）
-- **产品库**：产品信息管理、批量导入
-- **客户案例**：合作项目标题、客户名称、项目合作介绍（背景→痛点→方案→结果→证言），支持撰写示范说明
-- **企业定位 / 知识图谱**：AI 生成企业定位；知识图谱 SVG 渲染（节点点击/缩放平移）
+### 第一阶段：准备工作
 
-### 2. AI 文案创作
-- **文章创作**：AI 对话式采集需求 → 生成文章 → 优化建议 → 重新改稿，全流程闭环
-- **品牌/活动/产品宣传**：三类模板化创作，自动提取企业知识库数据，多模型并行优化（子 agent + 总 agent 整合）
-- **优化方案**：AI 生成优化方案并强制输出 Excel
+| 模块 | 前端路由 | 说明 |
+|------|----------|------|
+| 企业知识库 | knowledge-base | 录入企业基本信息、产品库、图片库、官网地址、文档等，作为 AI 写作的核心素材库 |
+| 基础数据诊断 | original-data-diagnosis | 分析企业现有内容数据的基本情况与健康度 |
+| 企业官网诊断 | website-diagnosis | 诊断企业官网当前的 GEO 优化状态与短板 |
+| 竞争对手分析 | competitor-analysis | **自动发现**竞品企业（基于产品+行业+区域），爬取其官网内容，多维度对比分析 |
+| 企业诊断报告 | diagnosis-report | 汇总生成综合诊断报告，全面评估 GEO 现状 |
+| 优化建议方案 | optimization-plan | 基于诊断结果，给出可落地的系统化优化建议 |
 
-### 3. 问题词库
-- LLM 生成真实用户搜索问题（最多 60 条/次），替代原始关键词直接落库
-- 客户类型视角适配：B 端（选型/采购/交付）/ C 端（好不好用/怎么选/值不值）
-- 决策阶段中文映射、分页管理
+### 第二阶段：GEO 优化核心流水线
 
-### 4. 诊断分析
-- **官网诊断**：单一大模型爬取自家/竞争对手官网并分析（结果按查询 ID 区分存储）
-- **竞品分析**：多源聚合分析
-- **数据诊断 / 原始数据诊断**：上传数据 AI 分析，Word/Excel 格式化导出
+```
+STEP 1  创建问题词库  →  STEP 2  文章创作  →  STEP 3  媒体发布 / 官媒发布  →  STEP 4  发布管理
+```
 
-### 5. 舆情与发布
-- **舆情搜索**：搜狗微信/网页 + 必应三源聚合，关键词监控任务管理
-- **媒体发布**：官媒（报价 Excel 驱动）与自媒体发布记录管理，文章审核 toggle
-- **发布记录**：多平台发布记录与文章链接绑定
+| 步骤 | 模块 | 前端路由 | 功能说明 |
+|------|------|----------|----------|
+| STEP 1 | 问题词库 | question-bank | 输入企业名、行业/产品关键词（问题关键词）、区域词、功能词、场景词、使用人群等；点击生成后由 LLM 按决策阶段自动产出问题列表（认知触发阶段不少于 50 条，其余阶段不少于 30 条），并在“问题词库管理”中可筛选、导出、批量删除 |
+| STEP 2 | 文章创作 | article-writing | 基于问题词，按产品宣传 / 企业品牌 / 主题活动创作三种类型，配置平台、风格、品牌嵌入规则，AI 批量生成内容 |
+| STEP 3 | 媒体发布 | media-publish / official-publish | 从媒体资源库筛选全国网站媒体和官方自媒体（含报价、平台、地区、粉丝数、认证等），支持先选文章再筛选媒体并记录发布 |
+| STEP 4 | 发布管理 | publish-manager | 统一管理所有发布记录，追踪收录状态与引用次数 |
 
-### 6. 数据看板
-- 文章总数/类型分组/发布记录按平台分组的统计视图
+#### 文章创作（article-writing）补充说明
 
-### 7. AI 数据出口（GEO 自优化）
-- `llms.txt` / `robots.txt` / `ai-data/*.json`：所有用户输入信息自动导出为 AI 可爬取的 JSON（索引 + 全量聚合 + 每页最新 + 完整历史 JSONL），让平台自身内容可被生成式引擎引用
+- 三个模块均有“文案优化建议”：自动用大模型生成优化建议文字（基于输入信息完整性 + 已生成文案完整性）。
+- 右侧展示：不再使用“文案显示”按钮和弹窗预览，改为直接显示“初稿文案 + 优化建议”两个区域。
+- 产品宣传创作/主题活动创作：每次“开启创作”生成 1 篇；右侧直接显示该篇初稿文案和对应优化建议。
+- 企业品牌创作：每次“开启创作”生成 3 篇同类型不同版本；右侧提供 3 张结果卡片，每张卡片均直接显示对应的初稿文案和优化建议。
+- 重新优化：等同 rewrite，生成改稿版本；企业品牌创作可在 3 个优化区域中选择其中 1 篇点击“确定”写入文章管理，标题前缀为【改稿1】/【改稿2】/【改稿3】。
+- 滚动规则：页面不会因右侧内容撑高；长内容只在“初稿文案”和“优化建议”的各自显示区域内纵向滚动。
+
+#### 发布页面（media-publish / official-publish）补充说明
+
+- 自媒体发布、官媒发布的“选择文章”列表默认限制为约 5 行可视高度，超出后在列表内纵向滚动。
+- 两个页面的“文章展示区 / 文案预览”已收紧为固定预览高度，长文内容通过展示区内部滚动查看。
+- 官媒发布页面的筛选条件、筛选路径、关键词搜索栏已整体置顶，位于“第一步：选择文案”上方。
+
+### 数据分析与监控
+
+| 模块 | 前端路由 | 说明 |
+|------|----------|------|
+| 数据统计 | data-statistics | 可视化展示文章数、收录数、引用数等核心 KPI 及趋势图 |
+| 查询 | data-query | 数据查询工具 |
+| 舆情监控 | public-opinion | 按关键词抓取今日头条、知乎、微博、小红书等平台内容，支持情感分析（正面 / 负面） |
+| 消耗明细 | config | 记录并查询平台使用成本与积分消耗 |
+| AI 工具箱 | ai-toolbox | 通用 AI 工具快捷入口 |
 
 ---
 
 ## 技术架构
 
 ```
-┌─────────────────────────────────────────────┐
-│  浏览器                                      │
-│  www/ 原生 JS SPA（hash 路由，无构建工具）      │
-└──────────────┬──────────────────────────────┘
-               │ /api/v1（REST + JSON）
-┌──────────────▼──────────────────────────────┐
-│  backend/  FastAPI (uvicorn)                 │
-│  ├─ main.py          路由 + 业务编排           │
-│  ├─ services/        prompt_service / llm…   │
-│  ├─ api/             official_publish 等      │
-│  ├─ ai_export.py     llms.txt / ai-data 导出  │
-│  └─ migrations/      001~022 SQL 迁移         │
-└───────┬───────────────────────┬──────────────┘
-        │                       │
-┌───────▼────────┐   ┌──────────▼──────────────┐
-│  MySQL (geo)   │   │  文心千帆 LLM             │
-│  22 张表        │   │  LLM_URL /wenxinqianfan  │
-└────────────────┘   └─────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Python FastAPI 后端 (backend/)                     │
+│                                                                      │
+│  main.py ─── 唯一应用入口（所有对外 API 均通过 main.py 调度）          │
+│    │                                                                 │
+│    ├── auth/ ─── JWT 认证（纯 HmacSHA256 实现，无第三方依赖）         │
+│    │   ├── jwt_handler.py    JWT 令牌生成/解码/验证                   │
+│    │   ├── dependencies.py   FastAPI Depends 注入 get_current_user    │
+│    │   └── routes.py        /api/v1/auth/* 路由                     │
+│    │                                                                 │
+│   ├── crawlers/                          # 爬虫模块（舆情 + 竞品自动发现）
+│   ├── crawlers/                          # 爬虫模块（舆情 + 竞品自动发现）
+│    ├── api/ ─── 可选的 APIRouter 模块（示例：publish_records.py）       │
+│    │   由 main.py include_router() 挂载；其余接口直接在 main.py 中定义 │
+│    │                                                                 │
+│    ├── services/ ─── 服务层（业务逻辑）                                │
+│    │   ├── auth_service.py    用户认证（passlib bcrypt）               │
+│    │   ├── llm_service.py     大模型调用（httpx 异步 / requests 同步）│
+│    │   ├── prompt_service.py  提示词模板渲染（29 个 .txt 模板）       │
+│    │   ├── excel_service.py   Excel 媒体报价读取                      │
+│    │   ├── consume_service.py 消耗记录
+│    │   └── dashboard_service.py 数据看板服务                               │
+│    ││    ├── crawlers/ ── 爬虫模块（独立抓取引擎）│    │   ├── opinion.py       搜狗微信/网页 + 必应三源聚合舆情搜索│    │   └── website.py       竞品自动发现 + 反爬回退 + 语料分段摘要
+│    ││    ├── crawlers/ ── 爬虫模块（独立抓取引擎）│    │   ├── opinion.py       搜狗微信/网页 + 必应三源聚合舆情搜索│    │   └── website.py       竞品自动发现 + 反爬回退 + 语料分段摘要
+│    │                                                                 │
+│    ├── utils/ ─── 工具层                                              │
+│    │   ├── api_response.py    统一响应格式 ok/fail/APIException       │
+│    │   ├── pagination.py      分页工具（最大 500 条/页）
+│    │   ├── kb_graph.py       知识图谱
+│    │   ├── kb_helpers.py     知识库公共工具函数
+│    │   ├── filename_parser.py 图片文件名业务信息提取
+│    │   └── sanitize.py       通用数据清洗工具               │
+│    │                                                                 │
+│    ├── database.py ─── PyMySQL + dbutils 连接池（最大 20 连接）       │
+│    │   ├── query / query_row / execute / insert / insert_many        │
+│    │   └── apply_migrations() 启动时按序执行 22 个 SQL 迁移脚本       │
+│    │                                                                 │
+│    ├── config.py ─── Settings 配置类                                 │
+│    ├── schemas.py ─── Pydantic v2 请求/响应模型                       │
+│    └── prompts/ ─── 27 个提示词/规则 .txt 模板文件                    │
+│                                                                      │
+└──────────────────────┬──────────────────────────────────────────────┘
+                       │ HTTP REST API（/api/v1/*）
+┌──────────────────────▼──────────────────────────────────────────────┐
+│                 前端 SPA（www/）                                      │
+│                                                                      │
+│  index.html → 全局壳（header + sidebar + content 容器）               │
+│  index.js ─── 路由引擎（PAGES 映射表 → 动态加载 page.html + page.js）│
+│  styles/theme.css ── CSS Variables 主题（浅色后台 + 青绿色主色）       │
+│  pages/* ─── 23 个功能页目录，每页独立 HTML + JS                      │
+│  pages/_shared/ ── 公共页面模板                                       │
+│  pages/diag-common.js ── 诊断模块公共脚本                           │
+│                                                                      │
+│  通信机制：fetch API → /api/v1/*                                      │
+│  API Base URL 存储于 localStorage（geo_api_base_url_v1）              │
+│  iframe 场景下通过 window.postMessage 接收 R Shiny 下发的配置        │
+└──────────────────────────────────────────────────────────────────────┘
 
-┌─────────────────────────────────────────────┐
-│  geo.Rmd  R Shiny（数据分析与报表模块）         │
-│  经 config.R / geo_config.R 连接同一 MySQL     │
-└─────────────────────────────────────────────┘
+（可选）geo.Rmd 作为宿主页面（R Shiny Runtime）：
+  通过 iframe 嵌入前端，通过 postMessage 向前端下发 api_base_url 等配置
+  config.R 定义全局路径，geo_config.R 定义数据库/LLM 连接配置
 ```
 
-- **后端**：Python 3.6+（兼容 3.6/3.8），FastAPI + PyMySQL + PyJWT
-- **前端**：原生 HTML/CSS/JS，Design Token 主题体系（theme.css v6）
-- **分析端**：R Shiny（geo.Rmd），与后端共享数据库
-- **LLM**：文心千帆（提示词模板 30+，行业专属提示词 25 个）
+### 技术栈明细
+
+| 层级 | 技术 | 版本要求 | 用途 |
+|------|------|----------|------|
+| 后端框架 | FastAPI | >=0.104.0 | Web 框架 |
+| ASGI 服务器 | Uvicorn | >=0.24.0 | 运行 FastAPI 应用 |
+| 数据库 | MySQL | 8.x+ | 主数据存储 |
+| 数据库驱动 | PyMySQL | >=1.1.0 | Python MySQL 客户端 |
+| 连接池 | dbutils | >=3.0.0 | PooledDB，最大 20 连接，mincached=2，maxcached=5 |
+| 数据验证 | Pydantic | >=2.0.0 | 请求/响应模型 |
+| 配置管理 | pydantic-settings | >=2.0.0 | Settings 类 |
+| 密码哈希 | passlib[bcrypt] | >=1.7.4 | bcrypt 密码哈希 |
+| JWT | 纯 HmacSHA256（无第三方库） | — | 令牌生成、验证、过期检测 |
+| 异步 HTTP | httpx | >=0.25.0 | 调用 LLM 大模型服务 |
+| 同步 HTTP | requests | >=2.31.0 | LLM 备选调用方式 |
+| HTML 解析 | beautifulsoup4 + parsel | >=4.12.0 / >=1.8.0 | 爬虫网页内容解析 |
+| 图片处理 | Pillow | >=10.0.0 | 上传图片处理 |
+| 文件上传 | python-multipart | >=0.0.6 | multipart/form-data 解析 |
+| 环境变量 | python-dotenv | >=1.0.0 | .env 文件加载 |
+| 前端 | 原生 HTML + CSS + ES Module JS | — | 零构建依赖 SPA |
+| 前端 Excel | SheetJS/XLSX.js | — | 部分页面导出 Excel（动态加载 CDN） |
+| 通信协议 | HTTP REST API | — | /api/v1/*，JSON 格式 |
+| 可选宿主 | R Shiny | — | geo.Rmd iframe 嵌入模式 |
 
 ---
 
@@ -97,173 +376,722 @@ FastAPI + R Shiny + MySQL 构建的一站式 GEO 内容生产平台：企业知�
 
 ```
 GEO/
-├─ backend/
-│  ├─ main.py                 # FastAPI 入口与全部核心路由
-│  ├─ config.py               # Settings（支持环境变量注入）
-│  ├─ database.py             # 连接池 + 迁移执行
-│  ├─ schemas.py              # Pydantic 请求模型
-│  ├─ ai_export.py            # AI 爬取数据出口（llms.txt/ai-data）
-│  ├─ api/                    # 子路由（official_publish / publish_records）
-│  ├─ auth/                   # JWT 签发与校验
-│  ├─ services/               # prompt_service / llm_service / excel…
-│  ├─ crawlers/               # 官网/舆情爬取
-│  ├─ prompts/                # 提示词模板（含 industries/ 25 行业）
-│  └─ migrations/             # 001~022 建表/变更 SQL
-├─ www/                       # 前端 SPA（hash 路由）
-│  ├─ index.html / index.js
-│  ├─ pages/<页面>/page.html + page.js
-│  ├─ styles/theme.css        # Design Token 主题
-│  └─ ai-data/                # AI 数据出口（运行时生成）
-├─ geo.Rmd                    # R Shiny 分析模块
-├─ config.R / geo_config.R    # R 侧配置
-├─ data/                      # 业务数据（媒体报价表等）
-├─ rmd/                       # R 辅助脚本与 SQL
-├─ scripts/                   # 运维脚本
-├─ svg/ icons/                # LLM 生成图标素材
-└─ screenshots/               # 文档截图
+├── backend/                              # FastAPI 后端
+│   ├── main.py                           # 应用入口（路由/中间件/静态资源挂载）
+│   ├── config.py                         # 配置（数据库/JWT/LLM/CORS）
+│   ├── database.py                       # 连接池 + migrations 执行
+│   ├── crawlers/                          # 爬虫模块（舆情 + 竞品自动发现）
+│   ├── crawlers/                          # 爬虫模块（舆情 + 竞品自动发现）
+│   ├── api/                              # APIRouter 模块
+│   ├── services/                         # 业务服务层
+│   ├── prompts/                          # 提示词模板（.txt）
+│   └── migrations/                       # MySQL 迁移脚本（.sql）
+│
+├── www/                                  # 前端 SPA（原生 HTML/CSS/ES Modules）
+├── data/                                 # 数据集目录（Excel + data/uploads）
+│   ├── 2026年网站媒体及官方自媒体报价-Q2.xls
+│   ├── 数据统计_测试数据.xlsx
+│   └── uploads/
+│
+├── geo.Rmd                               # 可选：R Shiny 宿主页面（iframe 模式）
+├── config.R                              # R 配置（路径/API BaseUrl/DB/LLM）
+├── geo_config.R                          # R 配置（备用/同上）
+└── svg/                                  # 大模型 SVG 图标资源（FastAPI 挂载为 /llm-svg）
 ```
 
 ---
 
 ## 环境要求
 
-| 组件 | 版本 | 说明 |
-|---|---|---|
-| Python | 3.6+ | 后端（代码兼容 3.6 语法） |
-| R | 4.x + Shiny | 分析模块（geo.Rmd） |
-| MySQL | 5.7+ / 8.0 | 字符集 utf8mb4 |
-| Node | 可选 | 无需构建，仅静态托管 |
+### Python 环境
 
-Python 依赖：`fastapi uvicorn pymysql pyjwt pandas openpyxl python-multipart requests`（按 import 按需安装）
+Python 3.9+，依赖见 backend/requirements.txt：
+
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+### R 环境（可选，仅 Shiny 宿主模式需要）
+
+| 包 | 用途 |
+|---|------|
+| shiny | Web 应用框架 |
+| rmarkdown | 运行 .Rmd 文件 |
+| DBI | 数据库抽象接口 |
+| RMySQL | MySQL 驱动 |
+| jsonlite | JSON 序列化 |
+| readxl | 读取 Excel |
+
+### 数据库
+
+- MySQL 8.x 或以上
+- 数据库名：geo
+- 字符集：utf8mb4
+- InnoDB 引擎
 
 ---
 
 ## 快速开始
 
+1) 安装依赖
+
 ```bash
-# 1) 配置环境变量（所有敏感项均从环境注入，代码内为占位符）
-export DB_HOST=127.0.0.1
-export DB_USER=root
-export DB_PASSWORD=你的密码
-export LLM_URL=http://你的LLM服务:5200/wenxinqianfan
-export WENXIN_API_KEY=你的Key
-export WENXIN_SECRET_KEY=你的Secret
-export JWT_SECRET=一个足够随机的字符串
-
-# 2) 建库（迁移在启动时自动执行）
-mysql -e "CREATE DATABASE geo DEFAULT CHARSET utf8mb4"
-
-# 3) 启动后端（首次启动自动跑 migrations）
-cd GEO && uvicorn backend.main:app --host 0.0.0.0 --port 8123
-
-# 4) 启动前端（任意静态服务器指向 www/，或用 Shiny Server 托管）
-python -m http.server 8000 -d www
-
-# 5) R 分析模块（可选）
-Rscript -e 'shiny::runApp("geo.Rmd")'
+cd GEO/backend
+pip install -r requirements.txt
 ```
 
-> 开发模式下 `AUTH_DISABLED=True` 跳过登录；生产环境务必设为 `False` 并更换 `JWT_SECRET`。
+2) 创建数据库
+
+```sql
+CREATE DATABASE IF NOT EXISTS geo CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+```
+
+3) 配置后端
+
+编辑 `backend/config.py`，至少确认以下配置已按你的环境修改：
+
+- `DB_HOST / DB_USER / DB_PASSWORD / DB_NAME / DB_PORT`
+- `LLM_URL`（也可通过环境变量 `LLM_URL` 或根目录 `config.R` 的 `llm_url` 注入）
+- 生产环境务必更换 `JWT_SECRET`，并设置 `AUTH_DISABLED=False`
+
+当前仓库内默认值（通过环境变量配置）：
+
+- `DB_HOST=YOUR_SERVER_IP`
+- `DB_PASSWORD=YOUR_DB_PASSWORD`
+- `LLM_URL=http://YOUR_LLM_HOST:5200/wenxinqianfan`
+- `WENXIN_API_KEY / WENXIN_SECRET_KEY` 通过环境变量配置
+
+4) 启动
+
+```bash
+cd GEO
+python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+访问：
+
+- http://localhost:8000 （前端 SPA）
+- http://localhost:8000/llm-svg/豆包.svg （SVG 图标静态资源示例）
+- http://localhost:8000/api/v1/health （健康检查）
+- http://localhost:8000/api/v1/docs （Swagger）
+
+## API 文档
+
+- 交互式文档：`/api/v1/docs`（Swagger）、`/api/v1/redoc`（ReDoc）
+- 详细接口清单：[README_API.md](README_API.md)
+
+## 本地开发部署
+
+### 第一步：安装 Python 依赖
+
+```bash
+cd GEO/backend
+pip install -r requirements.txt
+```
+
+### 第二步：创建 MySQL 数据库
+
+```sql
+-- 登录 MySQL
+mysql -u root -p
+
+-- 创建数据库
+CREATE DATABASE IF NOT EXISTS geo CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+```
+
+> 建表和种子数据无需手动执行，后端启动时会自动按序运行 migrations/ 下 22 个 SQL 脚本。
+
+### 第三步：修改后端配置
+
+编辑 backend/config.py，填入实际的数据库和 LLM 服务信息：
+
+```python
+class Settings:
+    DEBUG: bool = True                           # 开发模式：开启日志中间件、放开 CORS
+
+    # ─── 数据库配置 ───
+    DB_HOST: str = "127.0.0.1"                   # 数据库地址
+    DB_USER: str = "root"                         # 数据库用户
+    DB_PASSWORD: str = "your_password"            # 数据库密码
+    DB_NAME: str = "geo"                          # 数据库名
+    DB_PORT: int = 3306                           # 数据库端口
+    DB_CHARSET: str = "utf8mb4"                   # 字符集
+
+    # ─── JWT 配置 ───
+    JWT_SECRET: str = "change-me-in-production"   # 生产环境务必更换！
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_EXPIRE_MINUTES: int = 15           # Access Token 有效期（分钟）
+    JWT_REFRESH_EXPIRE_DAYS: int = 30             # Refresh Token 有效期（天）
+
+    # ─── 认证开关 ───
+    AUTH_DISABLED: bool = True                    # 开发模式跳过认证，自动使用 DEV_USER_ID
+    DEV_USER_ID: int = 1
+
+    # ─── LLM 大模型服务 ───
+    LLM_URL: str = "http://your-llm-host:5200/wenxinqianfan"
+
+    # ─── 媒体报价 Excel 路径 ───
+    OFFICIAL_MEDIA_EXCEL: str = ...                # 默认自动指向项目根目录下的 .xls 文件
+
+    # ─── CORS 跨域白名单 ───
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:4510",                   # R Shiny 默认端口
+        "http://127.0.0.1:4510",
+        "http://localhost:8000",                   # FastAPI 独立运行端口
+        "http://127.0.0.1:8000",
+    ]
+```
+
+### 第四步：启动后端
+
+```bash
+# 在项目根目录（GEO/）下执行
+cd GEO
+python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+启动时会看到：
+
+```
+INFO:     Started server process
+INFO:     Waiting for application startup.
+[启动时执行 migrations/ 下迁移脚本，创建/更新表结构]
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000
+```
+
+### 第五步：验证部署
+
+启动成功后，可访问以下地址：
+
+| 地址 | 说明 |
+|------|------|
+| http://localhost:8000 | 前端页面（FastAPI 自动托管 www/） |
+| http://localhost:8000/api/v1/health | 健康检查（返回 `{"success":true,"data":{"status":"ok","version":"1.0.0"}}`） |
+| http://localhost:8000/api/v1/docs | Swagger 交互式 API 文档 |
+| http://localhost:8000/api/v1/redoc | ReDoc API 文档 |
+| http://localhost:8000/data/* | 数据集静态访问（来自 data/） |
+| http://localhost:8000/uploads/* | 上传文件访问 |
+
+### 第六步：（可选）启动 R Shiny 宿主
+
+如果需要使用 R Shiny iframe 嵌入模式，编辑 config.R 和 geo_config.R 中的连接信息，然后：
+
+```bash
+# 方式一：命令行
+Rscript -e 'rmarkdown::run("geo.Rmd")'
+
+# 方式二：RStudio
+# 打开 geo.Rmd，点击 Run Document 按钮
+```
+
+R Shiny 启动后默认监听 4510 端口，通过 iframe 嵌入前端，并使用 postMessage 向前端下发 api_base_url。
 
 ---
 
-## 生产环境部署
+## 生产环境部署（CentOS 8 + Nginx + systemd）
 
-参考拓扑（CentOS / OpenCloudOS）：
+### 前置条件
 
-| 服务 | 端口 | 进程管理 |
-|---|---|---|
-| FastAPI 后端 | 8123 | systemd（uvicorn） |
-| R Shiny | 3838 | shiny-server |
-| MySQL | 3306 | systemd |
-| 前端静态资源 | 由 Nginx 反代 `www/` | nginx |
+- CentOS 8 服务器，已安装 MySQL 8.x
+- Python 3.9+（建议使用 pyenv 或 conda）
+- 已有可用的 LLM 大模型服务地址
 
-要点：
-- Nginx 将 `/api/v1` 反代至 8123，`/geo` 指向 GEO 应用根目录
-- `www/ai-data/` 需保证 Web 可读（供 AI 爬虫访问）
-- 日志：`journalctl` + 应用自身日志文件轮转
+### 第一步：上传项目
+
+```bash
+# 将 GEO 项目上传到服务器
+scp -r GEO/ root@your-server:/srv/geo/
+```
+
+### 第二步：安装 Python 依赖
+
+```bash
+cd /srv/geo/backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 第三步：配置 MySQL
+
+```sql
+-- 在 MySQL 中创建数据库和专用账户
+CREATE DATABASE IF NOT EXISTS geo CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE USER 'geo_user'@'localhost' IDENTIFIED BY 'strong_password_here';
+GRANT ALL PRIVILEGES ON geo.* TO 'geo_user'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+### 第四步：修改生产配置
+
+编辑 backend/config.py：
+
+```python
+class Settings:
+    DEBUG: bool = False                          # 关闭调试模式
+
+    DB_HOST: str = "localhost"
+    DB_USER: str = "geo_user"                    # 使用专用账户
+    DB_PASSWORD: str = "strong_password_here"    # 强密码
+    DB_NAME: str = "geo"
+
+    JWT_SECRET: str = "生成一个随机强密钥"         # 务必更换！可用命令生成：
+    # python -c "import secrets; print(secrets.token_urlsafe(32))"
+
+    AUTH_DISABLED: bool = False                   # 关闭开发模式，启用认证
+
+    LLM_URL: str = "http://your-llm-host:5200/wenxinqianfan"
+
+    CORS_ORIGINS: List[str] = [
+        "https://your-domain.com",               # 只允许生产域名
+    ]
+```
+
+### 第五步：创建 systemd 服务
+
+创建 `/etc/systemd/system/geo.service`：
+
+```ini
+[Unit]
+Description=GEO Backend (FastAPI)
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=nginx
+Group=nginx
+WorkingDirectory=/srv/geo
+Environment="PATH=/srv/geo/backend/venv/bin"
+ExecStart=/srv/geo/backend/venv/bin/python -m uvicorn backend.main:app \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --workers 4
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+启用并启动服务：
+
+```bash
+systemctl daemon-reload
+systemctl enable geo
+systemctl start geo
+
+# 查看运行状态
+systemctl status geo
+
+# 查看日志
+journalctl -u geo -f
+```
+
+### 第六步：配置 Nginx 反向代理
+
+创建 `/etc/nginx/conf.d/geo.conf`：
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    # 请求体大小限制（文件上传）
+    client_max_body_size 50M;
+
+    # ─── 后端 API 反向代理 ───
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;          # LLM 调用可能较慢
+        proxy_send_timeout 120s;
+    }
+
+    # ─── 上传文件静态访问 ───
+    location /uploads/ {
+        alias /srv/geo/data/uploads/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # ─── 数据集静态访问 ───
+    location /data/ {
+        alias /srv/geo/data/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # ─── 前端 SPA ───
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+> 注：也可以让 Nginx 直接托管 www/ 目录，而不经过 FastAPI 的 StaticFiles 中间件，以减轻后端负载。如果采用此方案，将 location / 改为：
+
+```nginx
+    location / {
+        root /srv/geo/www;
+        index index.html;
+        try_files $uri $uri/ /index.html;  # SPA 路由回退
+    }
+```
+
+测试并重载 Nginx：
+
+```bash
+nginx -t
+systemctl reload nginx
+```
+
+### 第七步：配置 HTTPS（推荐）
+
+```bash
+# 安装 certbot
+yum install -y certbot python3-certbot-nginx
+
+# 申请证书
+certbot --nginx -d your-domain.com
+
+# 自动续期（certbot 自动添加 cron 任务）
+certbot renew --dry-run
+```
+
+### 第八步：配置防火墙
+
+```bash
+firewall-cmd --permanent --add-service=http
+firewall-cmd --permanent --add-service=https
+firewall-cmd --reload
+```
+
+### 第九步：验证部署
+
+```bash
+# 健康检查
+curl http://127.0.0.1:8000/api/v1/health
+
+# 预期返回
+# {"success":true,"data":{"status":"ok","version":"1.0.0"}}
+
+# 通过域名访问
+curl https://your-domain.com/api/v1/health
+```
+
+### 运维常用命令
+
+```bash
+# 查看服务状态
+systemctl status geo
+
+# 重启服务
+systemctl restart geo
+
+# 查看实时日志
+journalctl -u geo -f
+
+# 查看 Nginx 错误日志
+tail -f /var/log/nginx/error.log
+
+# 查看 MySQL 慢查询
+tail -f /var/log/mysql/slow.log
+```
 
 ---
 
 ## 数据库结构
 
-`backend/migrations/`（启动自动按序执行）：
+迁移脚本按序执行，共 22 个 SQL 文件（其中包含表结构变更脚本），创建 21 张表：
 
-| 迁移 | 表 | 说明 |
-|---|---|---|
-| 001 | users | 用户 |
-| 002 | subscriptions | 订阅 |
-| 003 | lexicons | 词库 |
-| 004 | monitor_tasks | 监控任务 |
-| 005 | tenants | 租户 |
-| 006 | enterprise_base_info | 企业基础信息 |
-| 007 | articles | 文章 |
-| 008 | question_words | 问题词 |
-| 009 | — | 开发用户种子 |
-| 010 | consumption_details | 消耗明细 |
-| 011 | publish_records | 发布记录 |
-| 012 | knowledge_base_sections | 知识库分节内容 |
-| 013 | enterprise_images | 企业图片 |
-| 014 | geo_ui_saves | 页面输入保存 |
-| 015~017 | products / product_images / enterprise_image_categories | 产品与图片 |
-| 018~022 | enterprise_docs / article_links / 变更 | 企业文档、文章链接、审核字段等 |
+### 用户与认证
+
+| 表名 | 文件 | 字段 |
+|------|------|------|
+| users | 001 | id(BIGINT PK), phone(VARCHAR 20 UNIQUE), password_hash(VARCHAR 255), real_name(VARCHAR 100), is_real_name_verified(TINYINT, 默认0), created_at, updated_at |
+| user_enterprise | 001 | id(BIGINT PK), user_id(BIGINT, INDEX), enterprise_id(BIGINT), role(VARCHAR 20, 默认owner), created_at |
+| subscriptions | 002 | id(BIGINT PK), user_id(BIGINT, INDEX), plan_id(VARCHAR 50), status(VARCHAR 20, 默认active), start_date, end_date, created_at |
+| plans | 002 | id(VARCHAR 50 PK), name, price(DECIMAL 10,2), quota_articles(INT), created_at |
+
+plans 初始数据：
+
+| id | name | price | quota_articles |
+|----|------|-------|----------------|
+| basic | 基础版 | 199.00 | 50 |
+| pro | 专业版 | 599.00 | 200 |
+| enterprise | 企业版 | 1999.00 | 9999 |
+
+### 词库与问题
+
+| 表名 | 文件 | 字段 |
+|------|------|------|
+| lexicons | 003 | id(BIGINT PK), user_id(BIGINT, INDEX), name(VARCHAR 200), company, industry_keyword, decision_stage(VARCHAR 50), words(JSON), expand_words(TEXT), question_keyword(VARCHAR 200), created_at |
+| question_words | 008 | id(BIGINT PK), lexicon_id(BIGINT, INDEX), enterprise_id(BIGINT, INDEX), seq_no(INT, 默认1), question_text(VARCHAR 255), gen_date(DATE), created_at |
+
+### 企业信息
+
+| 表名 | 文件 | 字段 |
+|------|------|------|
+| enterprise_base_info | 006 | id(BIGINT PK), enterprise_full_name, enterprise_short_name, enterprise_address(VARCHAR 512), enterprise_contact, main_products, target_customers, enterprise_website, founded_time, sales_region, sales_channel, service_response_time, delivery_time, enterprise_advantage, product_advantage, tech_advantage, development_history(LONGTEXT), honors(LONGTEXT), major_events(LONGTEXT), created_at, updated_at |
+
+### 文章与发布
+
+| 表名 | 文件 | 字段 |
+|------|------|------|
+| articles | 007 | id(BIGINT PK), title(VARCHAR 255 NOT NULL), content(LONGTEXT), article_type(VARCHAR 50), creation_type(VARCHAR 50), style, tone, brand_embed(TINYINT, 默认0), enterprise_id(BIGINT), created_at, updated_at |
+| publish_records | 011 | id(BIGINT PK), article_id(BIGINT, INDEX), platform_code(VARCHAR 50, UNIQUE(article_id,platform_code)), publish_count(INT, 默认0), last_publish_at, created_at |
+
+### 知识库
+
+| 表名 | 文件 | 字段 |
+|------|------|------|
+| knowledge_base_sections | 012 | id(BIGINT PK), user_id(BIGINT, INDEX), section(VARCHAR 50, UNIQUE(user_id,section)), content(LONGTEXT), created_at, updated_at(自动更新) |
+
+### 监控与账单
+
+| 表名 | 文件 | 字段 |
+|------|------|------|
+| monitor_tasks | 004 | id(BIGINT PK), user_id(BIGINT, INDEX), enterprise_id(BIGINT), keyword(VARCHAR 300 NOT NULL), platforms(JSON), status(VARCHAR 20, 默认active), last_run_at, created_at |
+| consumption_details | 010 | id(BIGINT PK), created_at, event_type(VARCHAR 50, INDEX), page(VARCHAR 128), action(VARCHAR 128), units(INT), amount(DECIMAL 12,2, 默认0), currency(VARCHAR 10, 默认CNY), meta_json(LONGTEXT), INDEX(idx_created, created_at) |
+
+### 租户管理
+
+| 表名 | 文件 | 字段 |
+|------|------|------|
+| tenants | 005 | id(BIGINT PK), name(VARCHAR 200 NOT NULL), industry(VARCHAR 200), created_at |
+| user_tenant | 005 | id(BIGINT PK), user_id(BIGINT, INDEX), tenant_id(BIGINT, INDEX), role(VARCHAR 20, 默认owner), created_at |
+
+### 种子数据
+
+| 文件 | 说明 |
+|------|------|
+| 009_seed_dev_user.sql | 插入开发测试用户 |
 
 ---
 
-## 配置说明
+## 前端路由与页面映射
 
-`backend/config.py` Settings 类，全部支持同名环境变量覆盖（代码内默认值为占位符）：
+前端通过 www/index.js 中的 PAGES 映射表实现路由。每个页面由 page.html（结构）和 page.js（逻辑）组成，通过 ES Module 动态加载。
 
-| 配置项 | 默认值 | 说明 |
-|---|---|---|
-| DB_HOST / DB_USER / DB_PASSWORD / DB_NAME / DB_PORT | YOUR_* / geo / 3306 | MySQL 连接 |
-| JWT_SECRET | change-me-in-production | JWT 签名密钥 |
-| JWT_ACCESS_EXPIRE_MINUTES / JWT_REFRESH_EXPIRE_DAYS | 15 / 30 | Token 有效期 |
-| AUTH_DISABLED | True | 跳过认证（生产必须 False） |
-| LLM_URL | http://YOUR_SERVER_IP:5200/wenxinqianfan | 文心千帆代理地址 |
-| WENXIN_API_KEY / WENXIN_SECRET_KEY | YOUR_* | 文心千帆凭据 |
-| CORS_ORIGINS | 本地开发地址 | 跨域白名单 |
+- 桌面端采用固定左侧边栏 + 右侧内容区独立滚动的后台布局。
+- 当前 UI 主题已统一为浅色后台、白色卡片、青绿色主色按钮与圆角侧边栏高亮风格。
 
-R 侧 `config.R` / `geo_config.R` 同样使用占位符，部署时替换或改造成环境变量读取。
+| 路由键 | 页面标题 | 文件路径 | 侧边栏分组 |
+|--------|----------|----------|------------|
+| home | 工作台 | pages/home/ | —（顶级） |
+| knowledge-base | 企业知识库 | pages/knowledge-base/ | 准备工作 |
+| original-data-diagnosis | 基础数据诊断 | pages/original-data-diagnosis/ | 准备工作 |
+| website-diagnosis | 企业官网诊断 | pages/website-diagnosis/ | 准备工作 |
+| competitor-analysis | 竞争对手分析 | pages/competitor-analysis/ | 准备工作 |
+| diagnosis-report | 企业诊断报告 | pages/diagnosis-report/ | 准备工作 |
+| optimization-plan | 优化建议方案 | pages/optimization-plan/ | 准备工作 |
+| question-bank | 创建问题词库 | pages/question-bank/ | GEO优化 |
+| question-bank-manager | 问题词库管理 | pages/question-bank-manager/ | GEO优化 |
+| article-writing | 文章创作 | pages/article-writing/ | GEO优化 |
+| article-manager | 文章管理 | pages/article-manager/ | GEO优化 |
+| media-publish | 自媒体发布 | pages/media-publish/ | GEO优化 |
+| official-publish | 官媒发布 | pages/official-publish/ | GEO优化 |
+| publish-manager | 发布管理 | pages/publish-manager/ | GEO优化 |
+| data-statistics | 数据统计 | pages/data-statistics/ | 数据分析 |
+| data-query | 查询 | pages/data-query/ | 数据分析-统计 |
+| config | 消耗明细 | pages/config/ | 数据分析 |
+| public-opinion | 舆情监控 | pages/public-opinion/ | 数据分析（顶级） |
+| ai-toolbox | AI工具箱 | pages/ai-toolbox/ | 数据分析（顶级） |
+| real-name | 实名认证 | pages/real-name/ | 数据分析（顶级） |
+| contact | 联系我们 | pages/contact/ | 数据分析（顶级） |
 
----
-
-## 前端页面一览
-
-| 页面 | 功能 |
-|---|---|
-| home | 工作台首页 |
-| knowledge-base | 企业知识库（基础信息/介绍/产品库/客户案例/定位/图谱） |
-| article-writing | AI 对话式文章创作 |
-| article-manager | 文章管理（审核 toggle） |
-| question-bank / question-bank-manager | 问题词库生成与管理 |
-| website-diagnosis / competitor-analysis / diagnosis-report / original-data-diagnosis | 官网/竞品/报告/数据诊断 |
-| public-opinion / public-opinion-report / public-opinion-mobile | 舆情搜索与报告 |
-| official-publish / media-publish / publish-manager | 官媒/自媒体发布与记录 |
-| data-statistics | 数据看板 |
-| ai-toolbox | AI 工具箱 |
-| optimization-plan | 优化方案 |
-| config / real-name / contact | 系统配置等 |
+> 知识库子页面（企业图片库、产品库、导入网址链接、导入文件）共用 knowledge-base 的 page.html/page.js，通过参数区分视图。
 
 ---
 
-## AI 数据出口
+## 认证机制详解
 
-`backend/ai_export.py` 在每次输入保存时同步导出 JSON，供生成式引擎爬取：
+### JWT 实现
+
+本项目的 JWT 完全基于 Python 标准库实现（HmacSHA256 + base64url），无需 python-jose 等第三方库。
+
+Token 结构：Header.Payload.Signature（标准 JWT 三段式）
+
+Payload 内容：
+
+Access Token（有效期 15 分钟）：
+```json
+{
+  "sub": "1",           // 用户 ID
+  "type": "access",     // 令牌类型
+  "jti": "uuid",        // 唯一标识（防重放）
+  "exp": 1700000000,    // 过期时间（UTC）
+  "iat": 1699999100     // 签发时间（UTC）
+}
+```
+
+Refresh Token（有效期 30 天）：
+```json
+{
+  "sub": "1",
+  "type": "refresh",
+  "jti": "uuid",
+  "exp": 1700000000,
+  "iat": 1699999100
+}
+```
+
+### 密码存储
+
+使用 passlib bcrypt 方案哈希密码。每次注册/修改密码时调用 pwd_context.hash()，验证时调用 pwd_context.verify()。
+
+### 认证流程
 
 ```
-/geo/llms.txt                       # AI 站点标准入口
-/geo/robots.txt                     # 爬虫规则
-/geo/ai-data/index.json             # 可爬取文件索引
-/geo/ai-data/inputs/all.json        # 全部输入聚合（AI 主入口）
-/geo/ai-data/inputs/latest_<page>.json   # 每页最新输入
-/geo/ai-data/inputs/history/<page>.jsonl  # 完整历史（每行一条）
+1. 用户登录 POST /api/v1/auth/login
+   → 验证手机号 + 密码（bcrypt）
+   → 返回 { accessToken, refreshToken }
+
+2. 前端存储 Token
+   → accessToken 存入内存或 sessionStorage
+   → refreshToken 存入 localStorage
+
+3. 请求 API
+   → Header: Authorization: Bearer <accessToken>
+   → 后端 get_current_user 依赖注入自动验证 Token
+
+4. Token 过期
+   → POST /api/v1/auth/refresh { refreshToken }
+   → 返回新的 accessToken
+
+5. 开发模式（AUTH_DISABLED=True）
+   → 所有请求自动以 DEV_USER_ID=1 身份运行
+   → 无需 Token
 ```
 
-`POST /api/v1/ai/rebuild` 可手动重建索引。
+### 免认证接口白名单
+
+以下接口无需 JWT Token：
+- POST /api/v1/auth/login
+- POST /api/v1/auth/register
+- POST /api/v1/auth/refresh
+- GET /api/v1/health
+- GET /api/v1/plans
 
 ---
 
-## License
+## 提示词模板系统
 
-私有项目，版权所有。
+系统使用 27 个 .txt 模板文件驱动 AI 内容生成，通过 prompt_service.py 的 render_prompt() 函数替换 {{key}} 占位符。
+
+### 模板文件清单
+
+| 模板文件 | 对应功能 | 关键占位符 |
+|----------|----------|------------|
+| geo_general_rules.txt | 全局写作规则（被多数模板引用） | — |
+| article_product_prompt.txt | 产品宣传文章 | enterprise_full_name, lexicon_company, task_question_text, task_platforms, task_style, task_brand_embed |
+| article_product_chat_prompt.txt | 产品宣传对话采集（只提问） | question_text, product_json, images_json, history_json |
+| article_writing_init_chat_prompt.txt | 文章创作页 AI 初始化打招呼 | enterprise_full_name, question_text, products_json, images_json |
+| article_brand_prompt.txt | 企业品牌文章 | 同上 |
+| article_activity_prompt.txt | 主题活动创作文章 | 同上 |
+| article_prompt.txt | 通用文章模板（兜底） | 同上 |
+| title_prompt.txt | 标题生成 | keyword, hint, enterprise_full_name |
+| activity_desc_prompt.txt | 活动描述生成 | keyword, hint, enterprise_full_name |
+| expand_words_prompt.txt | 拓展词生成 | keyword |
+| kb_profile_prompt.txt | 企业档案生成 | enterprise_full_name, enterprise_address, main_products 等 15 个字段 |
+| kb_library_prompt.txt | 企业文库生成 | 同上 |
+| kb_timeline_prompt.txt | 发展历程生成 | enterprise_full_name, main_products 等 |
+| data_diagnosis_prompt.txt | 基础数据诊断 | enterprise_full_name, manual, page_context, company_profile 等 |
+| website_diagnosis_prompt.txt | 官网诊断 | enterprise_full_name, enterprise_website, page_context |
+| competitor_analysis_prompt.txt | 竞争对手分析（含自动爬取竞品官网内容） | enterprise_full_name, competitors, page_context, competitor_scraped_block |
+| diagnosis_report_prompt.txt | 诊断报告 | llm_instruction, enterprise_full_name, extra_input, company_profile 等 |
+| optimization_plan_prompt.txt | 优化方案 | enterprise_full_name, company_profile 等 |
+| optimization_schedule_prompt.txt | 优化排期 | enterprise_full_name, main_products 等 |
+| acceptance_score_prompt.txt | 验收评分 | enterprise_full_name, main_products 等 |
+| competitor_discovery_prompt.txt | **新增**：竞品发现 | query, enterprise_full_name 等 |
+
+### 模板渲染流程
+
+```
+prompt_service.py 的 build_* 函数：
+1. 从 prompts/ 读取 .txt 模板
+2. 获取企业信息（knowledge_base_sections + enterprise_base_info）
+3. 获取词库信息（lexicons）
+4. 将数据填入 {{占位符}} 生成完整提示词
+5. 传递给 llm_service.py 调用大模型
+```
+
+---
+
+## 工作流程
+
+```
+          ┌─────────────┐
+          │  企业知识库  │  录入企业信息、产品、图片、文档
+          │  (AI 生成)  │  自动调用 LLM 生成企业档案/文库/发展历程
+          └──────┬──────┘
+                 │
+          ┌──────▼──────┐
+          │  诊断分析   │  官网诊断、竞品分析、出具报告
+          │  (AI 分析)  │  5 种诊断模板 + 优化方案 + 排期
+          └──────┬──────┘
+                 │
+          ┌──────▼──────┐
+          │  问题词库   │  输入关键词 → 自动拆分 → LLM 生成拓展词
+          └──────┬──────┘
+                 │
+          ┌──────▼──────┐
+          │  文章创作   │  选择词库 → 选文章类型/风格 → AI 批量生成
+          └──────┬──────┘
+                 │
+        ┌────────┴────────┐
+        ▼                 ▼
+  ┌───────────┐    ┌───────────┐
+  │  媒体发布  │    │  官媒发布  │  Excel 媒体资源库 → 筛选 → 投放
+  └─────┬─────┘    └─────┬─────┘
+        └────────┬────────┘
+                 │
+          ┌──────▼──────┐
+          │  发布管理   │  聚合展示 + 收录/引用追踪
+          └──────┬──────┘
+                 │
+          ┌──────▼──────┐
+          │  数据统计   │  KPI 可视化 → 持续优化策略
+          └─────────────┘
+```
+
+---
+
+## 注意事项
+
+1. 数据库密码安全：config.py 和 geo_config.R 中包含明文数据库连接信息，生产环境务必更换为强密码，且不要提交到公开代码仓库。
+
+2. JWT Secret：生产环境必须更换 JWT_SECRET，建议使用 python -c "import secrets; print(secrets.token_urlsafe(32))" 生成随机密钥。
+
+3. Excel 数据文件：2026年网站媒体及官方自媒体报价-Q2.xls 是媒体发布功能的数据源，统一放在 data/ 目录下（前端通过 /data 读取）。
+
+4. AUTH_DISABLED 开关：生产部署时务必设置 AUTH_DISABLED=False，否则所有请求跳过认证。
+
+5. 跨域通信：前端页面通过 window.postMessage 与 R Shiny 后端通信，本地开发时需注意浏览器跨域策略。
+
+6. 字符编码：数据库及所有相关配置请统一使用 utf8mb4，避免中文内容乱码。
+
+7. 静态资源托管：FastAPI 通过 StaticFiles 直接挂载 www/（SPA）、data/（数据集静态访问）以及 /uploads（对应 data/uploads），无需额外 Nginx 配置即可独立运行。生产环境建议 Nginx 直接托管静态资源以减轻后端负载。
+
+8. 迁移脚本幂等性：所有建表语句使用 CREATE TABLE IF NOT EXISTS，种子数据使用 INSERT IGNORE，支持重复启动。
+
+9. 系统到期提示：前端会展示“系统到期时间：2026-12-31”（见 `www/index.js`），目前为页面提示文案，不属于后端授权控制逻辑。
+
+---
+
+## 联系与支持
+
+如有问题，请通过系统内的联系我们模块提交反馈。
+
+---
+
+*© 2026 时代科技 · GEO 优化平台*

@@ -838,7 +838,37 @@ window.geoArticleWritingRewrite = function(payload) {
     if (base) {
       const body = payload && typeof payload === 'object' ? { ...payload } : {};
       geoApiRequest('/article-writing/rewrite', { method: 'POST', body: JSON.stringify(body) }).then((r) => {
+        const data = r?.data || {};
         dispatchGeoMessage('geo_article_writing_rewrite_result', {
+          req_id: payload?.req_id,
+          ok: Boolean(r?.data),
+          api_base: base,
+          error: r?.data ? '' : (geoLastApiError?.message || '请求失败'),
+          text: String(data?.text || ''),
+          title: String(data?.title || ''),
+          saved: data?.saved === true,
+          save_error: String(data?.save_error || '')
+        });
+      });
+      return;
+    }
+    if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'geo_article_writing_rewrite', payload }, '*');
+  } catch {
+  }
+};
+
+// ===== 优化建议 Rerun 桥接（5 个独立接口，三场景五按钮，彼此无关联） =====
+// product → /article-writing/suggestions/rerun/product
+// brand ×3 → /article-writing/suggestions/rerun/brand/0|1|2
+// activity → /article-writing/suggestions/rerun/activity
+
+window.geoArticleWritingSuggestionsRerunProduct = function(payload) {
+  try {
+    const base = getGeoApiBaseUrl();
+    if (base) {
+      const body = payload && typeof payload === 'object' ? { ...payload } : {};
+      geoApiRequest('/article-writing/suggestions/rerun/product', { method: 'POST', body: JSON.stringify(body) }).then((r) => {
+        dispatchGeoMessage('geo_article_writing_suggestions_rerun_product_result', {
           req_id: payload?.req_id,
           ok: Boolean(r?.data),
           api_base: base,
@@ -848,7 +878,91 @@ window.geoArticleWritingRewrite = function(payload) {
       });
       return;
     }
-    if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'geo_article_writing_rewrite', payload }, '*');
+    if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'geo_article_writing_suggestions_rerun_product', payload }, '*');
+  } catch {
+  }
+};
+
+window.geoArticleWritingSuggestionsRerunBrand0 = function(payload) {
+  try {
+    const base = getGeoApiBaseUrl();
+    if (base) {
+      const body = payload && typeof payload === 'object' ? { ...payload } : {};
+      geoApiRequest('/article-writing/suggestions/rerun/brand/0', { method: 'POST', body: JSON.stringify(body) }).then((r) => {
+        dispatchGeoMessage('geo_article_writing_suggestions_rerun_brand0_result', {
+          req_id: payload?.req_id,
+          ok: Boolean(r?.data),
+          api_base: base,
+          error: r?.data ? '' : (geoLastApiError?.message || '请求失败'),
+          text: String(r?.data?.text || '')
+        });
+      });
+      return;
+    }
+    if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'geo_article_writing_suggestions_rerun_brand0', payload }, '*');
+  } catch {
+  }
+};
+
+window.geoArticleWritingSuggestionsRerunBrand1 = function(payload) {
+  try {
+    const base = getGeoApiBaseUrl();
+    if (base) {
+      const body = payload && typeof payload === 'object' ? { ...payload } : {};
+      geoApiRequest('/article-writing/suggestions/rerun/brand/1', { method: 'POST', body: JSON.stringify(body) }).then((r) => {
+        dispatchGeoMessage('geo_article_writing_suggestions_rerun_brand1_result', {
+          req_id: payload?.req_id,
+          ok: Boolean(r?.data),
+          api_base: base,
+          error: r?.data ? '' : (geoLastApiError?.message || '请求失败'),
+          text: String(r?.data?.text || '')
+        });
+      });
+      return;
+    }
+    if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'geo_article_writing_suggestions_rerun_brand1', payload }, '*');
+  } catch {
+  }
+};
+
+window.geoArticleWritingSuggestionsRerunBrand2 = function(payload) {
+  try {
+    const base = getGeoApiBaseUrl();
+    if (base) {
+      const body = payload && typeof payload === 'object' ? { ...payload } : {};
+      geoApiRequest('/article-writing/suggestions/rerun/brand/2', { method: 'POST', body: JSON.stringify(body) }).then((r) => {
+        dispatchGeoMessage('geo_article_writing_suggestions_rerun_brand2_result', {
+          req_id: payload?.req_id,
+          ok: Boolean(r?.data),
+          api_base: base,
+          error: r?.data ? '' : (geoLastApiError?.message || '请求失败'),
+          text: String(r?.data?.text || '')
+        });
+      });
+      return;
+    }
+    if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'geo_article_writing_suggestions_rerun_brand2', payload }, '*');
+  } catch {
+  }
+};
+
+window.geoArticleWritingSuggestionsRerunActivity = function(payload) {
+  try {
+    const base = getGeoApiBaseUrl();
+    if (base) {
+      const body = payload && typeof payload === 'object' ? { ...payload } : {};
+      geoApiRequest('/article-writing/suggestions/rerun/activity', { method: 'POST', body: JSON.stringify(body) }).then((r) => {
+        dispatchGeoMessage('geo_article_writing_suggestions_rerun_activity_result', {
+          req_id: payload?.req_id,
+          ok: Boolean(r?.data),
+          api_base: base,
+          error: r?.data ? '' : (geoLastApiError?.message || '请求失败'),
+          text: String(r?.data?.text || '')
+        });
+      });
+      return;
+    }
+    if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'geo_article_writing_suggestions_rerun_activity', payload }, '*');
   } catch {
   }
 };
@@ -1446,3 +1560,4 @@ document.addEventListener('click', (e) => {
   if (!button) return;
   button.classList.toggle('btn-active');
 });
+

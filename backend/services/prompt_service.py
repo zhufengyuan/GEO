@@ -194,8 +194,12 @@ def build_question_words_prompt(
     customer_type: str = "",
     decision_stage: str = "",
     words: Optional[dict] = None,
+    enterprise_library_content: str = "",
+    seed_keywords: str = "",
 ) -> str:
-    """构建问题词库生成提示词（2026-08-18 接线既有六阶段模板，新增客户类型）"""
+    """构建问题词库生成提示词（2026-08-18 接线既有六阶段模板，新增客户类型）
+    2026-08-25 P0修复：新增 enterprise_library_content 和 seed_keywords 参数，
+    修复此前硬编码为空字符串导致用户真实信息被丢弃的缺陷。"""
     tpl = _read_template("question_words_prompt.txt")
     w = words or {}
     ct = str(customer_type or "").strip()
@@ -214,8 +218,8 @@ def build_question_words_prompt(
         "pain": str(w.get("pain") or "").strip(),
         "price": str(w.get("price") or "").strip(),
         "other": str(w.get("other") or "").strip(),
-        "enterprise_library_content": "",
-        "seed_keywords": "",
+        "enterprise_library_content": enterprise_library_content or "",
+        "seed_keywords": seed_keywords or "",
     })
 
 
@@ -348,6 +352,8 @@ def build_article_prompt(
         "enterprise_advantage": enterprise.get("enterprise_advantage", ""),
         "product_advantage": enterprise.get("product_advantage", ""),
         "tech_advantage": enterprise.get("tech_advantage", ""),
+        "target_customers": str(kb_base.get("目标客户") or "").strip() if isinstance(kb_base, dict) else "",
+        "sales_region": str(kb_base.get("销售区域范围") or "").strip() if isinstance(kb_base, dict) else "",
         "kb_base_json": _safe_json(kb_base),
         "kb_docs_json": _safe_json(kb_docs),
         "geo_general_rules": geo_general_rules,
@@ -945,4 +951,132 @@ def build_article_writing_rewrite_prompt(
         "article_text": str(article_text or ""),
         "geo_general_rules": geo_general_rules,
         "industry_identification_rules": industry_identification_rules,
+    })
+
+
+def build_article_writing_rewrite_with_suggestions_prompt(
+    enterprise: dict,
+    lexicon: dict,
+    kb_base=None,
+    kb_docs=None,
+    task_tab: str = "",
+    task_question_text: str = "",
+    task_platforms: str = "",
+    task_user_input: str = "",
+    article_text: str = "",
+    suggestions: str = "",
+    brand_idx: Optional[int] = None,
+) -> str:
+    """按优化建议重写文案：输入原文 + 优化建议 + 用户关键信息 + 知识库，输出全新完整文案。
+
+    2026-08-25 第二阶段新增：
+      旧 /rewrite 接口的模板与 /suggestions 完全一致（只输出四段建议、不输出全文），
+      导致"重新优化"按钮拿到的是建议而非改稿（语义错位）。
+      本函数使用新模板 article_writing_rewrite_with_suggestions_prompt.txt，
+      明确要求输出已采纳优化建议的完整文案正文。
+    """
+    tpl = _read_template("article_writing_rewrite_with_suggestions_prompt.txt")
+    if not tpl:
+        # 兜底：新模板缺失时退回旧 rewrite 模板（仅保证有输出，语义仍偏建议）
+        tpl = _read_template("article_writing_rewrite_prompt.txt")
+        if not tpl:
+            return ""
+
+    def _safe_json(v):
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return v
+        try:
+            return json.dumps(v, ensure_ascii=False)
+        except Exception:
+            return str(v)
+
+    brand_version = ""
+    if brand_idx is not None:
+        try:
+            brand_idx = int(brand_idx)
+        except Exception:
+            brand_idx = None
+        if brand_idx is not None and 0 <= brand_idx < 3:
+            brand_version = f"品牌创作第 {brand_idx + 1} 版文案（保持该版本的标题角度与定位，只做建议内优化，不与其他版本趋同）"
+
+    return render_prompt(tpl, {
+        "task_tab": str(task_tab or ""),
+        "task_question_text": str(task_question_text or ""),
+        "task_platforms": str(task_platforms or ""),
+        "task_user_input": str(task_user_input or ""),
+        "kb_base_json": _safe_json(kb_base),
+        "kb_docs_json": _safe_json(kb_docs),
+        "brand_version": brand_version,
+        "article_text": str(article_text or "").strip(),
+        "suggestions": str(suggestions or "").strip(),
+    })
+
+
+def build_article_writing_suggestions_rerun_prompt(
+    enterprise: dict,
+    lexicon: dict,
+    kb_base=None,
+    kb_docs=None,
+    task_tab: str = "",
+    task_question_text: str = "",
+    task_platforms: str = "",
+    task_user_input: str = "",
+    task_product_json: str = "",
+    task_products_json: str = "",
+    task_images_json: str = "",
+    text: str = "",
+    previous_suggestions: str = "",
+    rerun_round: int = 2,
+    brand_idx: Optional[int] = None,
+) -> str:
+    """优化建议 rerun 提示词：原文用 {{text}} 占位符，模板不内嵌长文本。
+
+    三段式结构（用户确认方案）：
+      ① 文案优化的原文提示词（本模板全文）
+      ② 第一次生成的优化内容（previous_suggestions）
+      ③ 重新优化指令（rerun 指令块，含轮次）
+    """
+    tpl = _read_template("article_writing_suggestions_rerun_prompt.txt")
+    if not tpl:
+        tpl = _read_template("article_writing_suggestions_prompt.txt")
+        if not tpl:
+            return ""
+
+    def _safe_json(v):
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return v
+        try:
+            return json.dumps(v, ensure_ascii=False)
+        except Exception:
+            return str(v)
+
+    # brand 场景：追加版本说明，帮助模型区分第几版文案
+    if brand_idx is not None:
+        try:
+            brand_idx = int(brand_idx)
+        except Exception:
+            brand_idx = None
+        if brand_idx is not None and 0 <= brand_idx < 3:
+            previous_suggestions = (
+                f"（品牌创作第 {brand_idx + 1} 版文案对应的优化建议）\n"
+                + str(previous_suggestions or "").strip()
+            )
+
+    return render_prompt(tpl, {
+        "task_tab": str(task_tab or ""),
+        "task_question_text": str(task_question_text or ""),
+        "task_platforms": str(task_platforms or ""),
+        "task_user_input": str(task_user_input or ""),
+        "kb_base_json": _safe_json(kb_base),
+        "kb_docs_json": _safe_json(kb_docs),
+        "task_product_json": str(task_product_json or ""),
+        "task_products_json": str(task_products_json or ""),
+        "task_images_json": str(task_images_json or ""),
+        "text": str(text or "").strip(),
+        "previous_suggestions": str(previous_suggestions or "").strip(),
+        "rerun_round": int(rerun_round or 2),
     })
